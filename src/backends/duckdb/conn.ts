@@ -92,7 +92,22 @@ export async function executeQuery(duckdbJSON: DuckDBJSON): Promise<any[]> {
     const sql = `CALL json_execute_serialized_sql('${jsonStr.replace(/'/g, "\''")}')`
     const reader = await conn.runAndReadAll(sql)
     const rows = reader.getRowObjectsJS()
-    return rows
+    const normalizeValue = (value: unknown): unknown => {
+        if (typeof value === 'bigint') {
+            return Number(value)
+        }
+        if (Array.isArray(value)) {
+            return value.map(normalizeValue)
+        }
+        if (value && typeof value === 'object') {
+            return Object.fromEntries(
+                Object.entries(value).map(([key, val]) => [key, normalizeValue(val)])
+            )
+        }
+        return value
+    }
+
+    return rows.map(row => normalizeValue(row) as Record<string, unknown>)
 }
 
 export async function executeToSQL(duckdbJSON: DuckDBJSON): Promise<string> {

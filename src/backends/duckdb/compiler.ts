@@ -19,6 +19,22 @@ export function compileToDuckDB(node: IRNode): DuckDBJSON {
     }
 }
 
+export function compileToSQL(node: IRNode): string {
+    const query = compileSelect(node)
+    const select = query.select.join(', ')
+    let sql = `SELECT ${select} FROM ${query.from}`
+
+    if (query.groupBy.length > 0) {
+        sql += ` GROUP BY ${query.groupBy.join(', ')}`
+    }
+
+    if (query.orderBy.length > 0) {
+        sql += ` ORDER BY ${query.orderBy.map(order => `${order.expr} ${order.direction}`).join(', ')}`
+    }
+
+    return `${sql};`
+}
+
 function compileNode(node: IRNode): Record<string, unknown> {
     switch (node.op) {
         case 'table':
@@ -142,15 +158,116 @@ function compileAggregate(node: AggNode): Record<string, unknown> {
 
 function compileOrderBy(node: OrderByNode): Record<string, unknown> {
     const baseQuery = compileNode(node.table) as any
+    const modifiers = Array.isArray(baseQuery.modifiers) ? [...baseQuery.modifiers] : []
+
+    modifiers.push({
+        type: 'ORDER_MODIFIER',
+        orders: node.by.map((col, i) => ({
+            type: node.ascending[i] ? 'ASCENDING' : 'DESCENDING',
+            expression: compileNode(col),
+            null_order: 'NULLS_LAST'
+        }))
+    })
 
     return {
         ...baseQuery,
-        orderby: {
-            type: 'ORDER_MODIFIER',
-            orders: node.by.map((col, i) => ({
-                type: node.ascending[i] ? 'ASCENDING' : 'DESCENDING',
-                expression: compileNode(col)
-            }))
-        }
+        modifiers
     }
+}
+
+type OrderBySpec = {
+    expr: string
+    direction: 'ASC' | 'DESC'
+}
+
+type SelectQuery = {
+    select: string[]
+    from: string
+    groupBy: string[]
+    orderBy: OrderBySpec[]
+}
+
+function compileSelect(node: IRNode): SelectQuery {
+    switch (node.op) {
+        case 'table': {
+            const table = node as TableNode
+            return {
+                select: Object.keys(table.schema).map(quoteIdent),
+                from: table.name,
+                groupBy: [],
+                orderBy: []
+            }
+        }
+        case 'group_by': {
+            const groupByNode = node as GroupByNode
+            const baseQuery = compileSelect(groupByNode.table)
+            return {
+                ...baseQuery,
+                groupBy: groupByNode.by.map(expr => compileExpr(expr))
+            }
+        }
+        case 'aggregate': {
+            const aggNode = node as AggNode
+            const baseQuery = compileSelect(aggNode.table)
+            const groupBy = baseQuery.groupBy
+            const aggregates = Object.entries(aggNode.aggregates).map(([alias, expr]) => {
+                return `${compileExpr(expr)} AS ${quoteIdent(alias)}`
+            })
+
+            return {
+                ...baseQuery,
+                select: [...groupBy, ...aggregates]
+            }
+        }
+        case 'order_by': {
+            const orderNode = node as OrderByNode
+            const baseQuery = compileSelect(orderNode.table)
+            return {
+                ...baseQuery,
+                orderBy: orderNode.by.map((expr, i) => ({
+                    expr: compileExpr(expr),
+                    direction: orderNode.ascending[i] ? 'ASC' : 'DESC'
+                }))
+            }
+        }
+        default:
+            throw new Error(`Unknown IR operation: ${node.op}`)
+    }
+}
+
+function compileExpr(node: IRNode): string {
+    switch (node.op) {
+        case 'col':
+            return quoteIdent((node as ColNode).name)
+        case 'agg_func':
+            return compileAggExpr(node as AggFuncNode)
+        default:
+            throw new Error(`Unsupported expression for SQL: ${node.op}`)
+    }
+}
+
+function compileAggExpr(node: AggFuncNode): string {
+    const funcMap: Record<string, string> = {
+        count: 'COUNT',
+        mean: 'AVG',
+        sum: 'SUM',
+        min: 'MIN',
+        max: 'MAX'
+    }
+
+    const func = funcMap[node.func] || node.func.toUpperCase()
+
+    if (node.func === 'count' && !node.arg) {
+        return `${func}(*)`
+    }
+
+    if (!node.arg) {
+        throw new Error(`Aggregate function ${node.func} requires an argument`)
+    }
+
+    return `${func}(${compileExpr(node.arg)})`
+}
+
+function quoteIdent(name: string): string {
+    return `"${name.replace(/"/g, '""')}"`
 }
