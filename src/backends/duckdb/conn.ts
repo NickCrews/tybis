@@ -1,11 +1,11 @@
-import { DuckDBInstance } from '@duckdb/node-api'
+import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api'
 import type { Schema, InferSchema } from '../../types.js'
 import { Table } from '../../table.js'
 import type { TableNode } from '../../ir.js'
 import type { DuckDBJSON } from './compiler.js'
 
 let dbInstance: DuckDBInstance | null = null
-let dbConnection: any | null = null
+let dbConnection: DuckDBConnection | null = null
 
 async function getDB(): Promise<DuckDBInstance> {
     if (!dbInstance) {
@@ -14,7 +14,7 @@ async function getDB(): Promise<DuckDBInstance> {
     return dbInstance
 }
 
-async function getConnection() {
+async function getConnection(): Promise<DuckDBConnection> {
     if (!dbConnection) {
         const db = await getDB()
         dbConnection = await db.connect()
@@ -96,8 +96,12 @@ export async function executeQuery(duckdbJSON: DuckDBJSON): Promise<any[]> {
 }
 
 export async function executeToSQL(duckdbJSON: DuckDBJSON): Promise<string> {
-    // DuckDB doesn't have a JSON → SQL function, only SQL → JSON
-    // For now, we'll generate SQL from our IR manually
-    // This is a simplified version that won't work for complex queries
-    throw new Error('to_sql() not yet implemented - use to_records() to execute queries')
+    const conn = await getConnection()
+
+    const jsonStr = JSON.stringify(duckdbJSON)
+    const sql = `SELECT json_deserialize_sql('${jsonStr.replace(/'/g, "\''")}') as foo`
+    const reader = await conn.runAndReadAll(sql)
+    const rows = reader.getRowObjectsJS()
+    // @ts-expect-error - DuckDB's type inference doesn't know the shape of the result here
+    return rows[0].foo
 }

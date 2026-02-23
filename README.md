@@ -13,10 +13,10 @@ import * as ty from 'tybis'
 
 const data = [
     {species: "Adelie", year: 2007, length: 14.5},
-    {species: "Adelie", year: 2008, length: 15.5},
+    {species: "Adelie", year: 2007, length: 15.5},
+    {species: "Adelie", year: 2008, length: 16.1},
     {species: "Gentoo", year: 2009, length: 11.5},
-    {species: "Gentoo", year: 20020, length: 11.5},
-] as const;
+] as const
 
 penguins = await ty.duckdb.table(data) // Creates a table expression that is bound to the default duckdb connection
 grouped = penguins.group_by(
@@ -27,7 +27,12 @@ grouped = penguins.group_by(
         mean_length=ty.col("length").mean(),
     ).order_by(ty.col("count"))
 console.log(grouped)  // Human readable expression string format, does not execute.
-console.log(grouped.to_json()) // {"op": "select", "order_by": {"op": "col", "col": "count"}, ...}
-console.log(grouped.to_sql()) // SELECT ...
-console.log(await grouped.to_records()) // [{"species": ...}, {...}, ...]
+console.log(await grouped.to_json()) // {"op": "select", "order_by": {"op": "col", "col": "count"}, ...}
+console.log(await grouped.to_sql()) // SELECT ...
+console.log(await grouped.to_records())
+// [
+//     { species: "Gentoo", year: 2009, count: 1, mean_length: 11.5 },
+//     { species: "Adelie", year: 2007, count: 2, mean_length: 15.0 },
+//     { species: "Adelie", year: 2008, count: 1, mean_length: 16.1 },
+// ]
 ```
