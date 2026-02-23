@@ -1,8 +1,8 @@
 import { DuckDBInstance } from '@duckdb/node-api'
-import type { Schema, InferSchema } from '../types.js'
-import { Table } from '../table.js'
-import type { TableNode } from '../ir.js'
-import type { DuckDBJSON } from '../compiler/duckdb.js'
+import type { Schema, InferSchema } from '../../types.js'
+import { Table } from '../../table.js'
+import type { TableNode } from '../../ir.js'
+import type { DuckDBJSON } from './compiler.js'
 
 let dbInstance: DuckDBInstance | null = null
 let dbConnection: any | null = null

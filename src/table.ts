@@ -31,15 +31,15 @@ export class Table<S extends Schema = Schema> {
     }
 
     async to_sql(): Promise<string> {
-        const { compileToDuckDB } = await import('./compiler/duckdb.js')
-        const { executeToSQL } = await import('./backend/duckdb.js')
+        const { compileToDuckDB } = await import('./backends/duckdb/compiler.js')
+        const { executeToSQL } = await import('./backends/duckdb/conn.js')
         const duckdbJSON = compileToDuckDB(this.ir)
         return executeToSQL(duckdbJSON)
     }
 
     async to_records(): Promise<SchemaToJS<S>[]> {
-        const { compileToDuckDB } = await import('./compiler/duckdb.js')
-        const { executeQuery } = await import('./backend/duckdb.js')
+        const { compileToDuckDB } = await import('./backends/duckdb/compiler.js')
+        const { executeQuery } = await import('./backends/duckdb/conn.js')
         const duckdbJSON = compileToDuckDB(this.ir)
         return executeQuery(duckdbJSON)
     }

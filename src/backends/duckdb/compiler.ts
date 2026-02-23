@@ -1,4 +1,4 @@
-import type { IRNode, TableNode, ColNode, AggFuncNode, GroupByNode, AggNode, OrderByNode } from '../ir.js'
+import type { IRNode, TableNode, ColNode, AggFuncNode, GroupByNode, AggNode, OrderByNode } from '../../ir.js'
 
 export interface DuckDBJSON {
     error: boolean
