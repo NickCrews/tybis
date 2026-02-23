@@ -4,7 +4,9 @@ Tybis is a typescript port of [Ibis](https://github.com/ibis-project/ibis). It p
 
 - a lazily-executed dataframe API and expression system, similar to polars, that is fully typesafe (eg the schema of all relations is tracked)
 - a human readable, JSON serializable IR for representing relational operations.
-- compilers that convert this IR to various SQL dialects. At first, we will only support duckdb by converting our IR to duckdb's JSON format: that is the same as DuckDBs: https://duckdb.org/docs/stable/data/json/sql_to_and_from_json
+- compilers that convert this IR to various SQL dialects. At first, we will only support duckdb by converting our IR to duckdb's JSON format: https://duckdb.org/docs/stable/data/json/sql_to_and_from_json
+
+## Example Usage
 
 ```typescript
 import * as ty from 'tybis'
