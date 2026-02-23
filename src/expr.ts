@@ -40,13 +40,13 @@ export abstract class NumericValueExpr<T extends DataType = DataType, S extends 
 export class Col<N extends string, T extends DataType, S extends Schema> extends NumericValueExpr<T, S> {
     constructor(
         public readonly name: N,
-        public readonly type: T,
+        public readonly dtype: T,
         public readonly schema: S
     ) {
         const op: ColOp<T> = {
             opcode: 'col',
-            name: name,
-            type: type
+            name,
+            dtype,
         }
         super(op)
     }
@@ -54,7 +54,7 @@ export class Col<N extends string, T extends DataType, S extends Schema> extends
 
 export class AggFunc<T extends DataType, S extends Schema = Schema> extends ValueExpr<T, S> {
     private _func: 'count' | 'mean' | 'sum' | 'min' | 'max'
-    private _type: T
+    private _dtype: T
 
     constructor(
         funcOrArg?: 'count' | 'mean' | 'sum' | 'min' | 'max' | Expr<DataType, S>,
@@ -80,15 +80,15 @@ export class AggFunc<T extends DataType, S extends Schema = Schema> extends Valu
         }
         super(op)
         this._func = func
-        this._type = 'number' as any as T
+        this._dtype = 'number' as any as T
     }
 
     get func(): 'count' | 'mean' | 'sum' | 'min' | 'max' {
         return this._func
     }
 
-    get type(): T {
-        return this._type
+    get dtype(): T {
+        return this._dtype
     }
 }
 

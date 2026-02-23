@@ -57,10 +57,10 @@ export async function table<T extends readonly Record<string, unknown>[]>(
 
     const columns = Object.keys(schema)
     const columnDefs = columns.map(col => {
-        const type = schema[col] as string
+        const dtype = schema[col] as string
         let sqlType = 'VARCHAR'
-        if (type === 'number') sqlType = 'DOUBLE'
-        else if (type === 'boolean') sqlType = 'BOOLEAN'
+        if (dtype === 'number') sqlType = 'DOUBLE'
+        else if (dtype === 'boolean') sqlType = 'BOOLEAN'
         return `"${col}" ${sqlType}`
     })
     const createSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${columnDefs.join(', ')})`

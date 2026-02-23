@@ -12,7 +12,7 @@ export interface ValueOp<T extends DataType = DataType> extends Op {
 export interface ColOp<T extends DataType = DataType> extends ValueOp<T> {
     opcode: 'col'
     name: string
-    type: T
+    dtype: T
 }
 
 export interface AggFuncOp<T extends DataType = DataType> extends ValueOp<T> {
