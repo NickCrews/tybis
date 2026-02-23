@@ -1,4 +1,4 @@
-import type { IRNode, TableNode, ColNode, AggFuncNode, GroupByNode, AggNode, OrderByNode } from '../../ir.js'
+import type { Op, TableOp, ColOp, AggFuncOp, GroupByOp, AggregateOp, OrderByOp } from '../../ops.js'
 
 export interface DuckDBJSON {
     error: boolean
@@ -8,7 +8,7 @@ export interface DuckDBJSON {
     }>
 }
 
-export function compileToDuckDB(node: IRNode): DuckDBJSON {
+export function compileToDuckDB(node: Op): DuckDBJSON {
     const queryNode = compileNode(node)
     return {
         error: false,
@@ -19,7 +19,7 @@ export function compileToDuckDB(node: IRNode): DuckDBJSON {
     }
 }
 
-export function compileToSQL(node: IRNode): string {
+export function compileToSQL(node: Op): string {
     const query = compileSelect(node)
     const select = query.select.join(', ')
     let sql = `SELECT ${select} FROM ${query.from}`
@@ -35,26 +35,26 @@ export function compileToSQL(node: IRNode): string {
     return `${sql};`
 }
 
-function compileNode(node: IRNode): Record<string, unknown> {
-    switch (node.op) {
+function compileNode(node: Op): Record<string, unknown> {
+    switch (node.opcode) {
         case 'table':
-            return compileTable(node as TableNode)
+            return compileTable(node as TableOp)
         case 'col':
-            return compileCol(node as ColNode)
+            return compileCol(node as ColOp)
         case 'agg_func':
-            return compileAggFunc(node as AggFuncNode)
+            return compileAggFunc(node as AggFuncOp)
         case 'group_by':
-            return compileGroupBy(node as GroupByNode)
+            return compileGroupBy(node as GroupByOp)
         case 'aggregate':
-            return compileAggregate(node as AggNode)
+            return compileAggregate(node as AggregateOp)
         case 'order_by':
-            return compileOrderBy(node as OrderByNode)
+            return compileOrderBy(node as OrderByOp)
         default:
-            throw new Error(`Unknown IR operation: ${node.op}`)
+            throw new Error(`Unknown operation: ${node.opcode}`)
     }
 }
 
-function compileTable(node: TableNode): Record<string, unknown> {
+function compileTable(node: TableOp): Record<string, unknown> {
     return {
         type: 'SELECT_NODE',
         modifiers: [],
@@ -84,7 +84,7 @@ function compileTable(node: TableNode): Record<string, unknown> {
     }
 }
 
-function compileCol(node: ColNode): Record<string, unknown> {
+function compileCol(node: ColOp): Record<string, unknown> {
     return {
         class: 'COLUMN_REF',
         type: 'COLUMN_REF',
@@ -92,7 +92,7 @@ function compileCol(node: ColNode): Record<string, unknown> {
     }
 }
 
-function compileAggFunc(node: AggFuncNode): Record<string, unknown> {
+function compileAggFunc(node: AggFuncOp): Record<string, unknown> {
     const funcMap: Record<string, string> = {
         count: 'count_star',
         mean: 'avg',
@@ -124,14 +124,14 @@ function compileAggFunc(node: AggFuncNode): Record<string, unknown> {
     }
 }
 
-function compileGroupBy(node: GroupByNode): Record<string, unknown> {
+function compileGroupBy(node: GroupByOp): Record<string, unknown> {
     return {
         ...compileNode(node.table) as Record<string, unknown>,
         group_expressions: node.by.map(b => compileNode(b))
     }
 }
 
-function compileAggregate(node: AggNode): Record<string, unknown> {
+function compileAggregate(node: AggregateOp): Record<string, unknown> {
     const baseQuery = compileNode(node.table) as any
 
     const selectList = []
@@ -156,15 +156,15 @@ function compileAggregate(node: AggNode): Record<string, unknown> {
     }
 }
 
-function compileOrderBy(node: OrderByNode): Record<string, unknown> {
+function compileOrderBy(node: OrderByOp): Record<string, unknown> {
     const baseQuery = compileNode(node.table) as any
     const modifiers = Array.isArray(baseQuery.modifiers) ? [...baseQuery.modifiers] : []
 
     modifiers.push({
         type: 'ORDER_MODIFIER',
-        orders: node.by.map((col, i) => ({
-            type: node.ascending[i] ? 'ASCENDING' : 'DESCENDING',
-            expression: compileNode(col),
+        orders: node.keys.map((col, i) => ({
+            type: col.ascending ? 'ASCENDING' : 'DESCENDING',
+            expression: compileNode(col.arg),
             null_order: 'NULLS_LAST'
         }))
     })
@@ -187,10 +187,10 @@ type SelectQuery = {
     orderBy: OrderBySpec[]
 }
 
-function compileSelect(node: IRNode): SelectQuery {
-    switch (node.op) {
+function compileSelect(node: Op): SelectQuery {
+    switch (node.opcode) {
         case 'table': {
-            const table = node as TableNode
+            const table = node as TableOp
             return {
                 select: Object.keys(table.schema).map(quoteIdent),
                 from: table.name,
@@ -199,7 +199,7 @@ function compileSelect(node: IRNode): SelectQuery {
             }
         }
         case 'group_by': {
-            const groupByNode = node as GroupByNode
+            const groupByNode = node as GroupByOp
             const baseQuery = compileSelect(groupByNode.table)
             return {
                 ...baseQuery,
@@ -207,7 +207,7 @@ function compileSelect(node: IRNode): SelectQuery {
             }
         }
         case 'aggregate': {
-            const aggNode = node as AggNode
+            const aggNode = node as AggregateOp
             const baseQuery = compileSelect(aggNode.table)
             const groupBy = baseQuery.groupBy
             const aggregates = Object.entries(aggNode.aggregates).map(([alias, expr]) => {
@@ -220,33 +220,33 @@ function compileSelect(node: IRNode): SelectQuery {
             }
         }
         case 'order_by': {
-            const orderNode = node as OrderByNode
+            const orderNode = node as OrderByOp
             const baseQuery = compileSelect(orderNode.table)
             return {
                 ...baseQuery,
-                orderBy: orderNode.by.map((expr, i) => ({
-                    expr: compileExpr(expr),
-                    direction: orderNode.ascending[i] ? 'ASC' : 'DESC'
+                orderBy: orderNode.keys.map(key => ({
+                    expr: compileExpr(key.arg),
+                    direction: key.ascending ? 'ASC' : 'DESC'
                 }))
             }
         }
         default:
-            throw new Error(`Unknown IR operation: ${node.op}`)
+            throw new Error(`Unknown operation: ${node.opcode}`)
     }
 }
 
-function compileExpr(node: IRNode): string {
-    switch (node.op) {
+function compileExpr(node: Op): string {
+    switch (node.opcode) {
         case 'col':
-            return quoteIdent((node as ColNode).name)
+            return quoteIdent((node as ColOp).name)
         case 'agg_func':
-            return compileAggExpr(node as AggFuncNode)
+            return compileAggExpr(node as AggFuncOp)
         default:
-            throw new Error(`Unsupported expression for SQL: ${node.op}`)
+            throw new Error(`Unsupported expression for SQL: ${node.opcode}`)
     }
 }
 
-function compileAggExpr(node: AggFuncNode): string {
+function compileAggExpr(node: AggFuncOp): string {
     const funcMap: Record<string, string> = {
         count: 'COUNT',
         mean: 'AVG',

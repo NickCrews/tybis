@@ -27,7 +27,7 @@ export type AggResult<Agg extends Record<string, unknown>> = {
 
 export type MergeSchema<S1 extends Schema, S2 extends Schema> = S1 & S2
 
-export type ExtractType<S extends Schema, K extends keyof S> = S[K]
+export type SchemaFieldType<S extends Schema, K extends keyof S> = S[K]
 
 export type JSType<T extends DataType> =
     T extends 'string' ? string
@@ -38,3 +38,7 @@ export type JSType<T extends DataType> =
 export type SchemaToJS<S extends Schema> = {
     [K in keyof S]: JSType<S[K]>
 }
+
+export type ColFactory<S extends Schema> = <K extends keyof S & string>(
+    name: K
+) => { mean(): any; sum(): any; min(): any; max(): any } & { type: S[K] }

@@ -25,11 +25,11 @@ describe('Type Safety', () => {
 
         const penguins = await ty.duckdb.table(data)
         const grouped = penguins
-            .group_by(ty.col("species"), ty.col("year"))
-            .agg({
+            .group_by(t => [t.col("species"), t.col("year")])
+            .agg(t => ({
                 count: ty.count(),
-                mean_length: ty.col("length").mean(),
-            })
+                mean_length: t.col("length").mean(),
+            }))
 
         expectTypeOf(grouped).toMatchTypeOf<ty.Table<{
             species: 'string'

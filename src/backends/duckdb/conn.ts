@@ -1,7 +1,7 @@
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api'
 import type { Schema, InferSchema } from '../../datatypes.js'
 import { Table } from '../../table.js'
-import type { TableNode } from '../../ir.js'
+import type { TableOp } from '../../ops.js'
 import type { DuckDBJSON } from './compiler.js'
 
 let dbInstance: DuckDBInstance | null = null
@@ -76,13 +76,13 @@ export async function table<T extends readonly Record<string, unknown>[]>(
         await conn.run(insertSQL)
     }
 
-    const tableIR: TableNode = {
-        op: 'table',
+    const tableOp: TableOp = {
+        opcode: 'table',
         name: tableName,
         schema
     }
 
-    return new Table(schema, tableIR)
+    return new Table(schema, tableOp)
 }
 
 export async function executeQuery(duckdbJSON: DuckDBJSON): Promise<any[]> {
