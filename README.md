@@ -18,7 +18,7 @@ const data = [
     {species: "Gentoo", year: 20020, length: 11.5},
 ] as const;
 
-penguins = ty.duckdb.table(data) // Creates a table expression that is bound to the default duckdb connection
+penguins = await ty.duckdb.table(data) // Creates a table expression that is bound to the default duckdb connection
 grouped = penguins.group_by(
         ty.col("species"),
         ty.col("year"),
@@ -29,5 +29,5 @@ grouped = penguins.group_by(
 console.log(grouped)  // Human readable expression string format, does not execute.
 console.log(grouped.to_json()) // {"op": "select", "order_by": {"op": "col", "col": "count"}, ...}
 console.log(grouped.to_sql()) // SELECT ...
-console.log(grouped.to_records()) // [{"species": ...}, {...}, ...]
+console.log(await grouped.to_records()) // [{"species": ...}, {...}, ...]
 ```
