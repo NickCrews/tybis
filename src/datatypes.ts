@@ -1,6 +1,6 @@
-export type Schema = Record<string, SchemaType>
+export type Schema = Record<string, DataType>
 
-export type SchemaType = 'string' | 'number' | 'boolean' | 'null'
+export type DataType = 'string' | 'number' | 'boolean' | 'null'
 
 export type InferSchema<T extends readonly unknown[]> =
     T extends readonly [infer First, ...infer Rest]
@@ -29,7 +29,7 @@ export type MergeSchema<S1 extends Schema, S2 extends Schema> = S1 & S2
 
 export type ExtractType<S extends Schema, K extends keyof S> = S[K]
 
-export type JSType<T extends SchemaType> =
+export type JSType<T extends DataType> =
     T extends 'string' ? string
     : T extends 'number' ? number
     : T extends 'boolean' ? boolean

@@ -1,7 +1,7 @@
-import type { Schema, SchemaType } from './types.js'
+import type { Schema, DataType } from './datatypes.js'
 import type { IRNode, ColNode, AggFuncNode } from './ir.js'
 
-export abstract class Expr<T extends SchemaType = SchemaType, S extends Schema = Schema> {
+export abstract class Expr<T extends DataType = DataType, S extends Schema = Schema> {
     abstract toIR(): IRNode
 
     mean(): AggFunc<'number', S> {
@@ -21,7 +21,7 @@ export abstract class Expr<T extends SchemaType = SchemaType, S extends Schema =
     }
 }
 
-export class Col<N extends string, T extends SchemaType, S extends Schema> extends Expr<T, S> {
+export class Col<N extends string, T extends DataType, S extends Schema> extends Expr<T, S> {
     constructor(
         public readonly name: N,
         public readonly type: T,
@@ -39,10 +39,10 @@ export class Col<N extends string, T extends SchemaType, S extends Schema> exten
     }
 }
 
-export class AggFunc<T extends SchemaType, S extends Schema = Schema> extends Expr<T, S> {
+export class AggFunc<T extends DataType, S extends Schema = Schema> extends Expr<T, S> {
     constructor(
         public readonly func: 'count' | 'mean' | 'sum' | 'min' | 'max',
-        public readonly arg?: Expr<SchemaType, S>
+        public readonly arg?: Expr<DataType, S>
     ) {
         super()
     }

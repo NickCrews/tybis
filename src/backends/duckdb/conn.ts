@@ -1,5 +1,5 @@
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api'
-import type { Schema, InferSchema } from '../../types.js'
+import type { Schema, InferSchema } from '../../datatypes.js'
 import { Table } from '../../table.js'
 import type { TableNode } from '../../ir.js'
 import type { DuckDBJSON } from './compiler.js'

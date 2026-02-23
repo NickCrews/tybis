@@ -1,4 +1,4 @@
-import type { Schema, GroupBySchema, AggResult, MergeSchema, SchemaToJS } from './types.js'
+import type { Schema, GroupBySchema, AggResult, MergeSchema, SchemaToJS } from './datatypes.js'
 import type { Expr } from './expr.js'
 import type { IRNode, GroupByNode, AggNode, OrderByNode } from './ir.js'
 import { Col } from './expr.js'

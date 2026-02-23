@@ -1,4 +1,4 @@
-import type { Schema, SchemaType } from './types.js'
+import type { Schema, DataType } from './datatypes.js'
 
 export interface IRNode {
     op: string
@@ -14,7 +14,7 @@ export interface TableNode extends IRNode {
 export interface ColNode extends IRNode {
     op: 'col'
     name: string
-    type: SchemaType
+    type: DataType
 }
 
 export interface AggFuncNode extends IRNode {
