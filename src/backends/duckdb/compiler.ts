@@ -1,5 +1,11 @@
 import type { Op, TableOp, ColOp, AggFuncOp, GroupByOp, AggregateOp, OrderByOp } from '../../ops.js'
 
+export const DuckDBCompiler = class {
+    toSql(op: Op): string {
+        return compileToSQL(op)
+    }
+}
+
 export interface DuckDBJSON {
     error: boolean
     statements: Array<{

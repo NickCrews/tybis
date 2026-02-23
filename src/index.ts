@@ -5,6 +5,10 @@ export type { TybisOperation, Op as Operation, ValueOp, TableOp, ColOp, AggFuncO
 
 import * as duckdbConn from './backends/duckdb/conn.js'
 
+// TODO: can I have a top level await?
+const _duckdbDefaultConn = await duckdbConn.defaultConn()
+
 export const duckdb = {
-    table: duckdbConn.table
+    defaultConn: _duckdbDefaultConn,
+    table: _duckdbDefaultConn.table.bind(_duckdbDefaultConn),
 }

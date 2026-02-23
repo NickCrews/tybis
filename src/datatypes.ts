@@ -42,3 +42,28 @@ export type SchemaToJS<S extends Schema> = {
 export type ColFactory<S extends Schema> = <K extends keyof S & string>(
     name: K
 ) => { mean(): any; sum(): any; min(): any; max(): any } & { type: S[K] }
+
+export function inferDataType(value: unknown): DataType {
+    if (typeof value === 'string') {
+        return 'string'
+    } else if (typeof value === 'number') {
+        return 'number'
+    } else if (typeof value === 'boolean') {
+        return 'boolean'
+    } else {
+        return 'null'
+    }
+}
+
+export function inferSchemaFromRecords(records: readonly Record<string, unknown>[]): Schema {
+    if (records.length === 0) {
+        throw new Error('Cannot infer schema from empty data')
+    }
+    const first = records[0]!
+    const schema: Schema = {}
+
+    for (const [key, value] of Object.entries(first)) {
+        schema[key] = inferDataType(value)
+    }
+    return schema
+}

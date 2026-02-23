@@ -1,7 +1,9 @@
 import type { Schema, GroupBySchema, AggResult, MergeSchema, SchemaToJS } from './datatypes.js'
 import type { Expr } from './expr.js'
-import type { Op, GroupByOp, AggregateOp, OrderByOp } from './ops.js'
+import type { Op, GroupByOp, AggregateOp, OrderByOp, TableOp } from './ops.js'
 import { Col } from './expr.js'
+import { getSqlCompiler } from './backends/baseCompiler.js'
+import { getConn } from './backends/baseConn.js'
 
 class SchemaTable<S extends Schema> {
     constructor(private schema: S) { }
@@ -35,7 +37,7 @@ export class Table<S extends Schema = Schema> {
         const colsArray = cols(table)
         const colsList = Array.isArray(colsArray) ? colsArray : [colsArray]
 
-        const orderByOp: OrderByOp = {
+        const orderByOp: OrderByOp<S> = {
             opcode: 'order_by',
             table: this._arg,
             keys: colsList.map(c => ({
@@ -53,15 +55,13 @@ export class Table<S extends Schema = Schema> {
     }
 
     async to_sql(): Promise<string> {
-        const { compileToSQL } = await import('./backends/duckdb/compiler.js')
-        return compileToSQL(this._arg)
+        const compiler = getSqlCompiler(this._arg)
+        return compiler.toSql(this._arg)
     }
 
     async to_records(): Promise<SchemaToJS<S>[]> {
-        const { compileToDuckDB } = await import('./backends/duckdb/compiler.js')
-        const { executeQuery } = await import('./backends/duckdb/conn.js')
-        const duckdbJSON = compileToDuckDB(this._arg)
-        return executeQuery(duckdbJSON)
+        const conn = await getConn(this._arg)
+        return conn.to_records(this._arg as Op & { schema: S })
     }
 
     toString(): string {
@@ -107,14 +107,14 @@ export class GroupedTable<S extends Schema, K extends (keyof S & string)[]> {
         const table = new SchemaTable(this.schema)
         const aggregatesObj = aggregates(table)
 
-        const groupByOp: GroupByOp = {
+        const groupByOp: GroupByOp<S> = {
             opcode: 'group_by',
             table: this.tableOp,
             by: this.groupCols.map(c => c.op()),
             schema: this.schema
         }
 
-        const aggOp: AggregateOp = {
+        const aggOp: AggregateOp<S> = {
             opcode: 'aggregate',
             table: groupByOp,
             aggregates: Object.fromEntries(

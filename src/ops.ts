@@ -21,24 +21,24 @@ export interface AggFuncOp<T extends DataType = DataType> extends ValueOp<T> {
     arg?: ValueOp
 }
 
-export interface TableOp extends Op {
+export interface TableOp<S extends Schema = Schema> extends Op {
     opcode: 'table'
     name: string
-    schema: Schema
+    schema: S
 }
 
-export interface GroupByOp extends Op {
+export interface GroupByOp<S extends Schema = Schema> extends Op {
     opcode: 'group_by'
     table: Op
     by: ValueOp[]
-    schema: Schema
+    schema: S
 }
 
-export interface AggregateOp extends Op {
+export interface AggregateOp<S extends Schema = Schema> extends Op {
     opcode: 'aggregate'
     table: Op
     aggregates: Record<string, ValueOp>
-    schema: Schema
+    schema: S
 }
 
 export interface OrderByKeyOp extends Op {
@@ -47,11 +47,11 @@ export interface OrderByKeyOp extends Op {
     ascending: boolean
 }
 
-export interface OrderByOp extends Op {
+export interface OrderByOp<S extends Schema = Schema> extends Op {
     opcode: 'order_by'
     table: Op
     keys: OrderByKeyOp[]
-    schema: Schema
+    schema: S
 }
 
 export type TybisOperation = TableOp | ColOp | AggFuncOp | GroupByOp | AggregateOp | OrderByOp

@@ -1,122 +1,108 @@
 import { DuckDBInstance, DuckDBConnection } from '@duckdb/node-api'
-import type { Schema, InferSchema } from '../../datatypes.js'
+import { type Schema, type InferSchema, type SchemaToJS, inferSchemaFromRecords } from '../../datatypes.js'
 import { Table } from '../../table.js'
-import type { TableOp } from '../../ops.js'
-import type { DuckDBJSON } from './compiler.js'
+import type { Op, TableOp } from '../../ops.js'
+import { type DuckDBJSON, compileToDuckDB } from './compiler.js'
 
-let dbInstance: DuckDBInstance | null = null
-let dbConnection: DuckDBConnection | null = null
+export class DuckDBConn {
+    private duckdbInstance: DuckDBInstance
+    private duckdbConnection: DuckDBConnection
+    private tableCounter: number = 0
 
-async function getDB(): Promise<DuckDBInstance> {
-    if (!dbInstance) {
-        dbInstance = await DuckDBInstance.create(':memory:')
-    }
-    return dbInstance
-}
-
-async function getConnection(): Promise<DuckDBConnection> {
-    if (!dbConnection) {
-        const db = await getDB()
-        dbConnection = await db.connect()
-    }
-    return dbConnection
-}
-
-function inferSchemaFromData(data: readonly Record<string, unknown>[]): Schema {
-    if (data.length === 0) {
-        return {}
+    constructor(instance: DuckDBInstance, connection: DuckDBConnection) {
+        this.duckdbInstance = instance
+        this.duckdbConnection = connection
     }
 
-    const schema: Schema = {}
-    const first = data[0] as Record<string, unknown>
-
-    for (const [key, value] of Object.entries(first)) {
-        if (typeof value === 'string') {
-            schema[key] = 'string'
-        } else if (typeof value === 'number') {
-            schema[key] = 'number'
-        } else if (typeof value === 'boolean') {
-            schema[key] = 'boolean'
-        } else {
-            schema[key] = 'null'
-        }
+    static async create(): Promise<DuckDBConn> {
+        const instance = await DuckDBInstance.create(':memory:')
+        const connection = await instance.connect()
+        return new DuckDBConn(instance, connection)
     }
 
-    return schema
-}
+    async table<T extends readonly Record<string, unknown>[]>(
+        data: T
+    ): Promise<Table<InferSchema<T>>> {
+        const schema = inferSchemaFromRecords(data) as InferSchema<T>
+        const tableName = `__tybis_table_${this.tableCounter++}`
 
-let tableCounter = 0
-
-export async function table<T extends readonly Record<string, unknown>[]>(
-    data: T
-): Promise<Table<InferSchema<T>>> {
-    const schema = inferSchemaFromData(data) as InferSchema<T>
-    const tableName = `__tybis_table_${tableCounter++}`
-
-    const conn = await getConnection()
-
-    const columns = Object.keys(schema)
-    const columnDefs = columns.map(col => {
-        const dtype = schema[col] as string
-        let sqlType = 'VARCHAR'
-        if (dtype === 'number') sqlType = 'DOUBLE'
-        else if (dtype === 'boolean') sqlType = 'BOOLEAN'
-        return `"${col}" ${sqlType}`
-    })
-    const createSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${columnDefs.join(', ')})`
-
-    await conn.run(createSQL)
-
-    for (const row of data) {
-        const values = columns.map(col => {
-            const val = row[col]
-            return typeof val === 'string' ? `'${String(val).replace(/'/g, "''")}'` : val
+        const columns = Object.keys(schema)
+        const columnDefs = columns.map(col => {
+            const dtype = schema[col] as string
+            let sqlType = 'VARCHAR'
+            if (dtype === 'number') sqlType = 'DOUBLE'
+            else if (dtype === 'boolean') sqlType = 'BOOLEAN'
+            return `"${col}" ${sqlType}`
         })
-        const insertSQL = `INSERT INTO ${tableName} VALUES (${values.join(', ')})`
-        await conn.run(insertSQL)
+        const createSQL = `CREATE TABLE IF NOT EXISTS ${tableName} (${columnDefs.join(', ')})`
+
+        await this.duckdbConnection.run(createSQL)
+
+        for (const row of data) {
+            const values = columns.map(col => {
+                const val = row[col]
+                return typeof val === 'string' ? `'${String(val).replace(/'/g, "''")}'` : val
+            })
+            const insertSQL = `INSERT INTO ${tableName} VALUES (${values.join(', ')})`
+            await this.duckdbConnection.run(insertSQL)
+        }
+
+        const tableOp: TableOp<InferSchema<T>> = {
+            opcode: 'table',
+            name: tableName,
+            schema
+        }
+
+        return new Table(schema, tableOp)
     }
 
-    const tableOp: TableOp = {
-        opcode: 'table',
-        name: tableName,
-        schema
+    async to_records(op: Op): Promise<SchemaToJS<any>[]> {
+        const duckdbJSON = compileToDuckDB(op)
+        return await this.executeQuery(duckdbJSON)
     }
 
-    return new Table(schema, tableOp)
+
+
+    async executeQuery(duckdbJSON: DuckDBJSON): Promise<any[]> {
+        const jsonStr = JSON.stringify(duckdbJSON)
+        const sql = `CALL json_execute_serialized_sql('${jsonStr.replace(/'/g, "\''")}')`
+        const reader = await this.duckdbConnection.runAndReadAll(sql)
+        const rows = reader.getRowObjectsJS()
+        const normalizeValue = (value: unknown): unknown => {
+            if (typeof value === 'bigint') {
+                return Number(value)
+            }
+            if (Array.isArray(value)) {
+                return value.map(normalizeValue)
+            }
+            if (value && typeof value === 'object') {
+                return Object.fromEntries(
+                    Object.entries(value).map(([key, val]) => [key, normalizeValue(val)])
+                )
+            }
+            return value
+        }
+
+        return rows.map(row => normalizeValue(row) as Record<string, unknown>)
+    }
+
+    async executeToSQL(duckdbJSON: DuckDBJSON): Promise<string> {
+        const jsonStr = JSON.stringify(duckdbJSON)
+        const sql = `SELECT json_deserialize_sql('${jsonStr.replace(/'/g, "\''")}') as foo`
+        const reader = await this.duckdbConnection.runAndReadAll(sql)
+        const rows = reader.getRowObjectsJS()
+        // @ts-expect-error - DuckDB's type inference doesn't know the shape of the result here
+        return rows[0].foo
+    }
 }
 
-export async function executeQuery(duckdbJSON: DuckDBJSON): Promise<any[]> {
-    const conn = await getConnection()
+let _defaultConn: DuckDBConn | null = null
 
-    const jsonStr = JSON.stringify(duckdbJSON)
-    const sql = `CALL json_execute_serialized_sql('${jsonStr.replace(/'/g, "\''")}')`
-    const reader = await conn.runAndReadAll(sql)
-    const rows = reader.getRowObjectsJS()
-    const normalizeValue = (value: unknown): unknown => {
-        if (typeof value === 'bigint') {
-            return Number(value)
-        }
-        if (Array.isArray(value)) {
-            return value.map(normalizeValue)
-        }
-        if (value && typeof value === 'object') {
-            return Object.fromEntries(
-                Object.entries(value).map(([key, val]) => [key, normalizeValue(val)])
-            )
-        }
-        return value
+export async function defaultConn(): Promise<DuckDBConn> {
+    if (_defaultConn) {
+        return _defaultConn
     }
-
-    return rows.map(row => normalizeValue(row) as Record<string, unknown>)
-}
-
-export async function executeToSQL(duckdbJSON: DuckDBJSON): Promise<string> {
-    const conn = await getConnection()
-
-    const jsonStr = JSON.stringify(duckdbJSON)
-    const sql = `SELECT json_deserialize_sql('${jsonStr.replace(/'/g, "\''")}') as foo`
-    const reader = await conn.runAndReadAll(sql)
-    const rows = reader.getRowObjectsJS()
-    // @ts-expect-error - DuckDB's type inference doesn't know the shape of the result here
-    return rows[0].foo
+    const conn = await DuckDBConn.create()
+    _defaultConn = conn
+    return conn
 }
