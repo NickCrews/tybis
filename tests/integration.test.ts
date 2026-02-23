@@ -40,9 +40,9 @@ describe('Tybis Integration Tests', () => {
                 "keys": [
                   {
                     "arg": {
+                      "dtype": "number",
                       "name": "mean_length",
                       "opcode": "col",
-                      "type": "number",
                     },
                     "ascending": true,
                     "opcode": "order_by_key",
@@ -63,9 +63,9 @@ describe('Tybis Integration Tests', () => {
                     },
                     "mean_length": {
                       "arg": {
+                        "dtype": "number",
                         "name": "length",
                         "opcode": "col",
-                        "type": "number",
                       },
                       "func": "mean",
                       "opcode": "agg_func",
@@ -81,14 +81,14 @@ describe('Tybis Integration Tests', () => {
                   "table": {
                     "by": [
                       {
+                        "dtype": "string",
                         "name": "species",
                         "opcode": "col",
-                        "type": "string",
                       },
                       {
+                        "dtype": "number",
                         "name": "year",
                         "opcode": "col",
-                        "type": "number",
                       },
                     ],
                     "opcode": "group_by",
