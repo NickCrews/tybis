@@ -1,104 +1,132 @@
-import type { Schema, DataType } from './datatypes.js'
-import type { Op, ValueOp, ColOp, AggFuncOp } from './ops.js'
+import type { DataType, Schema } from './datatypes.js'
 
-export abstract class Expr<T extends DataType = DataType, S extends Schema = Schema> {
-    constructor(protected readonly _arg: Op) { }
-
-    op(): Op {
-        return this._arg
-    }
-}
-
-export abstract class ValueExpr<T extends DataType = DataType, S extends Schema = Schema> extends Expr<T, S> {
-    constructor(protected readonly _valueOp: ValueOp<T>) {
-        super(_valueOp)
-    }
-
-    override op(): ValueOp<T> {
-        return this._valueOp
-    }
-}
-
-export abstract class NumericValueExpr<T extends DataType = DataType, S extends Schema = Schema> extends ValueExpr<T, S> {
-    mean(): AggFunc<'number', S> {
-        return new AggFunc<'number', S>('mean', this as any)
-    }
-
-    sum(): AggFunc<'number', S> {
-        return new AggFunc<'number', S>('sum', this as any)
-    }
-
-    min(): AggFunc<T, S> {
-        return new AggFunc<T, S>('min', this as any)
-    }
-
-    max(): AggFunc<T, S> {
-        return new AggFunc<T, S>('max', this as any)
-    }
-}
-
-export class Col<N extends string, T extends DataType, S extends Schema> extends NumericValueExpr<T, S> {
+/**
+ * Base class for all PRQL expressions. Carries both the PRQL text representation
+ * and the TypeScript-level DataType for compile-time type tracking.
+ */
+export class Expr<T extends DataType = DataType> {
     constructor(
-        public readonly name: N,
-        public readonly dtype: T,
-        public readonly schema: S
-    ) {
-        const op: ColOp<T> = {
-            opcode: 'col',
-            name,
-            dtype,
-        }
-        super(op)
+        protected readonly _prql: string,
+        readonly dtype: T
+    ) { }
+
+    prql(): string { return this._prql }
+
+    // Null checking
+    is_not_null(): BoolExpr {
+        return new BoolExpr(`${this._prql} != null`)
+    }
+
+    // Equality
+    eq(value: string | number | boolean | Expr<DataType>): BoolExpr {
+        const v = value instanceof Expr ? value.prql() : fmtLiteral(value)
+        return new BoolExpr(`${this._prql} == ${v}`)
+    }
+
+    // Numeric comparisons
+    gt(value: number | Expr<DataType>): BoolExpr {
+        const v = value instanceof Expr ? value.prql() : value
+        return new BoolExpr(`${this._prql} > ${v}`)
+    }
+
+    gte(value: number | Expr<DataType>): BoolExpr {
+        const v = value instanceof Expr ? value.prql() : value
+        return new BoolExpr(`${this._prql} >= ${v}`)
+    }
+
+    lt(value: number | Expr<DataType>): BoolExpr {
+        const v = value instanceof Expr ? value.prql() : value
+        return new BoolExpr(`${this._prql} < ${v}`)
+    }
+
+    lte(value: number | Expr<DataType>): BoolExpr {
+        const v = value instanceof Expr ? value.prql() : value
+        return new BoolExpr(`${this._prql} <= ${v}`)
+    }
+
+    div(value: number | Expr<DataType>): Expr<'float64'> {
+        const v = value instanceof Expr ? value.prql() : value
+        return new Expr(`${this._prql} / ${v}`, 'float64')
+    }
+
+    // Aggregations (for use inside agg())
+    mean(): AggExpr<'float64'> {
+        return new AggExpr(`average ${this._prql}`, 'float64')
+    }
+
+    sum(): AggExpr<'float64'> {
+        return new AggExpr(`sum ${this._prql}`, 'float64')
+    }
+
+    min(): AggExpr<T> {
+        return new AggExpr(`min ${this._prql}`, this.dtype)
+    }
+
+    max(): AggExpr<T> {
+        return new AggExpr(`max ${this._prql}`, this.dtype)
+    }
+
+    // Sort direction (for use inside sort())
+    desc(): SortExpr {
+        return new SortExpr(`-${this._prql}`)
+    }
+
+    asc(): SortExpr {
+        return new SortExpr(this._prql)
     }
 }
 
-export class AggFunc<T extends DataType, S extends Schema = Schema> extends ValueExpr<T, S> {
-    private _func: 'count' | 'mean' | 'sum' | 'min' | 'max'
-    private _dtype: T
-
-    constructor(
-        funcOrArg?: 'count' | 'mean' | 'sum' | 'min' | 'max' | Expr<DataType, S>,
-        argIfFunc?: Expr<DataType, S>
-    ) {
-        let func: 'count' | 'mean' | 'sum' | 'min' | 'max'
-        let arg: Expr<DataType, S> | undefined
-
-        if (typeof funcOrArg === 'string') {
-            func = funcOrArg
-            arg = argIfFunc
-        } else {
-            func = 'count'
-            arg = funcOrArg
-        }
-
-        const op: AggFuncOp<T> = {
-            opcode: 'agg_func',
-            func
-        }
-        if (arg) {
-            op.arg = arg.op() as ValueOp
-        }
-        super(op)
-        this._func = func
-        this._dtype = 'number' as any as T
+/** A boolean-typed expression, used in filter(). */
+export class BoolExpr extends Expr<'boolean'> {
+    constructor(prql: string) {
+        super(prql, 'boolean')
     }
 
-    get func(): 'count' | 'mean' | 'sum' | 'min' | 'max' {
-        return this._func
+    and(other: BoolExpr): BoolExpr {
+        return new BoolExpr(`(${this._prql}) && (${other._prql})`)
     }
 
-    get dtype(): T {
-        return this._dtype
+    or(other: BoolExpr): BoolExpr {
+        return new BoolExpr(`(${this._prql}) || (${other._prql})`)
     }
 }
 
-export function createColFactory<S extends Schema>(schema: S) {
-    return <K extends keyof S & string>(name: K): Col<K, S[K], S> => {
-        return new Col(name, schema[name] as S[K], schema)
+/** An aggregation expression, produced by .mean(), .sum(), etc. or count(). */
+export class AggExpr<T extends DataType> extends Expr<T> {
+    constructor(prql: string, dtype: T) {
+        super(prql, dtype)
     }
 }
 
-/** The number of rows in the current relation. */
-export function count(): AggFunc<'number', any> {
-    return new AggFunc<'number', any>('count')
+/** A sort key with direction, produced by .asc() or .desc(). */
+export class SortExpr {
+    constructor(readonly _prql: string) { }
+}
+
+/**
+ * A typed column reference. N is the literal column name, T is the PRQL DataType,
+ * S is the schema of the table this column belongs to.
+ */
+export class Col<N extends string, T extends DataType, S extends Schema = Schema> extends Expr<T> {
+    readonly name: N
+
+    constructor(name: N, dtype: T) {
+        super(name, dtype)
+        this.name = name
+    }
+}
+
+/** Count the number of rows in the current relation. */
+export function count(): AggExpr<'int64'> {
+    return new AggExpr('count this', 'int64')
+}
+
+/** Embed a raw SQL expression with an explicit return type. */
+export function sql<T extends DataType>(rawSql: string, dtype: T): Expr<T> {
+    return new Expr(`s"${rawSql}"`, dtype)
+}
+
+function fmtLiteral(value: string | number | boolean): string {
+    if (typeof value === 'string') return `"${value}"`
+    return String(value)
 }
