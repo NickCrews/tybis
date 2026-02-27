@@ -1,69 +1,24 @@
+export type DataType =
+    | 'string'
+    | 'int32'
+    | 'int64'
+    | 'float32'
+    | 'float64'
+    | 'boolean'
+    | 'date'
+    | 'datetime'
+    | 'interval'
+
 export type Schema = Record<string, DataType>
-
-export type DataType = 'string' | 'number' | 'boolean' | 'null'
-
-export type InferSchema<T extends readonly unknown[]> =
-    T extends readonly [infer First, ...infer Rest]
-    ? First extends Record<string, unknown>
-    ? {
-        [K in keyof First]: First[K] extends string
-        ? 'string'
-        : First[K] extends number
-        ? 'number'
-        : First[K] extends boolean
-        ? 'boolean'
-        : 'null'
-    }
-    : never
-    : never
-
-export type GroupBySchema<S extends Schema, GroupCols extends (keyof S)[]> = {
-    [K in GroupCols[number]]: S[K]
-}
-
-export type AggResult<Agg extends Record<string, unknown>> = {
-    [K in keyof Agg]: 'number'
-}
-
-export type MergeSchema<S1 extends Schema, S2 extends Schema> = S1 & S2
-
-export type SchemaFieldType<S extends Schema, K extends keyof S> = S[K]
 
 export type JSType<T extends DataType> =
     T extends 'string' ? string
-    : T extends 'number' ? number
+    : T extends 'int32' | 'int64' | 'float32' | 'float64' ? number
     : T extends 'boolean' ? boolean
-    : null
+    : T extends 'date' | 'datetime' ? Date
+    : T extends 'interval' ? string
+    : never
 
 export type SchemaToJS<S extends Schema> = {
     [K in keyof S]: JSType<S[K]>
-}
-
-export type ColFactory<S extends Schema> = <K extends keyof S & string>(
-    name: K
-) => { mean(): any; sum(): any; min(): any; max(): any } & { type: S[K] }
-
-export function inferDataType(value: unknown): DataType {
-    if (typeof value === 'string') {
-        return 'string'
-    } else if (typeof value === 'number') {
-        return 'number'
-    } else if (typeof value === 'boolean') {
-        return 'boolean'
-    } else {
-        return 'null'
-    }
-}
-
-export function inferSchemaFromRecords(records: readonly Record<string, unknown>[]): Schema {
-    if (records.length === 0) {
-        throw new Error('Cannot infer schema from empty data')
-    }
-    const first = records[0]!
-    const schema: Schema = {}
-
-    for (const [key, value] of Object.entries(first)) {
-        schema[key] = inferDataType(value)
-    }
-    return schema
 }

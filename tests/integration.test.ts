@@ -2,114 +2,125 @@ import { describe, it, expect } from 'vitest'
 import * as ty from '../src/index.js'
 
 describe('Tybis Integration Tests', () => {
-    describe('README Example', async () => {
-        const data = [
-            { species: "Adelie", year: 2007, length: 14.5 },
-            { species: "Adelie", year: 2007, length: 15.5 },
-            { species: "Adelie", year: 2008, length: 16.1 },
-            { species: "Gentoo", year: 2009, length: 11.5 },
-        ] as const
+    const penguins = ty.table('penguins', {
+        species: 'string' as const,
+        year: 'int32' as const,
+        bill_length_mm: 'float64' as const,
+    })
 
-        const penguins = await ty.duckdb.table(data)
-        const grouped = penguins
-            .group_by(t => [t.col("species"), t.col("year")])
-            .agg(t => ({
-                count: ty.count(),
-                mean_length: t.col("length").mean(),
-            }))
-            .order_by(t => t.col("mean_length"))
+    describe('to_prql()', () => {
+        it('simple table', () => {
+            expect(penguins.to_prql()).toBe('from penguins')
+        })
 
-        it('should execute to_records()', async () => {
-            const expected = [
-                { species: "Gentoo", year: 2009, count: 1, mean_length: 11.5 },
-                { species: "Adelie", year: 2007, count: 2, mean_length: 15.0 },
-                { species: "Adelie", year: 2008, count: 1, mean_length: 16.1 },
-            ]
-            const records = await grouped.to_records()
-            expect(records).toEqual(expected)
+        it('filter', () => {
+            const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+            expect(q.to_prql()).toBe('from penguins\nfilter bill_length_mm > 40')
         })
-        it('should execute to_sql()', async () => {
-            const sql = await grouped.to_sql()
-            expect(sql).toMatchInlineSnapshot(`"SELECT "species", "year", COUNT(*) AS "count", AVG("length") AS "mean_length" FROM __tybis_table_0 GROUP BY "species", "year" ORDER BY "mean_length" ASC;"`)
-        })
-        it('should serialize to JSON IR', async () => {
-            const json = grouped.to_json()
-            expect(json).toBeTruthy()
-            expect(JSON.parse(json)).toMatchInlineSnapshot(`
-              {
-                "keys": [
-                  {
-                    "arg": {
-                      "dtype": "number",
-                      "name": "mean_length",
-                      "opcode": "col",
-                    },
-                    "ascending": true,
-                    "opcode": "order_by_key",
-                  },
-                ],
-                "opcode": "order_by",
-                "schema": {
-                  "count": "number",
-                  "mean_length": "number",
-                  "species": "string",
-                  "year": "number",
-                },
-                "table": {
-                  "aggregates": {
-                    "count": {
-                      "func": "count",
-                      "opcode": "agg_func",
-                    },
-                    "mean_length": {
-                      "arg": {
-                        "dtype": "number",
-                        "name": "length",
-                        "opcode": "col",
-                      },
-                      "func": "mean",
-                      "opcode": "agg_func",
-                    },
-                  },
-                  "opcode": "aggregate",
-                  "schema": {
-                    "count": "number",
-                    "mean_length": "number",
-                    "species": "string",
-                    "year": "number",
-                  },
-                  "table": {
-                    "by": [
-                      {
-                        "dtype": "string",
-                        "name": "species",
-                        "opcode": "col",
-                      },
-                      {
-                        "dtype": "number",
-                        "name": "year",
-                        "opcode": "col",
-                      },
-                    ],
-                    "opcode": "group_by",
-                    "schema": {
-                      "length": "number",
-                      "species": "string",
-                      "year": "number",
-                    },
-                    "table": {
-                      "name": "__tybis_table_0",
-                      "opcode": "table",
-                      "schema": {
-                        "length": "number",
-                        "species": "string",
-                        "year": "number",
-                      },
-                    },
-                  },
-                },
-              }
+
+        it('group + agg', () => {
+            const q = penguins.group(
+                r => [r.col('species'), r.col('year')],
+                g => g.agg({
+                    count: ty.count(),
+                    mean_bill: g.col('bill_length_mm').mean(),
+                })
+            )
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+                "from penguins
+                group {species, year} (
+                  aggregate {
+                    count = count this,
+                    mean_bill = average bill_length_mm
+                  }
+                )"
             `)
+        })
+
+        it('sort descending', () => {
+            const q = penguins.sort(r => r.col('bill_length_mm').desc())
+            expect(q.to_prql()).toBe('from penguins\nsort {-bill_length_mm}')
+        })
+
+        it('take', () => {
+            const q = penguins.take(10)
+            expect(q.to_prql()).toBe('from penguins\ntake 10')
+        })
+
+        it('chained operations', () => {
+            const q = penguins
+                .filter(r => r.col('bill_length_mm').gt(40))
+                .group(
+                    r => [r.col('species'), r.col('year')],
+                    g => g.agg({
+                        count: ty.count(),
+                        mean_bill: g.col('bill_length_mm').mean(),
+                    })
+                )
+                .sort(r => r.col('count').desc())
+                .take(10)
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+                "from penguins
+                filter bill_length_mm > 40
+                group {species, year} (
+                  aggregate {
+                    count = count this,
+                    mean_bill = average bill_length_mm
+                  }
+                )
+                sort {-count}
+                take 10"
+            `)
+        })
+    })
+
+    describe('to_sql()', () => {
+        it('simple table', () => {
+            const sql = penguins.to_sql()
+            expect(sql).toContain('penguins')
+            expect(sql).toContain('SELECT')
+        })
+
+        it('filter', () => {
+            const sql = penguins.filter(r => r.col('bill_length_mm').gt(40)).to_sql()
+            expect(sql).toContain('WHERE')
+            expect(sql).toContain('40')
+        })
+
+        it('group + agg compiles to valid SQL', () => {
+            const sql = penguins.group(
+                r => [r.col('species'), r.col('year')],
+                g => g.agg({
+                    count: ty.count(),
+                    mean_bill: g.col('bill_length_mm').mean(),
+                })
+            ).to_sql()
+            expect(sql).toContain('GROUP BY')
+            expect(sql).toContain('COUNT')
+            expect(sql).toContain('AVG')
+        })
+
+        it('sort descending', () => {
+            const sql = penguins.sort(r => r.col('bill_length_mm').desc()).to_sql()
+            expect(sql).toContain('ORDER BY')
+            expect(sql).toContain('DESC')
+        })
+
+        it('take', () => {
+            const sql = penguins.take(10).to_sql()
+            expect(sql).toContain('10')
+            // PRQL uses LIMIT or TOP depending on dialect
+            expect(sql.toUpperCase()).toMatch(/LIMIT|TOP|FETCH/)
+        })
+    })
+
+    describe('derive()', () => {
+        it('adds a computed column to prql', () => {
+            const q = penguins.derive(r => ({
+                ratio: r.col('bill_length_mm').div(40),
+            }))
+            expect(q.to_prql()).toContain('derive')
+            expect(q.to_prql()).toContain('ratio')
         })
     })
 })
