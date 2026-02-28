@@ -3,19 +3,22 @@ import * as ty from '../src/index.js'
 
 describe('Tybis Integration Tests', () => {
     const penguins = ty.table('penguins', {
-        species: 'string' as const,
-        year: 'int32' as const,
-        bill_length_mm: 'float64' as const,
-    })
+        species: 'string',
+        year: 'int32',
+        bill_length_mm: 'float64',
+    } as const)
 
     describe('to_prql()', () => {
         it('simple table', () => {
-            expect(penguins.to_prql()).toBe('from penguins')
+            expect(penguins.to_prql()).toMatchInlineSnapshot(`"from penguins"`)
         })
 
         it('filter', () => {
             const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
-            expect(q.to_prql()).toBe('from penguins\nfilter bill_length_mm > 40')
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+              "from penguins
+              filter bill_length_mm > 40"
+            `)
         })
 
         it('group + agg', () => {
@@ -39,12 +42,18 @@ describe('Tybis Integration Tests', () => {
 
         it('sort descending', () => {
             const q = penguins.sort(r => r.col('bill_length_mm').desc())
-            expect(q.to_prql()).toBe('from penguins\nsort {-bill_length_mm}')
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+              "from penguins
+              sort {-bill_length_mm}"
+            `)
         })
 
         it('take', () => {
             const q = penguins.take(10)
-            expect(q.to_prql()).toBe('from penguins\ntake 10')
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+              "from penguins
+              take 10"
+            `)
         })
 
         it('chained operations', () => {
@@ -77,14 +86,12 @@ describe('Tybis Integration Tests', () => {
     describe('to_sql()', () => {
         it('simple table', () => {
             const sql = penguins.to_sql()
-            expect(sql).toContain('penguins')
-            expect(sql).toContain('SELECT')
+            expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins"`)
         })
 
         it('filter', () => {
             const sql = penguins.filter(r => r.col('bill_length_mm').gt(40)).to_sql()
-            expect(sql).toContain('WHERE')
-            expect(sql).toContain('40')
+            expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins WHERE bill_length_mm > 40"`)
         })
 
         it('group + agg compiles to valid SQL', () => {
@@ -95,22 +102,17 @@ describe('Tybis Integration Tests', () => {
                     mean_bill: g.col('bill_length_mm').mean(),
                 })
             ).to_sql()
-            expect(sql).toContain('GROUP BY')
-            expect(sql).toContain('COUNT')
-            expect(sql).toContain('AVG')
+            expect(sql).toMatchInlineSnapshot(`"SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill FROM penguins GROUP BY species, year"`)
         })
 
         it('sort descending', () => {
             const sql = penguins.sort(r => r.col('bill_length_mm').desc()).to_sql()
-            expect(sql).toContain('ORDER BY')
-            expect(sql).toContain('DESC')
+            expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins ORDER BY bill_length_mm DESC"`)
         })
 
         it('take', () => {
             const sql = penguins.take(10).to_sql()
-            expect(sql).toContain('10')
-            // PRQL uses LIMIT or TOP depending on dialect
-            expect(sql.toUpperCase()).toMatch(/LIMIT|TOP|FETCH/)
+            expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins LIMIT 10"`)
         })
     })
 
@@ -119,8 +121,12 @@ describe('Tybis Integration Tests', () => {
             const q = penguins.derive(r => ({
                 ratio: r.col('bill_length_mm').div(40),
             }))
-            expect(q.to_prql()).toContain('derive')
-            expect(q.to_prql()).toContain('ratio')
+            expect(q.to_prql()).toMatchInlineSnapshot(`
+              "from penguins
+              derive {
+                ratio = bill_length_mm / 40
+              }"
+            `)
         })
     })
 })
