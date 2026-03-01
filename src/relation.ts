@@ -1,6 +1,8 @@
 import type { Schema, DataType } from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
+import type { IOp } from './ops.js'
+import { SortSpec } from './ops.js'
 import {
     BaseExpr, BooleanExpr, AggExpr, SortExpr,
     col, type Col, type NumericDataType,
@@ -68,7 +70,7 @@ export class Relation<S extends Schema = Schema> {
     filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
-        return new Relation(this.schema, { kind: 'filter', source: this._ir, condition })
+        return new Relation(this.schema, { kind: 'filter', source: this._ir, condition: condition.toOp() })
     }
 
     /**
@@ -93,7 +95,7 @@ export class Relation<S extends Schema = Schema> {
 
         const keyNames = keyCols.map(c => (c as { name: string }).name)
         const aggregations = Object.entries(result.aggregations).map(
-            ([k, v]) => [k, v as BaseExpr] as [string, BaseExpr]
+            ([k, v]) => [k, v.toOp()] as [string, IOp]
         )
 
         const resultSchema: Record<string, DataType> = {}
@@ -122,7 +124,7 @@ export class Relation<S extends Schema = Schema> {
     ): Relation<S & { [K in keyof D]: D[K] extends BaseExpr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
-        const pairs = Object.entries(derivations).map(([k, v]) => [k, v] as [string, BaseExpr])
+        const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IOp])
 
         const newSchema = { ...this.schema } as Record<string, DataType>
         for (const [k, v] of Object.entries(derivations)) {
@@ -148,7 +150,7 @@ export class Relation<S extends Schema = Schema> {
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
         const sortKeys = keysList.map(k =>
-            k instanceof SortExpr ? k : new SortExpr(k, 'asc')
+            k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
         )
         return new Relation(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
     }
@@ -161,8 +163,7 @@ export class Relation<S extends Schema = Schema> {
         return new Relation(this.schema, { kind: 'take', source: this._ir, n })
     }
 
-    /** Compile to a query string using the given compiler. */
-    compile(compiler: Compiler): string {
+    compile(compiler: Compiler<any>): string {
         return compiler.compileIR(this._ir)
     }
 

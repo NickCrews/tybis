@@ -1,49 +1,66 @@
 import type { DataType, Schema } from './datatypes.js'
+import {
+    type IOp, type IExpr, _registerOpToExpr,
+    ColRefOp, NumberLiteralOp, StringLiteralOp, BooleanLiteralOp,
+    DatetimeLiteralOp,
+    EqOp, GtOp, GteOp, LtOp, LteOp, IsNotNullOp,
+    AndOp, OrOp, DivOp,
+    UpperOp, LowerOp, ContainsOp, StartsWithOp,
+    MeanOp, SumOp, MinOp, MaxOp, CountOp,
+    RawSqlOp, AggOp, SortSpec,
+} from './ops.js'
 
 // ---------------------------------------------------------------------------
-// Abstract Expression Nodes
+// opToExpr — wraps an IOp in the appropriate Expr subclass
 // ---------------------------------------------------------------------------
-// These form a pure expression tree with no compilation dependencies.
-// Each node represents an operation; actual compilation to PRQL/SQL
-// is handled by separate Compiler implementations.
 
-/** Base class for all expressions. Carries the TypeScript-level DataType. */
-export abstract class BaseExpr<T extends DataType = DataType> {
-    abstract readonly kind: string
-    constructor(readonly dtype: T) { }
+export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
 
-    // Equality
+export function opToExpr(op: IOp<'string'>): StringExpr
+export function opToExpr(op: IOp<'boolean'>): BooleanExpr
+export function opToExpr<T extends NumericDataType>(op: IOp<T>): NumericExpr<T>
+export function opToExpr<T extends DataType>(op: IOp<T>): BaseExpr<T>
+export function opToExpr<T extends DataType>(op: IOp<T>): BaseExpr<T> {
+    const d = op.dtype
+    if (d === 'string') return new OpStringExpr(op as IOp<'string'>) as unknown as BaseExpr<T>
+    if (d === 'int32' || d === 'int64' || d === 'float32' || d === 'float64')
+        return new OpNumericExpr(op as IOp<any>) as unknown as BaseExpr<T>
+    if (d === 'boolean') return new OpBooleanExpr(op as IOp<'boolean'>) as unknown as BaseExpr<T>
+    return new OpExpr(op) as unknown as BaseExpr<T>
+}
+
+_registerOpToExpr(opToExpr as <T extends DataType>(op: IOp<T>) => IExpr<T>)
+
+// ---------------------------------------------------------------------------
+// Abstract Expression classes (public-facing API)
+// ---------------------------------------------------------------------------
+
+export abstract class BaseExpr<T extends DataType = DataType> implements IExpr<T> {
+    abstract readonly dtype: T
+    abstract toOp(): IOp<T>
+    toExpr(): this { return this }
+
     eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr {
-        return new Eq(this, toExpr(value))
+        return opToExpr(new EqOp(this.toOp(), toOpValue(value)))
     }
-
-    // Null checking
     isNotNull(): BooleanExpr {
-        return new IsNotNull(this)
+        return opToExpr(new IsNotNullOp(this.toOp()))
     }
-
-    // Aggregations (for use inside agg())
     mean(): AggExpr<'float64'> {
-        return new AggExpr(new Mean(this), 'float64')
+        return new AggExpr(new AggOp(new MeanOp(this.toOp()), 'float64'))
     }
-
     sum(): AggExpr<'float64'> {
-        return new AggExpr(new Sum(this), 'float64')
+        return new AggExpr(new AggOp(new SumOp(this.toOp()), 'float64'))
     }
-
     min(): AggExpr<T> {
-        return new AggExpr(new Min(this), this.dtype)
+        return new AggExpr(new AggOp(new MinOp(this.toOp()), this.dtype))
     }
-
     max(): AggExpr<T> {
-        return new AggExpr(new Max(this), this.dtype)
+        return new AggExpr(new AggOp(new MaxOp(this.toOp()), this.dtype))
     }
-
-    // Sort direction (for use inside sort())
     desc(): SortExpr {
         return new SortExpr(this, 'desc')
     }
-
     asc(): SortExpr {
         return new SortExpr(this, 'asc')
     }
@@ -53,27 +70,21 @@ export abstract class BaseExpr<T extends DataType = DataType> {
 // Numeric expressions (int32, int64, float32, float64)
 // ---------------------------------------------------------------------------
 
-export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
-
 export abstract class NumericExpr<T extends NumericDataType = NumericDataType> extends BaseExpr<T> {
     gt(value: number | NumericExpr): BooleanExpr {
-        return new Gt(this, toExpr(value))
+        return opToExpr(new GtOp(this.toOp(), toOpValue(value)))
     }
-
     gte(value: number | NumericExpr): BooleanExpr {
-        return new Gte(this, toExpr(value))
+        return opToExpr(new GteOp(this.toOp(), toOpValue(value)))
     }
-
     lt(value: number | NumericExpr): BooleanExpr {
-        return new Lt(this, toExpr(value))
+        return opToExpr(new LtOp(this.toOp(), toOpValue(value)))
     }
-
     lte(value: number | NumericExpr): BooleanExpr {
-        return new Lte(this, toExpr(value))
+        return opToExpr(new LteOp(this.toOp(), toOpValue(value)))
     }
-
     div(value: number | NumericExpr): NumericExpr<'float64'> {
-        return new Div(this, toExpr(value))
+        return opToExpr(new DivOp(this.toOp(), toOpValue(value)))
     }
 }
 
@@ -82,22 +93,18 @@ export abstract class NumericExpr<T extends NumericDataType = NumericDataType> e
 // ---------------------------------------------------------------------------
 
 export abstract class StringExpr extends BaseExpr<'string'> {
-    constructor() { super('string') }
-
+    readonly dtype = 'string' as const
     upper(): StringExpr {
-        return new Upper(this)
+        return new UpperOp(this.toOp()).toExpr() as unknown as StringExpr
     }
-
     lower(): StringExpr {
-        return new Lower(this)
+        return new LowerOp(this.toOp()).toExpr() as unknown as StringExpr
     }
-
     contains(pattern: string): BooleanExpr {
-        return new Contains(this, new StringLiteral(pattern))
+        return opToExpr(new ContainsOp(this.toOp(), new StringLiteralOp(pattern)))
     }
-
     startsWith(prefix: string): BooleanExpr {
-        return new StartsWith(this, new StringLiteral(prefix))
+        return opToExpr(new StartsWithOp(this.toOp(), new StringLiteralOp(prefix)))
     }
 }
 
@@ -106,189 +113,51 @@ export abstract class StringExpr extends BaseExpr<'string'> {
 // ---------------------------------------------------------------------------
 
 export abstract class BooleanExpr extends BaseExpr<'boolean'> {
-    constructor() { super('boolean') }
-
+    readonly dtype = 'boolean' as const
     and(other: BooleanExpr): BooleanExpr {
-        return new And(this, other)
+        return opToExpr(new AndOp(this.toOp(), other.toOp()))
     }
-
     or(other: BooleanExpr): BooleanExpr {
-        return new Or(this, other)
+        return opToExpr(new OrOp(this.toOp(), other.toOp()))
     }
 }
 
 // ---------------------------------------------------------------------------
-// Concrete expression nodes
+// Generic Op-wrapping Expr implementations (internal)
 // ---------------------------------------------------------------------------
 
-// -- Column reference (for non-string, non-numeric, non-boolean types like date/datetime/interval) --
-export class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<DataType> {
-    readonly kind = 'col_ref' as const
-    readonly name: N
-    override readonly dtype: T
-    constructor(name: N, dtype: T) {
-        super(dtype)
-        this.name = name
-        this.dtype = dtype
+class OpExpr<T extends DataType = DataType> extends BaseExpr<T> {
+    readonly dtype: T
+    constructor(private readonly _op: IOp<T>) {
+        super()
+        this.dtype = _op.dtype
     }
+    toOp(): IOp<T> { return this._op }
 }
 
-// -- Literals --
-export class NumberLiteral extends NumericExpr<'float64'> {
-    readonly kind = 'number_literal' as const
-    constructor(readonly value: number) { super('float64') }
+class OpNumericExpr<T extends NumericDataType = NumericDataType> extends NumericExpr<T> {
+    readonly dtype: T
+    constructor(private readonly _op: IOp<T>) {
+        super()
+        this.dtype = _op.dtype
+    }
+    toOp(): IOp<T> { return this._op }
 }
 
-export class StringLiteral extends StringExpr {
-    readonly kind = 'string_literal' as const
-    constructor(readonly value: string) { super() }
+class OpStringExpr extends StringExpr {
+    constructor(private readonly _op: IOp<'string'>) { super() }
+    override toOp(): IOp<'string'> { return this._op }
 }
 
-export class BooleanLiteral extends BooleanExpr {
-    readonly kind = 'boolean_literal' as const
-    constructor(readonly value: boolean) { super() }
-}
-
-export class NullLiteral extends BaseExpr<'string'> {
-    readonly kind = 'null_literal' as const
-    constructor() { super('string') }
-}
-
-export class DatetimeLiteral extends BaseExpr<'datetime'> {
-    readonly kind = 'datetime_literal' as const
-    constructor(readonly value: Date) { super('datetime') }
-}
-
-// -- Comparison nodes --
-export class Eq extends BooleanExpr {
-    readonly kind = 'eq' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
-}
-
-export class Gt extends BooleanExpr {
-    readonly kind = 'gt' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
-}
-
-export class Gte extends BooleanExpr {
-    readonly kind = 'gte' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
-}
-
-export class Lt extends BooleanExpr {
-    readonly kind = 'lt' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
-}
-
-export class Lte extends BooleanExpr {
-    readonly kind = 'lte' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
-}
-
-export class IsNotNull extends BooleanExpr {
-    readonly kind = 'is_not_null' as const
-    constructor(readonly operand: BaseExpr) { super() }
-}
-
-// -- Boolean logic --
-export class And extends BooleanExpr {
-    readonly kind = 'and' as const
-    constructor(readonly left: BooleanExpr, readonly right: BooleanExpr) { super() }
-}
-
-export class Or extends BooleanExpr {
-    readonly kind = 'or' as const
-    constructor(readonly left: BooleanExpr, readonly right: BooleanExpr) { super() }
-}
-
-// -- Arithmetic --
-export class Div extends NumericExpr<'float64'> {
-    readonly kind = 'div' as const
-    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super('float64') }
-}
-
-// -- String operations --
-export class Upper extends StringExpr {
-    readonly kind = 'upper' as const
-    constructor(readonly operand: StringExpr) { super() }
-}
-
-export class Lower extends StringExpr {
-    readonly kind = 'lower' as const
-    constructor(readonly operand: StringExpr) { super() }
-}
-
-export class Contains extends BooleanExpr {
-    readonly kind = 'contains' as const
-    constructor(readonly operand: StringExpr, readonly pattern: StringLiteral) { super() }
-}
-
-export class StartsWith extends BooleanExpr {
-    readonly kind = 'starts_with' as const
-    constructor(readonly operand: StringExpr, readonly prefix: StringLiteral) { super() }
-}
-
-// -- Aggregation nodes --
-export class Mean extends BaseExpr<'float64'> {
-    readonly kind = 'mean' as const
-    constructor(readonly operand: BaseExpr) { super('float64') }
-}
-
-export class Sum extends BaseExpr<'float64'> {
-    readonly kind = 'sum' as const
-    constructor(readonly operand: BaseExpr) { super('float64') }
-}
-
-export class Min<T extends DataType = DataType> extends BaseExpr<T> {
-    readonly kind = 'min' as const
-    constructor(readonly operand: BaseExpr<T>) { super(operand.dtype) }
-}
-
-export class Max<T extends DataType = DataType> extends BaseExpr<T> {
-    readonly kind = 'max' as const
-    constructor(readonly operand: BaseExpr<T>) { super(operand.dtype) }
-}
-
-export class Count extends BaseExpr<'int64'> {
-    readonly kind = 'count' as const
-    constructor() { super('int64') }
-}
-
-// -- Raw SQL --
-export class RawSql<T extends DataType = DataType> extends BaseExpr<T> {
-    readonly kind = 'raw_sql' as const
-    constructor(readonly rawSql: string, dtype: T) { super(dtype) }
+class OpBooleanExpr extends BooleanExpr {
+    constructor(private readonly _op: IOp<'boolean'>) { super() }
+    override toOp(): IOp<'boolean'> { return this._op }
 }
 
 // ---------------------------------------------------------------------------
-// AggExpr wrapper — marks an expression as an aggregation result
+// Column references (public-facing typed wrappers)
 // ---------------------------------------------------------------------------
 
-export class AggExpr<T extends DataType = DataType> extends BaseExpr<T> {
-    readonly kind = 'agg' as const
-    constructor(readonly inner: BaseExpr, dtype: T) { super(dtype) }
-}
-
-// ---------------------------------------------------------------------------
-// SortExpr — sort key with direction
-// ---------------------------------------------------------------------------
-
-export class SortExpr {
-    constructor(
-        readonly expr: BaseExpr,
-        readonly direction: 'asc' | 'desc',
-    ) { }
-}
-
-// ---------------------------------------------------------------------------
-// Col — typed column that extends the right expression subclass
-// ---------------------------------------------------------------------------
-
-// We need Col to extend different base classes depending on the DataType.
-// TypeScript doesn't support conditional base classes directly, so we use
-// a factory function that returns the appropriately-typed expression.
-
-/** A typed column reference. N is the literal column name, T is the DataType. */
 export type Col<N extends string = string, T extends DataType = DataType, S extends Schema = Schema> =
     T extends 'string' ? StringCol<N> :
     T extends NumericDataType ? NumericCol<N, T> :
@@ -296,33 +165,53 @@ export type Col<N extends string = string, T extends DataType = DataType, S exte
     ColRef<N, T>
 
 export class StringCol<N extends string = string> extends StringExpr {
-    readonly kind = 'col_ref' as const
     readonly name: N
+    private readonly _op: ColRefOp<N, 'string'>
     constructor(name: N) {
         super()
         this.name = name
+        this._op = new ColRefOp(name, 'string')
     }
+    override toOp(): ColRefOp<N, 'string'> { return this._op }
 }
 
 export class NumericCol<N extends string = string, T extends NumericDataType = NumericDataType> extends NumericExpr<T> {
-    readonly kind = 'col_ref' as const
+    readonly dtype: T
     readonly name: N
+    private readonly _op: ColRefOp<N, T>
     constructor(name: N, dtype: T) {
-        super(dtype)
+        super()
         this.name = name
+        this.dtype = dtype
+        this._op = new ColRefOp(name, dtype)
     }
+    override toOp(): ColRefOp<N, T> { return this._op }
 }
 
 export class BooleanCol<N extends string = string> extends BooleanExpr {
-    readonly kind = 'col_ref' as const
     readonly name: N
+    private readonly _op: ColRefOp<N, 'boolean'>
     constructor(name: N) {
         super()
         this.name = name
+        this._op = new ColRefOp(name, 'boolean')
     }
+    override toOp(): ColRefOp<N, 'boolean'> { return this._op }
 }
 
-/** Create a typed column reference. */
+export class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<T> {
+    readonly dtype: T
+    readonly name: N
+    private readonly _op: ColRefOp<N, T>
+    constructor(name: N, dtype: T) {
+        super()
+        this.name = name
+        this.dtype = dtype
+        this._op = new ColRefOp(name, dtype)
+    }
+    override toOp(): ColRefOp<N, T> { return this._op }
+}
+
 export function col<N extends string, T extends DataType>(name: N, dtype: T): Col<N, T> {
     if (dtype === 'string') return new StringCol(name) as Col<N, T>
     if (dtype === 'int32' || dtype === 'int64' || dtype === 'float32' || dtype === 'float64') {
@@ -333,17 +222,42 @@ export function col<N extends string, T extends DataType>(name: N, dtype: T): Co
 }
 
 // ---------------------------------------------------------------------------
+// AggExpr — marks an expression as an aggregation result
+// ---------------------------------------------------------------------------
+
+export class AggExpr<T extends DataType = DataType> extends BaseExpr<T> {
+    readonly dtype: T
+    constructor(private readonly _op: AggOp<T>) {
+        super()
+        this.dtype = _op.dtype
+    }
+    override toOp(): AggOp<T> { return this._op }
+}
+
+// ---------------------------------------------------------------------------
+// SortExpr — sort key with direction (public-facing)
+// ---------------------------------------------------------------------------
+
+export class SortExpr {
+    constructor(
+        readonly expr: BaseExpr,
+        readonly direction: 'asc' | 'desc',
+    ) { }
+    toSortSpec(): SortSpec {
+        return new SortSpec(this.expr.toOp(), this.direction)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Factory functions
 // ---------------------------------------------------------------------------
 
-/** Count the number of rows in the current relation. */
 export function count(): AggExpr<'int64'> {
-    return new AggExpr(new Count(), 'int64')
+    return new AggExpr(new AggOp(new CountOp(), 'int64'))
 }
 
-/** Embed a raw SQL expression with an explicit return type. */
 export function sql<T extends DataType>(rawSql: string, dtype: T): BaseExpr<T> {
-    return new RawSql(rawSql, dtype)
+    return opToExpr(new RawSqlOp(rawSql, dtype))
 }
 
 export type JsType = string | number | boolean | Date
@@ -354,20 +268,23 @@ export type InferDtype<JS extends JsType> =
     : JS extends Date ? 'datetime'
     : never
 
-/** Convert a raw JS value to a literal expression. */
 export function lit<JS extends JsType>(value: JS): BaseExpr<InferDtype<JS>> {
-    if (typeof value === 'string') return new StringLiteral(value) as any
-    if (typeof value === 'boolean') return new BooleanLiteral(value) as any
-    if (typeof value === 'number') return new NumberLiteral(value) as any
-    if (value instanceof Date) return new DatetimeLiteral(value) as any
+    if (typeof value === 'string') return opToExpr(new StringLiteralOp(value)) as any
+    if (typeof value === 'boolean') return opToExpr(new BooleanLiteralOp(value)) as any
+    if (typeof value === 'number') return opToExpr(new NumberLiteralOp(value)) as any
+    if (value instanceof Date) return opToExpr(new DatetimeLiteralOp(value)) as any
     throw new Error(`Unsupported JS value type: ${typeof value}`)
 }
 
 // ---------------------------------------------------------------------------
-// Helper: ensure a js value or expression is an expression
+// Internal helpers
 // ---------------------------------------------------------------------------
 
-function toExpr<T extends JsType | BaseExpr>(value: T): T extends BaseExpr ? T : T extends JsType ? BaseExpr<InferDtype<T>> : never {
-    if (value instanceof BaseExpr) return value as any
-    return lit(value) as any
+function toOpValue(value: string | number | boolean | Date | BaseExpr): IOp {
+    if (value instanceof BaseExpr) return value.toOp()
+    if (typeof value === 'string') return new StringLiteralOp(value)
+    if (typeof value === 'boolean') return new BooleanLiteralOp(value)
+    if (typeof value === 'number') return new NumberLiteralOp(value)
+    if (value instanceof Date) return new DatetimeLiteralOp(value)
+    throw new Error(`Unsupported value type: ${typeof value}`)
 }

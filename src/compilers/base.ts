@@ -1,11 +1,7 @@
-import type { BaseExpr } from '../expr.js'
+import type { IOp, BuiltinOp } from '../ops.js'
 import type { IRNode } from '../ir.js'
 
-/** Interface for compiling expression trees and IR nodes into query strings. */
-export interface Compiler {
-    /** Compile an expression node to a string. */
-    compileExpr(expr: BaseExpr): string
-
-    /** Compile a full IR tree to a query string. */
+export interface Compiler<O extends IOp = BuiltinOp> {
+    compileOp(op: O): string
     compileIR(node: IRNode): string
 }

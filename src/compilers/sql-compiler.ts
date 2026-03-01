@@ -1,18 +1,14 @@
 import { compile, CompileOptions } from 'prqlc'
 import type { Compiler } from './base.js'
-import type { BaseExpr } from '../expr.js'
+import type { BuiltinOp } from '../ops.js'
 import type { IRNode } from '../ir.js'
 import { PrqlCompiler } from './prql-compiler.js'
 
-/**
- * Compiles expression trees and IR to SQL by first generating PRQL
- * and then using the prqlc compiler to produce SQL.
- */
 export class SqlCompiler implements Compiler {
     private readonly prqlCompiler = new PrqlCompiler()
 
-    compileExpr(expr: BaseExpr): string {
-        return this.prqlCompiler.compileExpr(expr)
+    compileOp(op: BuiltinOp): string {
+        return this.prqlCompiler.compileOp(op)
     }
 
     compileIR(node: IRNode): string {
