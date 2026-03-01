@@ -14,7 +14,7 @@ export abstract class BaseExpr<T extends DataType = DataType> {
 
     // Equality
     eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr {
-        return new Eq(this, toLiteral(value))
+        return new Eq(this, toExpr(value))
     }
 
     // Null checking
@@ -56,24 +56,24 @@ export abstract class BaseExpr<T extends DataType = DataType> {
 export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
 
 export abstract class NumericExpr<T extends NumericDataType = NumericDataType> extends BaseExpr<T> {
-    gt(value: number | BaseExpr<DataType>): BooleanExpr {
-        return new Gt(this, toLiteral(value))
+    gt(value: number | NumericExpr): BooleanExpr {
+        return new Gt(this, toExpr(value))
     }
 
-    gte(value: number | BaseExpr<DataType>): BooleanExpr {
-        return new Gte(this, toLiteral(value))
+    gte(value: number | NumericExpr): BooleanExpr {
+        return new Gte(this, toExpr(value))
     }
 
-    lt(value: number | BaseExpr<DataType>): BooleanExpr {
-        return new Lt(this, toLiteral(value))
+    lt(value: number | NumericExpr): BooleanExpr {
+        return new Lt(this, toExpr(value))
     }
 
-    lte(value: number | BaseExpr<DataType>): BooleanExpr {
-        return new Lte(this, toLiteral(value))
+    lte(value: number | NumericExpr): BooleanExpr {
+        return new Lte(this, toExpr(value))
     }
 
-    div(value: number | BaseExpr<DataType>): NumericExpr<'float64'> {
-        return new Div(this, toLiteral(value))
+    div(value: number | NumericExpr): NumericExpr<'float64'> {
+        return new Div(this, toExpr(value))
     }
 }
 
@@ -152,6 +152,11 @@ export class BooleanLiteral extends BooleanExpr {
 export class NullLiteral extends BaseExpr<'string'> {
     readonly kind = 'null_literal' as const
     constructor() { super('string') }
+}
+
+export class DatetimeLiteral extends BaseExpr<'datetime'> {
+    readonly kind = 'datetime_literal' as const
+    constructor(readonly value: Date) { super('datetime') }
 }
 
 // -- Comparison nodes --
@@ -341,13 +346,28 @@ export function sql<T extends DataType>(rawSql: string, dtype: T): BaseExpr<T> {
     return new RawSql(rawSql, dtype)
 }
 
+export type JsType = string | number | boolean | Date
+export type InferDtype<JS extends JsType> =
+    JS extends string ? 'string'
+    : JS extends number ? 'float64'
+    : JS extends boolean ? 'boolean'
+    : JS extends Date ? 'datetime'
+    : never
+
+/** Convert a raw JS value to a literal expression. */
+export function lit<JS extends JsType>(value: JS): BaseExpr<InferDtype<JS>> {
+    if (typeof value === 'string') return new StringLiteral(value) as any
+    if (typeof value === 'boolean') return new BooleanLiteral(value) as any
+    if (typeof value === 'number') return new NumberLiteral(value) as any
+    if (value instanceof Date) return new DatetimeLiteral(value) as any
+    throw new Error(`Unsupported JS value type: ${typeof value}`)
+}
+
 // ---------------------------------------------------------------------------
-// Helper: convert JS value or Expr to a literal Expr
+// Helper: ensure a js value or expression is an expression
 // ---------------------------------------------------------------------------
 
-function toLiteral(value: string | number | boolean | BaseExpr): BaseExpr {
-    if (value instanceof BaseExpr) return value
-    if (typeof value === 'string') return new StringLiteral(value)
-    if (typeof value === 'boolean') return new BooleanLiteral(value)
-    return new NumberLiteral(value)
+function toExpr<T extends JsType | BaseExpr>(value: T): T extends BaseExpr ? T : T extends JsType ? BaseExpr<InferDtype<T>> : never {
+    if (value instanceof BaseExpr) return value as any
+    return lit(value) as any
 }
