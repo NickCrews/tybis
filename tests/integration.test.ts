@@ -129,4 +129,33 @@ describe('Tybis Integration Tests', () => {
             `)
         })
     })
+
+    describe('compile() with explicit compiler', () => {
+        it('accepts a PrqlCompiler', () => {
+            const compiler = new ty.PrqlCompiler()
+            const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+            expect(q.compile(compiler)).toMatchInlineSnapshot(`
+              "from penguins
+              filter bill_length_mm > 40"
+            `)
+        })
+
+        it('accepts a SqlCompiler', () => {
+            const compiler = new ty.SqlCompiler()
+            const sql = penguins.filter(r => r.col('bill_length_mm').gt(40)).compile(compiler)
+            expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins WHERE bill_length_mm > 40"`)
+        })
+    })
+
+    describe('expression tree', () => {
+        it('expressions are abstract nodes, not strings', () => {
+            const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+            // The IR stores expression objects, not strings
+            const ir = q._ir
+            expect(ir.kind).toBe('filter')
+            if (ir.kind === 'filter') {
+                expect(ir.condition.kind).toBe('gt')
+            }
+        })
+    })
 })
