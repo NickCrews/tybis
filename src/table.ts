@@ -1,13 +1,13 @@
 import type { Schema, DataType } from './datatypes.js'
 import type { IRNode } from './ir.js'
-import type { Compiler } from './compiler.js'
+import type { Compiler } from './compilers/base.js'
 import {
     Expr, BooleanExpr, AggExpr, SortExpr,
     col, type Col, type NumericDataType,
     StringCol, NumericCol, BooleanCol, ColRef,
 } from './expr.js'
-import { PrqlCompiler } from './prql-compiler.js'
-import { SqlCompiler } from './sql-compiler.js'
+import { PrqlCompiler } from './compilers/prql-compiler.js'
+import { SqlCompiler } from './compilers/sql-compiler.js'
 
 // ---------------------------------------------------------------------------
 // Row and group accessors

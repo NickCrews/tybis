@@ -12,8 +12,8 @@ export {
     Mean, Sum, Min, Max, Count, RawSql,
 } from './expr.js'
 export type { Col, NumericDataType } from './expr.js'
-export type { Compiler } from './compiler.js'
+export type { Compiler } from './compilers/base.js'
 export type { IRNode } from './ir.js'
-export { PrqlCompiler } from './prql-compiler.js'
-export { SqlCompiler } from './sql-compiler.js'
+export { PrqlCompiler } from './compilers/prql-compiler.js'
+export { SqlCompiler } from './compilers/sql-compiler.js'
 export type { Schema, DataType, JSType, SchemaToJS } from './datatypes.js'

@@ -1,5 +1,5 @@
-import type { Expr } from './expr.js'
-import type { IRNode } from './ir.js'
+import type { Expr } from '../expr.js'
+import type { IRNode } from '../ir.js'
 
 /** Interface for compiling expression trees and IR nodes into query strings. */
 export interface Compiler {

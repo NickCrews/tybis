@@ -1,5 +1,5 @@
-import type { Compiler } from './compiler.js'
-import type { IRNode } from './ir.js'
+import type { Compiler } from './base.js'
+import type { IRNode } from '../ir.js'
 import {
     Expr, ColRef, NumberLiteral, StringLiteral, BooleanLiteral, NullLiteral,
     Eq, Gt, Gte, Lt, Lte, IsNotNull, And, Or,
@@ -7,7 +7,7 @@ import {
     Mean, Sum, Min, Max, Count, RawSql, AggExpr,
     StringCol, NumericCol, BooleanCol,
     type SortExpr,
-} from './expr.js'
+} from '../expr.js'
 
 export class PrqlCompiler implements Compiler {
     compileExpr(expr: Expr): string {

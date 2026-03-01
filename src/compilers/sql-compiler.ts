@@ -1,7 +1,7 @@
 import { compile, CompileOptions } from 'prqlc'
-import type { Compiler } from './compiler.js'
-import type { Expr } from './expr.js'
-import type { IRNode } from './ir.js'
+import type { Compiler } from './base.js'
+import type { Expr } from '../expr.js'
+import type { IRNode } from '../ir.js'
 import { PrqlCompiler } from './prql-compiler.js'
 
 /**
