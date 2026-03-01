@@ -29,7 +29,7 @@ const result = penguins
     .sort(r => r.col('count').desc())
     .take(10)
 
-console.log(result.to_prql())
+console.log(result.toPrql())
 // from penguins
 // filter bill_length_mm > 40
 // group {species, year} (
@@ -41,7 +41,7 @@ console.log(result.to_prql())
 // sort {-count}
 // take 10
 
-console.log(result.to_sql())
+console.log(result.toSql())
 // SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill
 // FROM penguins
 // WHERE bill_length_mm > 40
@@ -138,11 +138,11 @@ orders.derive(() => ({
 }))
 ```
 
-### `.to_prql()`
+### `.toPrql()`
 
 Returns the PRQL query string. Useful for debugging or inspecting generated queries.
 
-### `.to_sql()`
+### `.toSql()`
 
 Compiles to SQL using the PRQL compiler. Returns a SQL string synchronously.
 

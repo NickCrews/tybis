@@ -181,13 +181,13 @@ export class Table<S extends Schema = Schema> {
     }
 
     /** Return the PRQL query string for this table expression. */
-    to_prql(): string {
+    toPrql(): string {
         return toPRQL(this._ir)
     }
 
     /** Compile to SQL using the PRQL compiler. */
-    to_sql(): string {
-        const prqlText = this.to_prql()
+    toSql(): string {
+        const prqlText = this.toPrql()
         const opts = new CompileOptions()
         opts.format = false
         opts.signature_comment = false

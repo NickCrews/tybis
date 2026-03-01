@@ -13,7 +13,7 @@ export class Expr<T extends DataType = DataType> {
     prql(): string { return this._prql }
 
     // Null checking
-    is_not_null(): BoolExpr {
+    isNotNull(): BoolExpr {
         return new BoolExpr(`${this._prql} != null`)
     }
 

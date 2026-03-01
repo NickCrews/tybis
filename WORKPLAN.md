@@ -43,7 +43,7 @@ tybis/
   - Arithmetic: `.div()`
   - Aggregation: `.mean()`, `.sum()`, `.min()`, `.max()`
   - Sort: `.desc()`, `.asc()`
-  - Null: `.is_not_null()`
+  - Null: `.isNotNull()`
 - `BoolExpr`: boolean expression with `.and()`, `.or()` — used in `.filter()`
 - `AggExpr<T>`: aggregation expression — used in `.agg({})`
 - `SortExpr`: sort key with direction — used in `.sort()`
@@ -60,8 +60,8 @@ tybis/
   - `.derive(r => Record<string, Expr>)` → `Table<S & DerivedSchema>`
   - `.sort(r => SortExpr | Expr | array)` → `Table<S>`
   - `.take(n)` → `Table<S>`
-  - `.to_prql()` → PRQL text string
-  - `.to_sql()` → SQL string (via `prqlc.compile()`)
+  - `.toPrql()` → PRQL text string
+  - `.toSql()` → SQL string (via `prqlc.compile()`)
 - `table(name, schema)`: public factory function
 
 ### ✅ 5. Testing (15 tests, all passing)
@@ -75,7 +75,7 @@ Rather than generating PRQL's internal RQ JSON format (which uses numeric column
 IDs and requires re-implementing semantic analysis), we generate PRQL text and
 pass it to `prqlc.compile()`. This is simpler and maps directly to our IR.
 
-### Synchronous `to_sql()`
+### Synchronous `toSql()`
 No database connection means SQL generation is synchronous — a significant
 improvement over the previous DuckDB-backed async approach.
 
