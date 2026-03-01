@@ -8,14 +8,14 @@ describe('Tybis Integration Tests', () => {
         bill_length_mm: 'float64',
     } as const)
 
-    describe('to_prql()', () => {
+    describe('toPrql()', () => {
         it('simple table', () => {
-            expect(penguins.to_prql()).toMatchInlineSnapshot(`"from penguins"`)
+            expect(penguins.toPrql()).toMatchInlineSnapshot(`"from penguins"`)
         })
 
         it('filter', () => {
             const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
               "from penguins
               filter bill_length_mm > 40"
             `)
@@ -29,7 +29,7 @@ describe('Tybis Integration Tests', () => {
                     mean_bill: g.col('bill_length_mm').mean(),
                 })
             )
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
                 "from penguins
                 group {species, year} (
                   aggregate {
@@ -42,7 +42,7 @@ describe('Tybis Integration Tests', () => {
 
         it('sort descending', () => {
             const q = penguins.sort(r => r.col('bill_length_mm').desc())
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
               "from penguins
               sort {-bill_length_mm}"
             `)
@@ -50,7 +50,7 @@ describe('Tybis Integration Tests', () => {
 
         it('take', () => {
             const q = penguins.take(10)
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
               "from penguins
               take 10"
             `)
@@ -68,7 +68,7 @@ describe('Tybis Integration Tests', () => {
                 )
                 .sort(r => r.col('count').desc())
                 .take(10)
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
                 "from penguins
                 filter bill_length_mm > 40
                 group {species, year} (
@@ -83,14 +83,14 @@ describe('Tybis Integration Tests', () => {
         })
     })
 
-    describe('to_sql()', () => {
+    describe('toSql()', () => {
         it('simple table', () => {
-            const sql = penguins.to_sql()
+            const sql = penguins.toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins"`)
         })
 
         it('filter', () => {
-            const sql = penguins.filter(r => r.col('bill_length_mm').gt(40)).to_sql()
+            const sql = penguins.filter(r => r.col('bill_length_mm').gt(40)).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins WHERE bill_length_mm > 40"`)
         })
 
@@ -101,17 +101,17 @@ describe('Tybis Integration Tests', () => {
                     count: ty.count(),
                     mean_bill: g.col('bill_length_mm').mean(),
                 })
-            ).to_sql()
+            ).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill FROM penguins GROUP BY species, year"`)
         })
 
         it('sort descending', () => {
-            const sql = penguins.sort(r => r.col('bill_length_mm').desc()).to_sql()
+            const sql = penguins.sort(r => r.col('bill_length_mm').desc()).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins ORDER BY bill_length_mm DESC"`)
         })
 
         it('take', () => {
-            const sql = penguins.take(10).to_sql()
+            const sql = penguins.take(10).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins LIMIT 10"`)
         })
     })
@@ -121,7 +121,7 @@ describe('Tybis Integration Tests', () => {
             const q = penguins.derive(r => ({
                 ratio: r.col('bill_length_mm').div(40),
             }))
-            expect(q.to_prql()).toMatchInlineSnapshot(`
+            expect(q.toPrql()).toMatchInlineSnapshot(`
               "from penguins
               derive {
                 ratio = bill_length_mm / 40
