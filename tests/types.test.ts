@@ -56,4 +56,20 @@ describe('Type Safety', () => {
             ratio: 'float64'
         }>>()
     })
+
+    it('string columns should have string methods', () => {
+        const t = ty.table('t', { name: 'string' as const })
+        const accessor = { col: <K extends 'name'>(k: K) => ty.col(k, 'string') }
+        const nameCol = accessor.col('name')
+        // StringCol should have upper/lower/contains/startsWith
+        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.StringExpr>()
+        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.StringExpr>()
+        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.BooleanExpr>()
+    })
+
+    it('numeric columns should have comparison methods', () => {
+        const numCol = ty.col('age', 'int32')
+        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.BooleanExpr>()
+        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.NumericExpr<'float64'>>()
+    })
 })

@@ -1,42 +1,13 @@
 import type { Schema, DataType } from './datatypes.js'
-import { Col, Expr, BoolExpr, AggExpr, SortExpr } from './expr.js'
-import { compile, CompileOptions } from 'prqlc'
-
-// ---------------------------------------------------------------------------
-// Internal IR
-// ---------------------------------------------------------------------------
-
-type IRNode =
-    | { kind: 'table'; name: string }
-    | { kind: 'filter'; source: IRNode; condition: string }
-    | { kind: 'derive'; source: IRNode; derivations: [string, string][] }
-    | { kind: 'group'; source: IRNode; keys: string[]; aggregations: [string, string][] }
-    | { kind: 'sort'; source: IRNode; keys: string[] }
-    | { kind: 'take'; source: IRNode; n: number }
-
-function toPRQL(node: IRNode): string {
-    switch (node.kind) {
-        case 'table':
-            return `from ${node.name}`
-        case 'filter':
-            return `${toPRQL(node.source)}\nfilter ${node.condition}`
-        case 'derive': {
-            const dervs = node.derivations.map(([k, v]) => `  ${k} = ${v}`).join(',\n')
-            return `${toPRQL(node.source)}\nderive {\n${dervs}\n}`
-        }
-        case 'group': {
-            const keys = node.keys.join(', ')
-            const aggs = node.aggregations.map(([k, v]) => `    ${k} = ${v}`).join(',\n')
-            return `${toPRQL(node.source)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
-        }
-        case 'sort': {
-            const keys = node.keys.join(', ')
-            return `${toPRQL(node.source)}\nsort {${keys}}`
-        }
-        case 'take':
-            return `${toPRQL(node.source)}\ntake ${node.n}`
-    }
-}
+import type { IRNode } from './ir.js'
+import type { Compiler } from './compiler.js'
+import {
+    Expr, BooleanExpr, AggExpr, SortExpr,
+    col, type Col, type NumericDataType,
+    StringCol, NumericCol, BooleanCol, ColRef,
+} from './expr.js'
+import { PrqlCompiler } from './prql-compiler.js'
+import { SqlCompiler } from './sql-compiler.js'
 
 // ---------------------------------------------------------------------------
 // Row and group accessors
@@ -46,7 +17,7 @@ class RowAccessor<S extends Schema> {
     constructor(private readonly _schema: S) { }
 
     col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
-        return new Col(name, this._schema[name] as S[K])
+        return col(name, this._schema[name] as S[K])
     }
 }
 
@@ -67,7 +38,14 @@ class GroupAccessor<S extends Schema> extends RowAccessor<S> {
 // Helper types for group() result schema
 // ---------------------------------------------------------------------------
 
-type ColArrayNames<KC> = KC extends Array<Col<infer N, DataType, Schema>> ? N : never
+type ColName<C> =
+    C extends StringCol<infer N> ? N :
+    C extends NumericCol<infer N, NumericDataType> ? N :
+    C extends BooleanCol<infer N> ? N :
+    C extends ColRef<infer N, DataType> ? N :
+    never
+
+type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never
 
 type AggResultSchema<A extends Record<string, AggExpr<DataType>>> = {
     [K in keyof A]: A[K] extends AggExpr<infer T> ? T : never
@@ -80,16 +58,16 @@ type AggResultSchema<A extends Record<string, AggExpr<DataType>>> = {
 export class Table<S extends Schema = Schema> {
     constructor(
         readonly schema: S,
-        private readonly _ir: IRNode
+        /** @internal */ readonly _ir: IRNode
     ) { }
 
     /**
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BoolExpr): Table<S> {
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Table<S> {
         const accessor = new RowAccessor(this.schema)
-        const condition = cb(accessor).prql()
+        const condition = cb(accessor)
         return new Table(this.schema, { kind: 'filter', source: this._ir, condition })
     }
 
@@ -113,14 +91,15 @@ export class Table<S extends Schema = Schema> {
         const groupAccessor = new GroupAccessor(this.schema)
         const result = transform(groupAccessor)
 
-        const keyNames = keyCols.map(c => c.name as string)
+        const keyNames = keyCols.map(c => (c as { name: string }).name)
         const aggregations = Object.entries(result.aggregations).map(
-            ([k, v]) => [k, v.prql()] as [string, string]
+            ([k, v]) => [k, v as Expr] as [string, Expr]
         )
 
         const resultSchema: Record<string, DataType> = {}
-        for (const col of keyCols) {
-            resultSchema[col.name as string] = col.dtype
+        for (const c of keyCols) {
+            const colObj = c as { name: string; dtype: DataType }
+            resultSchema[colObj.name] = colObj.dtype
         }
         for (const [k, agg] of Object.entries(result.aggregations)) {
             resultSchema[k] = agg.dtype
@@ -143,7 +122,7 @@ export class Table<S extends Schema = Schema> {
     ): Table<S & { [K in keyof D]: D[K] extends Expr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
-        const pairs = Object.entries(derivations).map(([k, v]) => [k, v.prql()] as [string, string])
+        const pairs = Object.entries(derivations).map(([k, v]) => [k, v] as [string, Expr])
 
         const newSchema = { ...this.schema } as Record<string, DataType>
         for (const [k, v] of Object.entries(derivations)) {
@@ -168,8 +147,10 @@ export class Table<S extends Schema = Schema> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
-        const prqlKeys = keysList.map(k => k instanceof SortExpr ? k._prql : k.prql())
-        return new Table(this.schema, { kind: 'sort', source: this._ir, keys: prqlKeys })
+        const sortKeys = keysList.map(k =>
+            k instanceof SortExpr ? k : new SortExpr(k, 'asc')
+        )
+        return new Table(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
     }
 
     /**
@@ -180,22 +161,19 @@ export class Table<S extends Schema = Schema> {
         return new Table(this.schema, { kind: 'take', source: this._ir, n })
     }
 
+    /** Compile to a query string using the given compiler. */
+    compile(compiler: Compiler): string {
+        return compiler.compileIR(this._ir)
+    }
+
     /** Return the PRQL query string for this table expression. */
     toPrql(): string {
-        return toPRQL(this._ir)
+        return this.compile(new PrqlCompiler())
     }
 
     /** Compile to SQL using the PRQL compiler. */
     toSql(): string {
-        const prqlText = this.toPrql()
-        const opts = new CompileOptions()
-        opts.format = false
-        opts.signature_comment = false
-        const result = compile(prqlText, opts)
-        if (result === undefined) {
-            throw new Error(`PRQL compilation failed for query:\n${prqlText}`)
-        }
-        return result
+        return this.compile(new SqlCompiler())
     }
 }
 
