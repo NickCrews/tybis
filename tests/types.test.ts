@@ -4,13 +4,13 @@ import * as ty from '../src/index.js'
 
 describe('Type Safety', () => {
     it('should accept an explicit schema', () => {
-        const penguins = ty.table('penguins', {
+        const penguins = ty.relation('penguins', {
             species: 'string' as const,
             year: 'int32' as const,
             bill_length_mm: 'float64' as const,
         })
 
-        expectTypeOf(penguins).toMatchTypeOf<ty.Table<{
+        expectTypeOf(penguins).toMatchTypeOf<ty.Relation<{
             species: 'string'
             year: 'int32'
             bill_length_mm: 'float64'
@@ -18,7 +18,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through group and agg', () => {
-        const penguins = ty.table('penguins', {
+        const penguins = ty.relation('penguins', {
             species: 'string' as const,
             year: 'int32' as const,
             bill_length_mm: 'float64' as const,
@@ -32,7 +32,7 @@ describe('Type Safety', () => {
             })
         )
 
-        expectTypeOf(result).toMatchTypeOf<ty.Table<{
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
             species: 'string'
             year: 'int32'
             count: 'int64'
@@ -41,7 +41,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through derive', () => {
-        const penguins = ty.table('penguins', {
+        const penguins = ty.relation('penguins', {
             species: 'string' as const,
             bill_length_mm: 'float64' as const,
         })
@@ -50,7 +50,7 @@ describe('Type Safety', () => {
             ratio: r.col('bill_length_mm').div(40),
         }))
 
-        expectTypeOf(result).toMatchTypeOf<ty.Table<{
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
             species: 'string'
             bill_length_mm: 'float64'
             ratio: 'float64'
@@ -58,7 +58,7 @@ describe('Type Safety', () => {
     })
 
     it('string columns should have string methods', () => {
-        const t = ty.table('t', { name: 'string' as const })
+        const t = ty.relation('t', { name: 'string' as const })
         const accessor = { col: <K extends 'name'>(k: K) => ty.col(k, 'string') }
         const nameCol = accessor.col('name')
         // StringCol should have upper/lower/contains/startsWith

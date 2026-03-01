@@ -52,10 +52,10 @@ type AggResultSchema<A extends Record<string, AggExpr<DataType>>> = {
 }
 
 // ---------------------------------------------------------------------------
-// Table class
+// Relation class
 // ---------------------------------------------------------------------------
 
-export class Table<S extends Schema = Schema> {
+export class Relation<S extends Schema = Schema> {
     constructor(
         readonly schema: S,
         /** @internal */ readonly _ir: IRNode
@@ -65,10 +65,10 @@ export class Table<S extends Schema = Schema> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Table<S> {
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
-        return new Table(this.schema, { kind: 'filter', source: this._ir, condition })
+        return new Relation(this.schema, { kind: 'filter', source: this._ir, condition })
     }
 
     /**
@@ -85,7 +85,7 @@ export class Table<S extends Schema = Schema> {
     >(
         keys: (r: RowAccessor<S>) => KC,
         transform: (g: GroupAccessor<S>) => GroupResult<A>
-    ): Table<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>> {
+    ): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>> {
         const accessor = new RowAccessor(this.schema)
         const keyCols = keys(accessor)
         const groupAccessor = new GroupAccessor(this.schema)
@@ -105,7 +105,7 @@ export class Table<S extends Schema = Schema> {
             resultSchema[k] = agg.dtype
         }
 
-        return new Table(resultSchema as any, {
+        return new Relation(resultSchema as any, {
             kind: 'group',
             source: this._ir,
             keys: keyNames,
@@ -119,7 +119,7 @@ export class Table<S extends Schema = Schema> {
      */
     derive<D extends Record<string, Expr<DataType>>>(
         cb: (r: RowAccessor<S>) => D
-    ): Table<S & { [K in keyof D]: D[K] extends Expr<infer T> ? T : never }> {
+    ): Relation<S & { [K in keyof D]: D[K] extends Expr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v] as [string, Expr])
@@ -129,7 +129,7 @@ export class Table<S extends Schema = Schema> {
             newSchema[k] = v.dtype
         }
 
-        return new Table(newSchema as any, {
+        return new Relation(newSchema as any, {
             kind: 'derive',
             source: this._ir,
             derivations: pairs,
@@ -143,22 +143,22 @@ export class Table<S extends Schema = Schema> {
      */
     sort(
         cb: (r: RowAccessor<S>) => SortExpr | Expr<DataType> | (SortExpr | Expr<DataType>)[]
-    ): Table<S> {
+    ): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
         const sortKeys = keysList.map(k =>
             k instanceof SortExpr ? k : new SortExpr(k, 'asc')
         )
-        return new Table(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
+        return new Relation(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
     }
 
     /**
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number): Table<S> {
-        return new Table(this.schema, { kind: 'take', source: this._ir, n })
+    take(n: number): Relation<S> {
+        return new Relation(this.schema, { kind: 'take', source: this._ir, n })
     }
 
     /** Compile to a query string using the given compiler. */
@@ -166,7 +166,7 @@ export class Table<S extends Schema = Schema> {
         return compiler.compileIR(this._ir)
     }
 
-    /** Return the PRQL query string for this table expression. */
+    /** Compile to a PRQL query string. */
     toPrql(): string {
         return this.compile(new PrqlCompiler())
     }
@@ -182,14 +182,14 @@ export class Table<S extends Schema = Schema> {
 // ---------------------------------------------------------------------------
 
 /**
- * Define a table with an explicit name and schema.
+ * Define a relation with an explicit name and schema.
  * @example
- * const penguins = table('penguins', {
+ * const penguins = relation('penguins', {
  *   species: 'string',
  *   year: 'int32',
  *   bill_length_mm: 'float64',
  * })
  */
-export function table<S extends Schema>(name: string, schema: S): Table<S> {
-    return new Table(schema, { kind: 'table', name })
+export function relation<S extends Schema>(name: string, schema: S): Relation<S> {
+    return new Relation(schema, { kind: 'from', name })
 }

@@ -62,12 +62,12 @@ Tybis does NOT:
 
 ## API
 
-### `table(name, schema)`
+### `relation(name, schema)`
 
-Define a table with an explicit name and schema. The schema maps column names to PRQL data types.
+Define a relation with an explicit name and schema. The schema maps column names to PRQL data types.
 
 ```typescript
-const orders = ty.table('orders', {
+const orders = ty.relation('orders', {
     order_id: 'int64',
     customer_id: 'int64',
     amount: 'float64',
@@ -200,3 +200,9 @@ But there were a few things that I learned while working and using ibis daily:
   It also allows for optimization and rewrite steps to be injected
   after the expression is built but before it is compiled.
   Tybis should do the same.
+- Ibis calls relations Tables. This caused name overloading problems when differentiating between
+  physical tables/views and the more general selection/projectsion.
+  eg physical tables have a name/location in the backend ("myschema.mytable") and
+  you can perform DDL/DML on them, but pselections/projections you can't.
+  So, I named the main object in tybis "Relation".
+  Maybe pedantic, but we'll see if it actually is confusing.

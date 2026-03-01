@@ -64,7 +64,7 @@ export class PrqlCompiler implements Compiler {
 
     compileIR(node: IRNode): string {
         switch (node.kind) {
-            case 'table':
+            case 'from':
                 return `from ${node.name}`
             case 'filter':
                 return `${this.compileIR(node.source)}\nfilter ${this.compileExpr(node.condition)}`

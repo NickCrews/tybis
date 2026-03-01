@@ -1,4 +1,4 @@
-export { Table, table } from './table.js'
+export { Relation, relation } from './relation.js'
 export {
     Expr, NumericExpr, StringExpr, BooleanExpr,
     AggExpr, SortExpr,
