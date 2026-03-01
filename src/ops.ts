@@ -128,6 +128,21 @@ export class OrOp extends BaseOp<'boolean'> {
 // Arithmetic ops
 // ---------------------------------------------------------------------------
 
+export class AddOp extends BaseOp<'float64'> {
+    readonly kind = 'add' as const
+    constructor(readonly left: IOp, readonly right: IOp) { super('float64') }
+}
+
+export class SubOp extends BaseOp<'float64'> {
+    readonly kind = 'sub' as const
+    constructor(readonly left: IOp, readonly right: IOp) { super('float64') }
+}
+
+export class MulOp extends BaseOp<'float64'> {
+    readonly kind = 'mul' as const
+    constructor(readonly left: IOp, readonly right: IOp) { super('float64') }
+}
+
 export class DivOp extends BaseOp<'float64'> {
     readonly kind = 'div' as const
     constructor(readonly left: IOp, readonly right: IOp) { super('float64') }
@@ -231,6 +246,9 @@ export type BuiltinOp =
     | IsNotNullOp
     | AndOp
     | OrOp
+    | AddOp
+    | SubOp
+    | MulOp
     | DivOp
     | UpperOp
     | LowerOp

@@ -14,19 +14,27 @@ export class PrqlCompiler implements Compiler {
             case 'boolean_literal': return String(op.value)
             case 'null_literal': return 'null'
             case 'datetime_literal': return `@${op.value.toISOString()}`
+
             case 'eq': return `${this.compileOp(op.left as BuiltinOp)} == ${this.compileOp(op.right as BuiltinOp)}`
             case 'gt': return `${this.compileOp(op.left as BuiltinOp)} > ${this.compileOp(op.right as BuiltinOp)}`
             case 'gte': return `${this.compileOp(op.left as BuiltinOp)} >= ${this.compileOp(op.right as BuiltinOp)}`
             case 'lt': return `${this.compileOp(op.left as BuiltinOp)} < ${this.compileOp(op.right as BuiltinOp)}`
             case 'lte': return `${this.compileOp(op.left as BuiltinOp)} <= ${this.compileOp(op.right as BuiltinOp)}`
             case 'is_not_null': return `${this.compileOp(op.operand as BuiltinOp)} != null`
+
             case 'and': return `(${this.compileOp(op.left as BuiltinOp)}) && (${this.compileOp(op.right as BuiltinOp)})`
             case 'or': return `(${this.compileOp(op.left as BuiltinOp)}) || (${this.compileOp(op.right as BuiltinOp)})`
+
+            case 'add': return `${this.compileOp(op.left as BuiltinOp)} + ${this.compileOp(op.right as BuiltinOp)}`
+            case 'sub': return `${this.compileOp(op.left as BuiltinOp)} - ${this.compileOp(op.right as BuiltinOp)}`
+            case 'mul': return `${this.compileOp(op.left as BuiltinOp)} * ${this.compileOp(op.right as BuiltinOp)}`
             case 'div': return `${this.compileOp(op.left as BuiltinOp)} / ${this.compileOp(op.right as BuiltinOp)}`
+
             case 'upper': return `upper ${this.compileOp(op.operand as BuiltinOp)}`
             case 'lower': return `lower ${this.compileOp(op.operand as BuiltinOp)}`
             case 'contains': return `contains ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.pattern)}`
             case 'starts_with': return `starts_with ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.prefix)}`
+
             case 'agg': return this.compileOp(op.inner as BuiltinOp)
             case 'mean': return `average ${this.compileOp(op.operand as BuiltinOp)}`
             case 'sum': return `sum ${this.compileOp(op.operand as BuiltinOp)}`
