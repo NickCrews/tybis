@@ -5,7 +5,11 @@ Tybis provides:
 - A lazily-executed dataframe API with full compile-time schema tracking.
   If you rename a column, you get type errors telling you (and AI!) all the places you need to update.
 - A clean, chainable expression system inspired by [PRQL](https://prql-lang.org/).
-- SQL and PRQL generation via the official [prqlc](https://www.npmjs.com/package/prqlc) compiler
+  The expression tree is a public API, you can inspect and transform it as you want, eg add your own optimization or rewrite rules!
+  All of the above is in vanilla, dependency-free typescript. Deploy anywhere!
+- SQL and PRQL generation via the optional [prqlc](https://www.npmjs.com/package/prqlc) compiler.
+  TODO is to also provide clients to natively execute expressions on a real backend,
+  eg duckdb or postgres.
 - Escape hatches when we can't provide the functionality you need.
 
 ## Example Usage
@@ -51,6 +55,10 @@ console.log(result.toSql())
 // ORDER BY count DESC
 // LIMIT 10
 ```
+
+Tybis does NOT:
+- Provide DDL or DML constructs, eg `INSERT` or `CREATE TABLE`. We focus the equivalent of `SELECT`.
+  But, tybis is designed to be extensible, eg you can do `CREATE TABLE AS ${penguins.filter(r => r.col('bill_length_mm').gt(40)).toSql()}`
 
 ## API
 
