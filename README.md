@@ -1,10 +1,12 @@
 # Tybis: The typesafe, portable dataframe library for TypeScript
 
-Tybis is a TypeScript port of [Ibis](https://github.com/ibis-project/ibis). It provides:
+Tybis provides:
 
-- A lazily-executed dataframe API with full compile-time schema tracking
-- A clean, chainable expression system inspired by [PRQL](https://prql-lang.org/)
-- SQL generation via the official [prqlc](https://www.npmjs.com/package/prqlc) compiler
+- A lazily-executed dataframe API with full compile-time schema tracking.
+  If you rename a column, you get type errors telling you (and AI!) all the places you need to update.
+- A clean, chainable expression system inspired by [PRQL](https://prql-lang.org/).
+- SQL and PRQL generation via the official [prqlc](https://www.npmjs.com/package/prqlc) compiler
+- Escape hatches when we can't provide the functionality you need.
 
 ## Example Usage
 
@@ -167,3 +169,26 @@ const result = t.group(
 )
 // result: Table<{ x: 'int32', mean_y: 'float64' }>
 ```
+
+## Motivation and related work
+
+I help maintain [Ibis](https://github.com/ibis-project/ibis), which is a python dataframe library
+that provides a dataframe API to build up lazy expressions that can be compiled to SQL.
+But there were a few things that I learned while working and using ibis daily:
+
+- Python's typing system isn't advanced enough to be able to track the schema of tables through operations.
+  It is too easy for a column rename to break some very distant functionality.
+- Ibis is python, I want to be able to run this more easily on the web.
+- Ibis doesn't have great separation between the compile and execute stages.
+  You can have a Backend object, eg a DuckdbBackend object, but that both compiles to SQL
+  and actually executes against a provided backend.
+  I want this project to have more explicit separation between these steps,
+  so that you could generate queries offline without access to an actual database,
+  eg to generate SQL or dbt pipelines.
+- I like in ibis the separation between an Operation, eg `Add(left, right)`,
+  and the actual compilation step of turning that into eg SQL.
+  That is what allows ibis to target different SQL backends, and even non-sql backends
+  like polars. 
+  It also allows for optimization and rewrite steps to be injected
+  after the expression is built but before it is compiled.
+  Tybis should do the same.
