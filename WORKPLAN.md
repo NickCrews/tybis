@@ -1,209 +1,98 @@
-# Tybis MVP Implementation - Work Plan
+# Tybis Implementation - Work Plan
 
-**Project**: Typesafe dataframe library for TypeScript with DuckDB execution backend
+**Project**: Typesafe dataframe library for TypeScript backed by PRQL
 
-**Status**: ✅ MVP COMPLETE
+**Status**: ✅ MVP COMPLETE (PRQL pivot)
 
 ## Overview
 
-Built a fully type-safe TypeScript dataframe library with:
-- Custom dataframe-oriented IR (not 1:1 SQL mapping)  
-- DuckDB execution backend via `@duckdb/node-api`
-- Complete schema tracking through all operations
-- Core dataframe operations: table, group_by, agg, order_by
-- Column references and aggregation functions (count, mean)
-- JSON serialization and query execution
+A fully type-safe TypeScript dataframe library that compiles to SQL using the
+[prqlc](https://www.npmjs.com/package/prqlc) compiler. Schema is tracked at
+compile time through all operations. No database connection is required — the
+library focuses purely on query construction and SQL generation.
+
+## Current Architecture
+
+```
+tybis/
+├── src/
+│   ├── index.ts       # Public exports
+│   ├── datatypes.ts   # PRQL type system
+│   ├── expr.ts        # Expression classes (Expr, Col, BoolExpr, AggExpr, SortExpr)
+│   └── table.ts       # Table class, IR, PRQL text generation
+└── tests/
+    ├── types.test.ts        # Compile-time schema tracking tests
+    └── integration.test.ts  # PRQL/SQL generation tests
+```
 
 ## Implementation Steps
 
-### ✅ 1. Project Setup & Dependencies
-- Initialized TypeScript project with `package.json` and `tsconfig.json` (strict mode)
-- Installed: `@duckdb/node-api` (1.4.4-r.1), `vitest`, `expect-type`, `tsup`
-- Created `src/index.ts` as main export entry point
-- Used pnpm as package manager
+### ✅ 1. Project Setup
+- TypeScript with strict mode, tsup for dual CJS/ESM output, vitest for tests
+- `prqlc` as the sole runtime dependency
 
-### ✅ 2. Core Type System Design  
-**File**: `src/types.ts`
-- Defined `Schema` type (record of column names → types: 'string' | 'number' | 'boolean' | 'null')
-- Created `Expr<T, Schema>` interface for type-safe expressions
-- Built `InferSchema<T>` helper to extract schema from const data arrays
-- Designed schema transformation utilities: `GroupBySchema`, `AggResult`, `MergeSchema`
-- Added `SchemaToJS` for typed query results
+### ✅ 2. Type System (`src/datatypes.ts`)
+- `DataType`: PRQL types — `string | int32 | int64 | float32 | float64 | boolean | date | datetime | interval`
+- `Schema`: `Record<string, DataType>`
+- `JSType<T>`: maps DataType to TypeScript runtime types
+- `SchemaToJS<S>`: maps a whole schema to JS types
 
-### ✅ 3. Expression Tree Foundation
-**File**: `src/expr.ts`
-- Implemented base `Expr` class with IR node structure
-- Created `Col<Name, Schema>` for column references via `ty.col(name)`
-- Added method chaining: `.mean()`, `.sum()` etc. that preserve types
-- Implemented aggregation functions: `count()`, `mean()` with proper return types
-- All expressions have `toIR()` method for IR generation
+### ✅ 3. Expression System (`src/expr.ts`)
+- `Expr<T>`: base class carrying PRQL text and DataType
+  - Comparison: `.gt()`, `.gte()`, `.lt()`, `.lte()`, `.eq()`
+  - Arithmetic: `.div()`
+  - Aggregation: `.mean()`, `.sum()`, `.min()`, `.max()`
+  - Sort: `.desc()`, `.asc()`
+  - Null: `.is_not_null()`
+- `BoolExpr`: boolean expression with `.and()`, `.or()` — used in `.filter()`
+- `AggExpr<T>`: aggregation expression — used in `.agg({})`
+- `SortExpr`: sort key with direction — used in `.sort()`
+- `Col<N, T, S>`: typed column reference
+- `count()`: aggregate function counting rows
+- `sql(rawSql, dtype)`: embed raw SQL with explicit type
 
-### ✅ 4. Table API
-**File**: `src/table.ts`
-- Created `Table<Schema>` class as main dataframe interface
-- Implemented `.group_by(...cols)` with type-level column tracking
-- Implemented `.agg({name: expr})` with schema merging from aggregations  
-- Implemented `.order_by(col)` preserving schema
-- All operations return new immutable Table instances
-- Added `GroupedTable` intermediate type for group_by → agg chaining
+### ✅ 4. Table API (`src/table.ts`)
+- Internal IR: simple discriminated union (`table | filter | derive | group | sort | take`)
+- `toPRQL(node)`: compiles IR to PRQL text string
+- `Table<S>` methods:
+  - `.filter(r => BoolExpr)` → `Table<S>`
+  - `.group(r => Col[], g => g.agg({}))` → `Table<KeySchema & AggSchema>`
+  - `.derive(r => Record<string, Expr>)` → `Table<S & DerivedSchema>`
+  - `.sort(r => SortExpr | Expr | array)` → `Table<S>`
+  - `.take(n)` → `Table<S>`
+  - `.to_prql()` → PRQL text string
+  - `.to_sql()` → SQL string (via `prqlc.compile()`)
+- `table(name, schema)`: public factory function
 
-### ✅ 5. Custom IR Definition
-**File**: `src/ir.ts`
-- Designed dataframe-oriented JSON format with operation nodes:
-  - `TableNode`: Base table with schema metadata
-  - `ColNode`: Column reference  
-  - `AggFuncNode`: Aggregation function (count, mean, etc.)
-  - `GroupByNode`: Group by operation
-  - `AggNode`: Aggregation with named expressions  
-  - `OrderByNode`: Sorting
-- All nodes include schema metadata for type tracking
-- `.to_json()` method serializes to custom IR (human-readable)
+### ✅ 5. Testing (15 tests, all passing)
+- `types.test.ts`: compile-time schema tracking for table, group+agg, derive
+- `integration.test.ts`: PRQL text output and SQL generation for all operations
 
-### ✅ 6. DuckDB Compiler
-**File**: `src/compiler/duckdb.ts`
-- Built custom IR → DuckDB JSON converter
-- DuckDB JSON format wraps query in `{error: false, statements: [{node: {...}}]}`
-- Handles all operations: table, column refs, group_by, agg, order_by
-- Maps aggregation functions: count → count_star, mean → avg
-- Properly formats SELECT_NODE with modifiers, cte_map, select_list, from_table, etc.
-- Adds required DuckDB fields: class, type, alias, query_location
+## Key Design Decisions
 
-### ✅ 7. Execution Layer
-**File**: `src/backend/duckdb.ts`
-- Created global DuckDB connection singleton (persistent across operations)
-- Implemented `.to_records()` that compiles IR → DuckDB JSON → executes → returns typed results  
-- Uses `json_execute_serialized_sql()` for direct JSON execution
-- Handles async execution via `runAndReadAll()` and `getRowObjectsJS()`
-- Return values are properly typed based on Table schema
+### PRQL text as compilation target
+Rather than generating PRQL's internal RQ JSON format (which uses numeric column
+IDs and requires re-implementing semantic analysis), we generate PRQL text and
+pass it to `prqlc.compile()`. This is simpler and maps directly to our IR.
 
-### ✅ 8. Table Creation
-**File**: `src/backend/duckdb.ts`
-- Implemented `ty.duckdb.table(data)` function
-- Uses `InferSchema` to extract schema from arrays (supports `as const`)
-- Registers data as DuckDB table with appropriate SQL types (VARCHAR, DOUBLE, BOOLEAN)
-- Returns `Table<InferredSchema>` instance
-- Tables persist in shared connection for subsequent queries
+### Synchronous `to_sql()`
+No database connection means SQL generation is synchronous — a significant
+improvement over the previous DuckDB-backed async approach.
 
-### ✅ 9. Output Methods
-- `.to_json()`: Returns custom IR as formatted JSON string
-- `.to_sql()`: **Deferred** - DuckDB doesn't have JSON→SQL converter (throws error with message)
-- `.toString()`: Human-readable format showing operation tree
-- `.to_records()`: Executes query and returns typed results
+### Explicit schema, no inference
+Schemas are always declared explicitly via `table(name, schema)`. Schema
+inference from runtime data has been removed.
 
-### ✅ 10. Testing
-**Files**: `tests/types.test.ts`, `tests/integration.test.ts`
-- Type-level tests with `expect-type` verify compile-time schema tracking
-- Integration tests execute full dataframe operations end-to-end
-- Tests verify: table creation, group_by, agg, order_by, JSON serialization, execution
-- All 5 tests passing ✅
-
-## Key Implementation Decisions
-
-### 1. Full Type Safety ✅
-- Chose schema tracking through all operations using TypeScript generics and mapped types
-- Every Table operation preserves and transforms the schema type appropriately
-- Compile-time errors for invalid column names or incompatible operations
-
-### 2. Custom IR ✅  
-- Built dataframe-oriented IR (not 1:1 SQL mapping) for:
-  - Easier type safety and schema tracking
-  - Better re-hydration support with embedded schemas
-  - More intuitive operation representation
-- Compiles to DuckDB JSON format only for execution
-
-### ✅ 3. Global DuckDB Connection
-- Using singleton connection for simplicity
-- Tables created on connection persist for subsequent queries
-- Avoids connection management complexity in MVP
-
-### 4. `to_sql()` Deferred ⏸️
-- DuckDB's `json_serialize_sql` converts SQL→JSON, not JSON→SQL
-- Would need custom SQL generator from our IR
-- Marked as post-MVP feature
-
-## Testing Results
-
-```
-✓ tests/types.test.ts (2)
-  ✓ should infer schema from const data  
-  ✓ should track schema through group_by and agg
-
-✓ tests/integration.test.ts (3)
-  ✓ should run the README example
-  ✓ should execute group_by and agg
-  ✓ should serialize to JSON IR
-
-Test Files  2 passed (2)
-Tests  5 passed (5)
-```
-
-## Verification Checklist
-
-- ✅ README example compiles and executes without modifications
-- ✅ Type errors for `ty.col("invalid_column")` appear at compile-time  
-- ✅ `npm test` (pnpm test) passes all type and runtime tests
-- ✅ `.to_json()` outputs valid JSON with schema metadata and operation tree
-- ⏸️ `.to_sql()` - deferred to post-MVP (throws informative error)
-- ✅ `.to_records()` returns correct typed results matching final schema
+### No Op classes
+The old approach used a complex discriminated union of Op classes with opcode
+strings. The new IR is a simple private type inside `table.ts` — no need to
+expose internal IR types publicly.
 
 ## Post-MVP Roadmap
 
-1. **SQL Generation**: Implement custom SQL generator from IR for `.to_sql()`  
-2. **More Aggregations**: Add sum, min, max, stddev, etc.
-3. **Joins**: Implement inner/left/right joins with schema merging
-4. **Filtering**: Add `.filter()` / `.where()` with predicate expressions
-5. **Column Selection**: Add `.select()` for choosing specific columns
-6. **More Column Operations**: String operations, math, date functions  
-7. **Window Functions**: row_number, rank, lag, lead
-8. **Multiple Backends**: Add support for other SQL databases
-9. **Streaming**: Support for async iteration over large result sets
-10. **Error Handling**: Better error messages and recovery
-
-## Technical Notes
-
-### DuckDB Integration
-- Using `@duckdb/node-api` v1.4.4-r.1 (latest stable)
-- Connection is async but kept singleton for table persistence
-- JSON execution via `json_execute_serialized_sql()`
-- Column types mapped: number→DOUBLE, string→VARCHAR, boolean→BOOLEAN
-
-### TypeScript Patterns  
-- Extensive use of mapped types and conditional types for schema transformations
-- Generic constraints with `extends` for compile-time validation
-- Branded types via `_type`/`_schema` properties for type tracking
-- `as const` inference for literal type extraction
-
-### Build & Development
-- tsup for dual CJS/ESM output with type declarations
-- Vitest for fast, TypeScript-native testing
-- Strict TypeScript mode with `exactOptionalPropertyTypes`
-- ES2022 target for modern JavaScript features
-
-## Files Created
-
-```
-/Users/nc/code/tybis/
-├── package.json
-├── tsconfig.json
-├── tsup.config.ts
-├── vitest.config.ts
-├── src/
-│   ├── index.ts          # Main exports
-│   ├── types.ts          # Type system & schema utilities
-│   ├── expr.ts           # Expression tree (Col, AggFunc)
-│   ├── table.ts          # Table & GroupedTable classes
-│   ├── ir.ts             # IR node definitions
-│   ├── compiler/
-│   │   └── duckdb.ts     # IR → DuckDB JSON compiler
-│   └── backend/
-│       └── duckdb.ts     # DuckDB execution & table creation
-└── tests/
-    ├── types.test.ts      # Type-level tests  
-    └── integration.test.ts # End-to-end integration tests
-```
-
----
-
-**Implementation Status**: ✅ Complete  
-**Test Status**: ✅ All Passing (5/5)
-**README Example**: ✅ Working (except `.to_sql()` which is deferred)
+1. **More column operations**: string functions, date arithmetic, casting
+2. **Joins**: inner/left/right/full joins with schema merging
+3. **Select / rename**: `.select()` to pick or rename columns
+4. **Window functions**: `row_number`, `rank`, `lag`, `lead`
+5. **Multiple sort keys with type safety**: enforce sort keys belong to schema
+6. **Target dialects**: expose `CompileOptions.target` (e.g. `sql.duckdb`, `sql.postgres`)
