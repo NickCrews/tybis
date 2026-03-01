@@ -2,7 +2,7 @@ import type { Schema, DataType } from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
 import {
-    Expr, BooleanExpr, AggExpr, SortExpr,
+    BaseExpr, BooleanExpr, AggExpr, SortExpr,
     col, type Col, type NumericDataType,
     StringCol, NumericCol, BooleanCol, ColRef,
 } from './expr.js'
@@ -93,7 +93,7 @@ export class Relation<S extends Schema = Schema> {
 
         const keyNames = keyCols.map(c => (c as { name: string }).name)
         const aggregations = Object.entries(result.aggregations).map(
-            ([k, v]) => [k, v as Expr] as [string, Expr]
+            ([k, v]) => [k, v as BaseExpr] as [string, BaseExpr]
         )
 
         const resultSchema: Record<string, DataType> = {}
@@ -117,12 +117,12 @@ export class Relation<S extends Schema = Schema> {
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, Expr<DataType>>>(
+    derive<D extends Record<string, BaseExpr<DataType>>>(
         cb: (r: RowAccessor<S>) => D
-    ): Relation<S & { [K in keyof D]: D[K] extends Expr<infer T> ? T : never }> {
+    ): Relation<S & { [K in keyof D]: D[K] extends BaseExpr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
-        const pairs = Object.entries(derivations).map(([k, v]) => [k, v] as [string, Expr])
+        const pairs = Object.entries(derivations).map(([k, v]) => [k, v] as [string, BaseExpr])
 
         const newSchema = { ...this.schema } as Record<string, DataType>
         for (const [k, v] of Object.entries(derivations)) {
@@ -142,7 +142,7 @@ export class Relation<S extends Schema = Schema> {
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
     sort(
-        cb: (r: RowAccessor<S>) => SortExpr | Expr<DataType> | (SortExpr | Expr<DataType>)[]
+        cb: (r: RowAccessor<S>) => SortExpr | BaseExpr<DataType> | (SortExpr | BaseExpr<DataType>)[]
     ): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)

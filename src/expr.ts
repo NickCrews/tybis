@@ -8,12 +8,12 @@ import type { DataType, Schema } from './datatypes.js'
 // is handled by separate Compiler implementations.
 
 /** Base class for all expressions. Carries the TypeScript-level DataType. */
-export abstract class Expr<T extends DataType = DataType> {
+export abstract class BaseExpr<T extends DataType = DataType> {
     abstract readonly kind: string
     constructor(readonly dtype: T) { }
 
     // Equality
-    eq(value: string | number | boolean | Expr<DataType>): BooleanExpr {
+    eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr {
         return new Eq(this, toLiteral(value))
     }
 
@@ -55,24 +55,24 @@ export abstract class Expr<T extends DataType = DataType> {
 
 export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
 
-export abstract class NumericExpr<T extends NumericDataType = NumericDataType> extends Expr<T> {
-    gt(value: number | Expr<DataType>): BooleanExpr {
+export abstract class NumericExpr<T extends NumericDataType = NumericDataType> extends BaseExpr<T> {
+    gt(value: number | BaseExpr<DataType>): BooleanExpr {
         return new Gt(this, toLiteral(value))
     }
 
-    gte(value: number | Expr<DataType>): BooleanExpr {
+    gte(value: number | BaseExpr<DataType>): BooleanExpr {
         return new Gte(this, toLiteral(value))
     }
 
-    lt(value: number | Expr<DataType>): BooleanExpr {
+    lt(value: number | BaseExpr<DataType>): BooleanExpr {
         return new Lt(this, toLiteral(value))
     }
 
-    lte(value: number | Expr<DataType>): BooleanExpr {
+    lte(value: number | BaseExpr<DataType>): BooleanExpr {
         return new Lte(this, toLiteral(value))
     }
 
-    div(value: number | Expr<DataType>): NumericExpr<'float64'> {
+    div(value: number | BaseExpr<DataType>): NumericExpr<'float64'> {
         return new Div(this, toLiteral(value))
     }
 }
@@ -81,7 +81,7 @@ export abstract class NumericExpr<T extends NumericDataType = NumericDataType> e
 // String expressions
 // ---------------------------------------------------------------------------
 
-export abstract class StringExpr extends Expr<'string'> {
+export abstract class StringExpr extends BaseExpr<'string'> {
     constructor() { super('string') }
 
     upper(): StringExpr {
@@ -105,7 +105,7 @@ export abstract class StringExpr extends Expr<'string'> {
 // Boolean expressions
 // ---------------------------------------------------------------------------
 
-export abstract class BooleanExpr extends Expr<'boolean'> {
+export abstract class BooleanExpr extends BaseExpr<'boolean'> {
     constructor() { super('boolean') }
 
     and(other: BooleanExpr): BooleanExpr {
@@ -122,7 +122,7 @@ export abstract class BooleanExpr extends Expr<'boolean'> {
 // ---------------------------------------------------------------------------
 
 // -- Column reference (for non-string, non-numeric, non-boolean types like date/datetime/interval) --
-export class ColRef<N extends string = string, T extends DataType = DataType> extends Expr<DataType> {
+export class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<DataType> {
     readonly kind = 'col_ref' as const
     readonly name: N
     override readonly dtype: T
@@ -149,7 +149,7 @@ export class BooleanLiteral extends BooleanExpr {
     constructor(readonly value: boolean) { super() }
 }
 
-export class NullLiteral extends Expr<'string'> {
+export class NullLiteral extends BaseExpr<'string'> {
     readonly kind = 'null_literal' as const
     constructor() { super('string') }
 }
@@ -157,32 +157,32 @@ export class NullLiteral extends Expr<'string'> {
 // -- Comparison nodes --
 export class Eq extends BooleanExpr {
     readonly kind = 'eq' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super() }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
 }
 
 export class Gt extends BooleanExpr {
     readonly kind = 'gt' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super() }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
 }
 
 export class Gte extends BooleanExpr {
     readonly kind = 'gte' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super() }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
 }
 
 export class Lt extends BooleanExpr {
     readonly kind = 'lt' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super() }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
 }
 
 export class Lte extends BooleanExpr {
     readonly kind = 'lte' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super() }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super() }
 }
 
 export class IsNotNull extends BooleanExpr {
     readonly kind = 'is_not_null' as const
-    constructor(readonly operand: Expr) { super() }
+    constructor(readonly operand: BaseExpr) { super() }
 }
 
 // -- Boolean logic --
@@ -199,7 +199,7 @@ export class Or extends BooleanExpr {
 // -- Arithmetic --
 export class Div extends NumericExpr<'float64'> {
     readonly kind = 'div' as const
-    constructor(readonly left: Expr, readonly right: Expr) { super('float64') }
+    constructor(readonly left: BaseExpr, readonly right: BaseExpr) { super('float64') }
 }
 
 // -- String operations --
@@ -224,33 +224,33 @@ export class StartsWith extends BooleanExpr {
 }
 
 // -- Aggregation nodes --
-export class Mean extends Expr<'float64'> {
+export class Mean extends BaseExpr<'float64'> {
     readonly kind = 'mean' as const
-    constructor(readonly operand: Expr) { super('float64') }
+    constructor(readonly operand: BaseExpr) { super('float64') }
 }
 
-export class Sum extends Expr<'float64'> {
+export class Sum extends BaseExpr<'float64'> {
     readonly kind = 'sum' as const
-    constructor(readonly operand: Expr) { super('float64') }
+    constructor(readonly operand: BaseExpr) { super('float64') }
 }
 
-export class Min<T extends DataType = DataType> extends Expr<T> {
+export class Min<T extends DataType = DataType> extends BaseExpr<T> {
     readonly kind = 'min' as const
-    constructor(readonly operand: Expr<T>) { super(operand.dtype) }
+    constructor(readonly operand: BaseExpr<T>) { super(operand.dtype) }
 }
 
-export class Max<T extends DataType = DataType> extends Expr<T> {
+export class Max<T extends DataType = DataType> extends BaseExpr<T> {
     readonly kind = 'max' as const
-    constructor(readonly operand: Expr<T>) { super(operand.dtype) }
+    constructor(readonly operand: BaseExpr<T>) { super(operand.dtype) }
 }
 
-export class Count extends Expr<'int64'> {
+export class Count extends BaseExpr<'int64'> {
     readonly kind = 'count' as const
     constructor() { super('int64') }
 }
 
 // -- Raw SQL --
-export class RawSql<T extends DataType = DataType> extends Expr<T> {
+export class RawSql<T extends DataType = DataType> extends BaseExpr<T> {
     readonly kind = 'raw_sql' as const
     constructor(readonly rawSql: string, dtype: T) { super(dtype) }
 }
@@ -259,9 +259,9 @@ export class RawSql<T extends DataType = DataType> extends Expr<T> {
 // AggExpr wrapper — marks an expression as an aggregation result
 // ---------------------------------------------------------------------------
 
-export class AggExpr<T extends DataType = DataType> extends Expr<T> {
+export class AggExpr<T extends DataType = DataType> extends BaseExpr<T> {
     readonly kind = 'agg' as const
-    constructor(readonly inner: Expr, dtype: T) { super(dtype) }
+    constructor(readonly inner: BaseExpr, dtype: T) { super(dtype) }
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +270,7 @@ export class AggExpr<T extends DataType = DataType> extends Expr<T> {
 
 export class SortExpr {
     constructor(
-        readonly expr: Expr,
+        readonly expr: BaseExpr,
         readonly direction: 'asc' | 'desc',
     ) { }
 }
@@ -337,7 +337,7 @@ export function count(): AggExpr<'int64'> {
 }
 
 /** Embed a raw SQL expression with an explicit return type. */
-export function sql<T extends DataType>(rawSql: string, dtype: T): Expr<T> {
+export function sql<T extends DataType>(rawSql: string, dtype: T): BaseExpr<T> {
     return new RawSql(rawSql, dtype)
 }
 
@@ -345,8 +345,8 @@ export function sql<T extends DataType>(rawSql: string, dtype: T): Expr<T> {
 // Helper: convert JS value or Expr to a literal Expr
 // ---------------------------------------------------------------------------
 
-function toLiteral(value: string | number | boolean | Expr): Expr {
-    if (value instanceof Expr) return value
+function toLiteral(value: string | number | boolean | BaseExpr): BaseExpr {
+    if (value instanceof BaseExpr) return value
     if (typeof value === 'string') return new StringLiteral(value)
     if (typeof value === 'boolean') return new BooleanLiteral(value)
     return new NumberLiteral(value)

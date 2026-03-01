@@ -1,7 +1,7 @@
 import type { Compiler } from './base.js'
 import type { IRNode } from '../ir.js'
 import {
-    Expr, ColRef, NumberLiteral, StringLiteral, BooleanLiteral, NullLiteral,
+    BaseExpr, ColRef, NumberLiteral, StringLiteral, BooleanLiteral, NullLiteral,
     Eq, Gt, Gte, Lt, Lte, IsNotNull, And, Or,
     Div, Upper, Lower, Contains, StartsWith,
     Mean, Sum, Min, Max, Count, RawSql, AggExpr,
@@ -10,7 +10,7 @@ import {
 } from '../expr.js'
 
 export class PrqlCompiler implements Compiler {
-    compileExpr(expr: Expr): string {
+    compileExpr(expr: BaseExpr): string {
         // Column references
         if (expr instanceof StringCol || expr instanceof NumericCol || expr instanceof BooleanCol || expr instanceof ColRef) {
             return (expr as { name: string }).name

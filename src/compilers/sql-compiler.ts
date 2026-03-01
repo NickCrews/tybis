@@ -1,6 +1,6 @@
 import { compile, CompileOptions } from 'prqlc'
 import type { Compiler } from './base.js'
-import type { Expr } from '../expr.js'
+import type { BaseExpr } from '../expr.js'
 import type { IRNode } from '../ir.js'
 import { PrqlCompiler } from './prql-compiler.js'
 
@@ -11,7 +11,7 @@ import { PrqlCompiler } from './prql-compiler.js'
 export class SqlCompiler implements Compiler {
     private readonly prqlCompiler = new PrqlCompiler()
 
-    compileExpr(expr: Expr): string {
+    compileExpr(expr: BaseExpr): string {
         return this.prqlCompiler.compileExpr(expr)
     }
 
