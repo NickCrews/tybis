@@ -24,3 +24,20 @@ export type JSType<T extends DataType> =
 export type SchemaToJS<S extends Schema> = {
     [K in keyof S]: JSType<S[K]>
 }
+
+export type JsType = string | number | boolean | Date
+
+export type InferDtype<JS extends JsType> =
+    JS extends string ? 'string'
+    : JS extends number ? 'float64'
+    : JS extends boolean ? 'boolean'
+    : JS extends Date ? 'datetime'
+    : never
+
+export function inferDtype<JS extends JsType>(value: JS): InferDtype<JS> {
+    if (typeof value === 'string') return 'string' as InferDtype<JS>
+    if (typeof value === 'boolean') return 'boolean' as InferDtype<JS>
+    if (typeof value === 'number') return 'float64' as InferDtype<JS>
+    if (value instanceof Date) return 'datetime' as InferDtype<JS>
+    throw new Error(`Cannot infer dtype for value: ${value}`)
+}

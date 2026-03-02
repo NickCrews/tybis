@@ -1,4 +1,4 @@
-import type { DataType, Schema } from './datatypes.js'
+import { inferDtype, type DataType, type InferDtype, type JsType, type Schema } from './datatypes.js'
 import type { DataShape } from './datashape.js'
 import {
     type IOp, type IExpr, _registerOpToExpr
@@ -43,8 +43,8 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
     abstract toOp(): IOp<T, S>
     toExpr(): this { return this }
 
-    eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr<S> {
-        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
+    eq(value: string | number | boolean | IExpr<DataType>) {
+        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
     }
     isNotNull() {
         return opToExpr(new ops.IsNotNullOp(this.toOp()))
@@ -61,10 +61,10 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
     max(): BaseExpr<T, 'scalar'> {
         return opToExpr(new ops.MaxOp(this.toOp()))
     }
-    desc(): SortExpr {
+    desc() {
         return new SortExpr(this, 'desc')
     }
-    asc(): SortExpr {
+    asc() {
         return new SortExpr(this, 'asc')
     }
 }
@@ -74,29 +74,29 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
 // ---------------------------------------------------------------------------
 
 export abstract class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
-    gt(value: number | NumericExpr): BooleanExpr<S> {
-        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
+    gt(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
     }
-    gte(value: number | NumericExpr): BooleanExpr<S> {
-        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
+    gte(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
     }
-    lt(value: number | NumericExpr): BooleanExpr<S> {
-        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
+    lt(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
     }
-    lte(value: number | NumericExpr): BooleanExpr<S> {
-        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
+    lte(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
     }
-    add(value: number | NumericExpr): NumericExpr<'float64', S> {
-        return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
+    add(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value)))
     }
-    sub(value: number | NumericExpr): NumericExpr<'float64', S> {
-        return opToExpr(new ops.SubOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
+    sub(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.SubOp(this.toOp(), toOpValue(value)))
     }
-    mul(value: number | NumericExpr): NumericExpr<'float64', S> {
-        return opToExpr(new ops.MulOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
+    mul(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.MulOp(this.toOp(), toOpValue(value)))
     }
-    div(value: number | NumericExpr): NumericExpr<'float64', S> {
-        return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
+    div(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value)))
     }
 }
 
@@ -106,17 +106,17 @@ export abstract class NumericExpr<T extends NumericDataType = NumericDataType, S
 
 export abstract class StringExpr<S extends DataShape = DataShape> extends BaseExpr<'string', S> {
     readonly dtype = 'string' as const
-    upper(): StringExpr<S> {
-        return opToExpr(new ops.UpperOp(this.toOp())) as StringExpr<S>
+    upper() {
+        return opToExpr(new ops.UpperOp(this.toOp()))
     }
-    lower(): StringExpr<S> {
-        return opToExpr(new ops.LowerOp(this.toOp())) as StringExpr<S>
+    lower() {
+        return opToExpr(new ops.LowerOp(this.toOp()))
     }
-    contains(pattern: string): BooleanExpr<S> {
-        return opToExpr(new ops.ContainsOp(this.toOp(), new ops.StringLiteralOp(pattern))) as BooleanExpr<S>
+    contains(pattern: string) {
+        return opToExpr(new ops.ContainsOp(this.toOp(), new ops.StringLiteralOp(pattern)))
     }
-    startsWith(prefix: string): BooleanExpr<S> {
-        return opToExpr(new ops.StartsWithOp(this.toOp(), new ops.StringLiteralOp(prefix))) as BooleanExpr<S>
+    startsWith(prefix: string) {
+        return opToExpr(new ops.StartsWithOp(this.toOp(), new ops.StringLiteralOp(prefix)))
     }
 }
 
@@ -126,11 +126,11 @@ export abstract class StringExpr<S extends DataShape = DataShape> extends BaseEx
 
 export abstract class BooleanExpr<S extends DataShape = DataShape> extends BaseExpr<'boolean', S> {
     readonly dtype = 'boolean' as const
-    and(other: BooleanExpr): BooleanExpr<S> {
-        return opToExpr(new ops.AndOp(this.toOp(), other.toOp())) as BooleanExpr<S>
+    and(other: IExpr<'boolean'>) {
+        return opToExpr(new ops.AndOp(this.toOp(), other.toOp()))
     }
-    or(other: BooleanExpr): BooleanExpr<S> {
-        return opToExpr(new ops.OrOp(this.toOp(), other.toOp())) as BooleanExpr<S>
+    or(other: IExpr<'boolean'>) {
+        return opToExpr(new ops.OrOp(this.toOp(), other.toOp()))
     }
 }
 
@@ -140,8 +140,8 @@ export abstract class BooleanExpr<S extends DataShape = DataShape> extends BaseE
 
 export abstract class DateExpr<S extends DataShape = DataShape> extends BaseExpr<'date', S> {
     readonly dtype = 'date' as const
-    toString(format: string): StringExpr<S> {
-        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format)) as StringExpr<S>
+    toString(format: string) {
+        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
@@ -151,15 +151,15 @@ export abstract class DateExpr<S extends DataShape = DataShape> extends BaseExpr
 
 export abstract class TimeExpr<S extends DataShape = DataShape> extends BaseExpr<'time', S> {
     readonly dtype = 'time' as const
-    toString(format: string): StringExpr<S> {
-        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format)) as StringExpr<S>
+    toString(format: string) {
+        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
 export abstract class DateTimeExpr<S extends DataShape = DataShape> extends BaseExpr<'datetime', S> {
     readonly dtype = 'datetime' as const
-    toString(format: string): StringExpr<S> {
-        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format)) as StringExpr<S>
+    toString(format: string) {
+        return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
@@ -404,31 +404,43 @@ export function sql<T extends DataType, S extends DataShape>(rawSql: string, dty
     return opToExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
 }
 
-export type JsType = string | number | boolean | Date
-export type InferDtype<JS extends JsType> =
-    JS extends string ? 'string'
-    : JS extends number ? 'float64'
-    : JS extends boolean ? 'boolean'
-    : JS extends Date ? 'datetime'
-    : never
-
-export function lit<JS extends JsType>(value: JS): BaseExpr<InferDtype<JS>> {
-    if (typeof value === 'string') return opToExpr(new ops.StringLiteralOp(value)) as any
-    if (typeof value === 'boolean') return opToExpr(new ops.BooleanLiteralOp(value)) as any
-    if (typeof value === 'number') return opToExpr(new ops.NumberLiteralOp(value)) as any
-    if (value instanceof Date) return opToExpr(new ops.DatetimeLiteralOp(value)) as any
-    throw new Error(`Unsupported JS value type: ${typeof value}`)
+export function lit<JS extends JsType>(value: JS): IExpr<InferDtype<JS>, 'scalar'> {
+    const op = litOp(value)
+    return opToExpr(op)
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function toOpValue(value: string | number | boolean | Date | BaseExpr): IOp {
-    if (value instanceof BaseExpr) return value.toOp()
-    if (typeof value === 'string') return new ops.StringLiteralOp(value)
-    if (typeof value === 'boolean') return new ops.BooleanLiteralOp(value)
-    if (typeof value === 'number') return new ops.NumberLiteralOp(value)
-    if (value instanceof Date) return new ops.DatetimeLiteralOp(value)
-    throw new Error(`Unsupported value type: ${typeof value}`)
+function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
+    const inferredDtype = inferDtype(value)
+    type R = IOp<InferDtype<JS>, 'scalar'>
+    switch (inferredDtype) {
+        case 'string':
+            return new ops.StringLiteralOp(value as string) as unknown as R
+        case 'boolean':
+            return new ops.BooleanLiteralOp(value as boolean) as unknown as R
+        case 'float64':
+            return new ops.NumberLiteralOp(value as number) as unknown as R
+        case 'datetime':
+            return new ops.DatetimeLiteralOp(value as Date) as unknown as R
+        default:
+            throw new Error(`Unsupported JS value type: ${inferredDtype satisfies never}`)
+    }
+}
+
+function toOpValue(exprOrJs: IExpr | IOp | JsType): IOp {
+    if (isRaw(exprOrJs)) {
+        return litOp(exprOrJs)
+    } else {
+        return exprOrJs.toOp()
+    }
+}
+
+function isRaw(exprOrJs: IExpr | IOp | JsType): exprOrJs is JsType {
+    return typeof exprOrJs === 'string' ||
+        typeof exprOrJs === 'number' ||
+        typeof exprOrJs === 'boolean' ||
+        exprOrJs instanceof Date
 }

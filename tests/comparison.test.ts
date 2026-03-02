@@ -11,12 +11,16 @@ describe('Comparison Operations', () => {
     } as const)
 
     describe('equality', () => {
-        it('should generate correct PRQL for eq', () => {
-            const q = table.filter(r => r.col('x').eq(5))
+        it('should have basic functionality for eq', () => {
+            const q = table.derive(r => ({ is_five: r.col('x').eq(5) }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
               "from data
-              filter x == 5"
+              derive {
+                is_five = x == 5
+              }"
             `)
+            expectTypeOf(q.col('is_five').dtype).toEqualTypeOf<'boolean'>()
+            expectTypeOf(q.col('is_five').dshape).toEqualTypeOf<'columnar'>()
         })
 
         it('should have columnar shape when comparing columnar == scalar', () => {
@@ -53,12 +57,16 @@ describe('Comparison Operations', () => {
     })
 
     describe('greater than', () => {
-        it('should generate correct PRQL for gt', () => {
-            const q = table.filter(r => r.col('x').gt(10))
+        it('should have basic functionality for gt', () => {
+            const q = table.derive(r => ({ is_greater: r.col('x').gt(5) }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
               "from data
-              filter x > 10"
+              derive {
+                is_greater = x > 5
+              }"
             `)
+            expectTypeOf(q.col('is_greater').dtype).toEqualTypeOf<'boolean'>()
+            expectTypeOf(q.col('is_greater').dshape).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
@@ -71,12 +79,16 @@ describe('Comparison Operations', () => {
     })
 
     describe('greater than or equal', () => {
-        it('should generate correct PRQL for gte', () => {
-            const q = table.filter(r => r.col('x').gte(10))
+        it('should have basic functionality for gte', () => {
+            const q = table.derive(r => ({ is_gte: r.col('x').gte(10) }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
               "from data
-              filter x >= 10"
+              derive {
+                is_gte = x >= 10
+              }"
             `)
+            expectTypeOf(q.col('is_gte').dtype).toEqualTypeOf<'boolean'>()
+            expectTypeOf(q.col('is_gte').dshape).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
@@ -88,12 +100,16 @@ describe('Comparison Operations', () => {
     })
 
     describe('less than', () => {
-        it('should generate correct PRQL for lt', () => {
-            const q = table.filter(r => r.col('x').lt(20))
+        it('should have basic functionality for lt', () => {
+            const q = table.derive(r => ({ is_less: r.col('x').lt(20) }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
               "from data
-              filter x < 20"
+              derive {
+                is_less = x < 20
+              }"
             `)
+            expectTypeOf(q.col('is_less').dtype).toEqualTypeOf<'boolean'>()
+            expectTypeOf(q.col('is_less').dshape).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
@@ -105,12 +121,16 @@ describe('Comparison Operations', () => {
     })
 
     describe('less than or equal', () => {
-        it('should generate correct PRQL for lte', () => {
-            const q = table.filter(r => r.col('x').lte(20))
+        it('should have basic functionality for lte', () => {
+            const q = table.derive(r => ({ is_lte: r.col('x').lte(20) }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
               "from data
-              filter x <= 20"
+              derive {
+                is_lte = x <= 20
+              }"
             `)
+            expectTypeOf(q.col('is_lte').dtype).toEqualTypeOf<'boolean'>()
+            expectTypeOf(q.col('is_lte').dshape).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
