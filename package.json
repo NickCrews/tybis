@@ -16,7 +16,10 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "playground": "pnpm --filter tybis-playground dev",
+    "playground:build": "pnpm build && pnpm --filter tybis-playground build",
+    "playground:deploy": "pnpm playground:build && pnpm --filter tybis-playground deploy"
   },
   "keywords": ["dataframe", "sql", "prql", "typescript", "ibis"],
   "author": "",
