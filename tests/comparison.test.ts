@@ -1,0 +1,145 @@
+import { describe, it, expect } from 'vitest'
+import { expectTypeOf } from 'expect-type'
+import * as ty from '../src/index.js'
+import { EqOp, GtOp, GteOp, LtOp, LteOp } from '../src/ops.js'
+
+describe('Comparison Operations', () => {
+    const table = ty.relation('data', {
+        x: 'float64',
+        y: 'float64',
+        name: 'string',
+    } as const)
+
+    describe('equality', () => {
+        it('should generate correct PRQL for eq', () => {
+            const q = table.filter(r => r.col('x').eq(5))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter x == 5"
+            `)
+        })
+
+        it('should have columnar shape when comparing columnar == scalar', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(5)
+            const op = new EqOp(col, scalar)
+            expect(op.dshape).toBe('columnar')
+            expectTypeOf(op.dshape).toEqualTypeOf<'columnar'>()
+        })
+
+        it('should have scalar shape when comparing scalar == scalar', () => {
+            const scalar1 = new ty.NumberLiteralOp(5)
+            const scalar2 = new ty.NumberLiteralOp(10)
+            const op = new EqOp(scalar1, scalar2)
+            expect(op.dshape).toBe('scalar')
+            expectTypeOf(op.dshape).toEqualTypeOf<'scalar'>()
+        })
+
+        it('should have columnar shape when comparing columnar == columnar', () => {
+            const col1 = new ty.ColRefOp('x', 'float64')
+            const col2 = new ty.ColRefOp('y', 'float64')
+            const op = new EqOp(col1, col2)
+            expect(op.dshape).toBe('columnar')
+            expectTypeOf(op.dshape).toEqualTypeOf<'columnar'>()
+        })
+
+        it('should return boolean type', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(5)
+            const op = new EqOp(col, scalar)
+            expect(op.dtype).toBe('boolean')
+            expectTypeOf(op.dtype).toEqualTypeOf<'boolean'>()
+        })
+    })
+
+    describe('greater than', () => {
+        it('should generate correct PRQL for gt', () => {
+            const q = table.filter(r => r.col('x').gt(10))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter x > 10"
+            `)
+        })
+
+        it('should have correct shape for mixed shapes', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(10)
+            const op = new GtOp(col, scalar)
+            expect(op.dshape).toBe('columnar')
+            expect(op.dtype).toBe('boolean')
+        })
+    })
+
+    describe('greater than or equal', () => {
+        it('should generate correct PRQL for gte', () => {
+            const q = table.filter(r => r.col('x').gte(10))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter x >= 10"
+            `)
+        })
+
+        it('should have correct shape for mixed shapes', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(10)
+            const op = new GteOp(col, scalar)
+            expect(op.dshape).toBe('columnar')
+        })
+    })
+
+    describe('less than', () => {
+        it('should generate correct PRQL for lt', () => {
+            const q = table.filter(r => r.col('x').lt(20))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter x < 20"
+            `)
+        })
+
+        it('should have correct shape for mixed shapes', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(20)
+            const op = new LtOp(col, scalar)
+            expect(op.dshape).toBe('columnar')
+        })
+    })
+
+    describe('less than or equal', () => {
+        it('should generate correct PRQL for lte', () => {
+            const q = table.filter(r => r.col('x').lte(20))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter x <= 20"
+            `)
+        })
+
+        it('should have correct shape for mixed shapes', () => {
+            const col = new ty.ColRefOp('x', 'float64')
+            const scalar = new ty.NumberLiteralOp(20)
+            const op = new LteOp(col, scalar)
+            expect(op.dshape).toBe('columnar')
+        })
+    })
+
+    describe('combined comparisons', () => {
+        it('should handle complex filter expressions', () => {
+            const q = table.filter(r =>
+                r.col('x').gt(10).and(r.col('y').lt(20))
+            )
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter (x > 10) && (y < 20)"
+            `)
+        })
+
+        it('should handle or expressions', () => {
+            const q = table.filter(r =>
+                r.col('x').gt(100).or(r.col('y').lt(5))
+            )
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from data
+              filter (x > 100) || (y < 5)"
+            `)
+        })
+    })
+})
