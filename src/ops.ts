@@ -82,6 +82,16 @@ export class DatetimeLiteralOp extends BaseOp<'datetime', 'scalar'> {
     constructor(readonly value: Date) { super('datetime', 'scalar') }
 }
 
+export class DateLiteralOp extends BaseOp<'date', 'scalar'> {
+    readonly kind = 'date_literal' as const
+    constructor(readonly value: Date) { super('date', 'scalar') }
+}
+
+export class TimeLiteralOp extends BaseOp<'time', 'scalar'> {
+    readonly kind = 'time_literal' as const
+    constructor(readonly value: Date) { super('time', 'scalar') }
+}
+
 // ---------------------------------------------------------------------------
 // Comparison ops
 // ---------------------------------------------------------------------------
@@ -179,6 +189,17 @@ export class StartsWithOp<S extends DataShape = DataShape> extends BaseOp<'boole
 }
 
 // ---------------------------------------------------------------------------
+// Date ops
+// ---------------------------------------------------------------------------
+
+type TemporalDataType = 'date' | 'time' | 'datetime'
+
+export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
+    readonly kind = 'temporal_to_string' as const
+    constructor(readonly operand: IOp<TemporalDataType>, readonly format: string) { super('string', operand.dshape as S) }
+}
+
+// ---------------------------------------------------------------------------
 // Aggregation ops
 // ---------------------------------------------------------------------------
 
@@ -235,6 +256,8 @@ export type BuiltinOp =
     | BooleanLiteralOp
     | NullLiteralOp
     | DatetimeLiteralOp
+    | DateLiteralOp
+    | TimeLiteralOp
     | EqOp
     | GtOp
     | GteOp
@@ -251,6 +274,7 @@ export type BuiltinOp =
     | LowerOp
     | ContainsOp
     | StartsWithOp
+    | TemporalToStringOp
     | MeanOp
     | SumOp
     | MinOp

@@ -14,6 +14,8 @@ export class PrqlCompiler implements Compiler {
             case 'boolean_literal': return String(op.value)
             case 'null_literal': return 'null'
             case 'datetime_literal': return `@${op.value.toISOString()}`
+            case 'date_literal': return `@${op.value.toISOString().split('T')[0]}`
+            case 'time_literal': return `@${op.value.toISOString().split('T')[1]}`
 
             case 'eq': return `${this.compileOp(op.left as BuiltinOp)} == ${this.compileOp(op.right as BuiltinOp)}`
             case 'gt': return `${this.compileOp(op.left as BuiltinOp)} > ${this.compileOp(op.right as BuiltinOp)}`
@@ -34,6 +36,9 @@ export class PrqlCompiler implements Compiler {
             case 'lower': return `lower ${this.compileOp(op.operand as BuiltinOp)}`
             case 'contains': return `contains ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.pattern)}`
             case 'starts_with': return `starts_with ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.prefix)}`
+
+            // invoice_date | date.to_text "%d/%m/%Y"
+            case 'temporal_to_string': return `date.to_text "${op.format}" ${this.compileOp(op.operand as BuiltinOp)}`
 
             case 'mean': return `average ${this.compileOp(op.operand as BuiltinOp)}`
             case 'sum': return `sum ${this.compileOp(op.operand as BuiltinOp)}`

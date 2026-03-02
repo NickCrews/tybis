@@ -1,6 +1,6 @@
 export { Relation, relation } from './relation.js'
 export {
-    BaseExpr as Expr, NumericExpr, StringExpr, BooleanExpr,
+    BaseExpr as Expr, NumericExpr, StringExpr, BooleanExpr, DateExpr, TimeExpr, DateTimeExpr, UUIDExpr,
     SortExpr,
     ColRef, StringCol, NumericCol, BooleanCol,
     col, count, sql, lit, opToExpr,

@@ -14,9 +14,15 @@ export class SqlCompiler implements Compiler {
     compileIR(node: IRNode): string {
         const prqlText = this.prqlCompiler.compileIR(node)
         const opts = new CompileOptions()
+        opts.target = 'sql.duckdb'
         opts.format = false
         opts.signature_comment = false
-        const result = compile(prqlText, opts)
+        let result: string | undefined
+        try {
+            result = compile(prqlText, opts)
+        } catch (error) {
+            throw new Error(`PRQL compilation failed for query:\n${prqlText}\nError: ${error}`)
+        }
         if (result === undefined) {
             throw new Error(`PRQL compilation failed for query:\n${prqlText}`)
         }
