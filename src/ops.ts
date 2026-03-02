@@ -95,6 +95,24 @@ export class TimeLiteralOp extends BaseOp<'time', 'scalar'> {
 }
 
 // ---------------------------------------------------------------------------
+// Generic operations
+// ---------------------------------------------------------------------------
+
+export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
+    readonly kind = 'is_not_null' as const
+    constructor(readonly operand: IOp<DataType, S>) { super('boolean', operand.dshape) }
+}
+
+export class CountOp extends BaseOp<'int64', 'scalar'> {
+    readonly kind = 'count' as const
+    constructor() { super('int64', 'scalar') }
+}
+export class RawSqlOp<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseOp<T, S> {
+    readonly kind = 'raw_sql' as const
+    constructor(readonly rawSql: string, dtype: T, dshape: S) { super(dtype, dshape) }
+}
+
+// ---------------------------------------------------------------------------
 // Comparison ops
 // ---------------------------------------------------------------------------
 
@@ -123,9 +141,14 @@ export class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = Data
     constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
 }
 
-export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
-    readonly kind = 'is_not_null' as const
-    constructor(readonly operand: IOp<DataType, S>) { super('boolean', operand.dshape) }
+export class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
+    readonly kind = 'min' as const
+    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
+}
+
+export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
+    readonly kind = 'max' as const
+    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +193,16 @@ export class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = Data
     readonly kind = 'div' as const
     constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
 }
+export class SumOp extends BaseOp<'float64', 'scalar'> {
+    readonly kind = 'sum' as const
+    constructor(readonly operand: IOp) { super('float64', 'scalar') }
+}
+
+export class MeanOp extends BaseOp<'float64', 'scalar'> {
+    readonly kind = 'mean' as const
+    constructor(readonly operand: IOp) { super('float64', 'scalar') }
+}
+
 
 // ---------------------------------------------------------------------------
 // String ops
@@ -207,44 +240,6 @@ export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<
 }
 
 // ---------------------------------------------------------------------------
-// Aggregation ops
-// ---------------------------------------------------------------------------
-
-export class MeanOp extends BaseOp<'float64', 'scalar'> {
-    readonly kind = 'mean' as const
-    constructor(readonly operand: IOp) { super('float64', 'scalar') }
-}
-
-export class SumOp extends BaseOp<'float64', 'scalar'> {
-    readonly kind = 'sum' as const
-    constructor(readonly operand: IOp) { super('float64', 'scalar') }
-}
-
-export class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly kind = 'min' as const
-    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
-}
-
-export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly kind = 'max' as const
-    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
-}
-
-export class CountOp extends BaseOp<'int64', 'scalar'> {
-    readonly kind = 'count' as const
-    constructor() { super('int64', 'scalar') }
-}
-
-// ---------------------------------------------------------------------------
-// Raw SQL
-// ---------------------------------------------------------------------------
-
-export class RawSqlOp<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseOp<T, S> {
-    readonly kind = 'raw_sql' as const
-    constructor(readonly rawSql: string, dtype: T, dshape: S) { super(dtype, dshape) }
-}
-
-// ---------------------------------------------------------------------------
 // Sort specification
 // ---------------------------------------------------------------------------
 
@@ -265,27 +260,33 @@ export type BuiltinOp =
     | DatetimeLiteralOp
     | DateLiteralOp
     | TimeLiteralOp
+    // generic
+    | IsNotNullOp
+    | CountOp
+    | RawSqlOp
+    // comparison ops
     | EqOp
     | GtOp
     | GteOp
     | LtOp
     | LteOp
-    | IsNotNullOp
+    | MinOp
+    | MaxOp
+    // boolean logic ops
     | LogicalNotOp
     | LogicalAndOp
     | LogicalOrOp
+    // arithmetic ops
     | AddOp
     | SubOp
     | MulOp
     | DivOp
+    | SumOp
+    | MeanOp
+    // string ops
     | UpperOp
     | LowerOp
     | ContainsOp
     | StartsWithOp
+    // temporal ops
     | TemporalToStringOp
-    | MeanOp
-    | SumOp
-    | MinOp
-    | MaxOp
-    | CountOp
-    | RawSqlOp
