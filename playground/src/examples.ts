@@ -11,6 +11,8 @@ export const examples: Example[] = [
     label: 'Penguins — Filter',
     description: 'Simple filter on the penguins dataset',
     code: `// Filter the penguins dataset for large bills
+import * as ty from 'tybis';
+
 const penguins = ty.relation('penguins', {
   species: 'string',
   island: 'string',
@@ -31,6 +33,8 @@ preview(bigBills)
     label: 'Penguins — Group & Aggregate',
     description: 'Group penguins by species and compute stats',
     code: `// Aggregate penguin measurements by species
+import * as ty from 'tybis';
+
 const penguins = ty.relation('penguins', {
   species: 'string',
   year: 'int32',
@@ -58,6 +62,8 @@ preview(bySpecies)
     label: 'Penguins — Full Pipeline',
     description: 'Filter → group → sort → take pipeline from the README',
     code: `// Full pipeline: filter, group, sort, take
+import * as ty from 'tybis';
+
 const penguins = ty.relation('penguins', {
   species: 'string',
   year: 'int32',
@@ -84,6 +90,8 @@ preview(result)
     label: 'E-commerce — Orders',
     description: 'Analyse an orders table by customer',
     code: `// E-commerce orders analysis
+import * as ty from 'tybis';
+
 const orders = ty.relation('orders', {
   order_id: 'int64',
   customer_id: 'int64',
@@ -115,6 +123,8 @@ preview(topCustomers)
     label: 'Derive — Computed Columns',
     description: 'Add computed columns with derive()',
     code: `// Add computed/derived columns
+import * as ty from 'tybis';
+
 const products = ty.relation('products', {
   name: 'string',
   price_cents: 'int64',
@@ -136,6 +146,8 @@ preview(enriched)
     label: 'Escape Hatch — Raw SQL',
     description: 'Use ty.sql() for expressions the API does not cover',
     code: `// Escape hatch: embed raw SQL expressions
+import * as ty from 'tybis';
+
 const events = ty.relation('events', {
   id: 'int64',
   user_id: 'int64',

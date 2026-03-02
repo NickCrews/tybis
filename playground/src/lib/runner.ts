@@ -16,7 +16,7 @@ function transpile(tsCode: string): string {
       ['typescript', { allExtensions: true }],
     ],
     plugins: [],
-    sourceType: 'script',
+    sourceType: 'module',
   })
   if (!result.code) throw new Error('Transpilation produced no output')
   return result.code
@@ -26,7 +26,6 @@ function transpile(tsCode: string): string {
  * Run user TypeScript code in a sandboxed function.
  *
  * The sandbox injects:
- *   - `ty`       – the full tybis module
  *   - `preview`  – a function the user calls to push output to the panel
  *
  * Returns the result captured by `preview()`, or an error.
@@ -39,6 +38,12 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
     return { kind: 'error', message: String(err) }
   }
 
+  // mega hacky. There must be better ways to do this.
+  jsCode = jsCode.replace(
+    /import\s+\*\s+as\s+(\w+)\s+from\s+['"]tybis['"]/g,
+    'const $1 = __ty'
+  )
+
   let captured: ty.Relation | null = null
 
   function preview(relation: ty.Relation) {
@@ -47,10 +52,8 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
 
   try {
     // eslint-disable-next-line no-new-func
-    const fn = new Function('ty', 'preview', jsCode)
-    // Augment `ty` with a `table` alias for relation() so both names work.
-    const tyWithAliases = { ...ty, table: ty.relation }
-    await fn(tyWithAliases, preview)
+    const fn = new Function('__ty', 'preview', jsCode)
+    await fn(ty, preview)
   } catch (err) {
     return { kind: 'error', message: String(err) }
   }

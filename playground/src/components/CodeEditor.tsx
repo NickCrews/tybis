@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import MonacoEditor, { type OnMount } from '@monaco-editor/react'
 import type * as Monaco from 'monaco-editor'
-import { TYBIS_DTS } from '@/lib/tybis-dts'
+import { TYBIS_DTS } from '@/lib/tybis-dts.generated'
 
 interface CodeEditorProps {
   value: string
@@ -17,6 +17,18 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
     // Inject tybis type declarations so users get autocomplete + type errors.
     monaco.languages.typescript.typescriptDefaults.addExtraLib(
       TYBIS_DTS,
+      'file:///node_modules/tybis/index.d.ts'
+    )
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(
+      `
+      // import { Relation } from "tybis";
+      /**
+        * Push a relation to the output panel.
+        * Call this at the end of your query to display PRQL and SQL.
+        * @example preview(myRelation)
+        */
+      declare function preview(relation: Relation<any>): void
+      `,
       'ts:tybis-sandbox.d.ts'
     )
 
@@ -24,11 +36,13 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
       target: monaco.languages.typescript.ScriptTarget.ES2020,
       allowNonTsExtensions: true,
-      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      // moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.Classic,
       noEmit: true,
       strict: true,
       // Don't require imports — globals are injected by the sandbox.
       module: monaco.languages.typescript.ModuleKind.None,
+      sourceType: 'module',
     })
 
     monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
@@ -42,7 +56,7 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
     if (!monacoRef.current) return
     monacoRef.current.languages.typescript.typescriptDefaults.addExtraLib(
       TYBIS_DTS,
-      'ts:tybis-sandbox.d.ts'
+      'file:///node_modules/tybis/index.d.ts'
     )
   }, [])
 
