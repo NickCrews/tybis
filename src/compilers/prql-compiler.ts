@@ -35,7 +35,6 @@ export class PrqlCompiler implements Compiler {
             case 'contains': return `contains ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.pattern)}`
             case 'starts_with': return `starts_with ${this.compileOp(op.operand as BuiltinOp)} ${this.compileOp(op.prefix)}`
 
-            case 'agg': return this.compileOp(op.inner as BuiltinOp)
             case 'mean': return `average ${this.compileOp(op.operand as BuiltinOp)}`
             case 'sum': return `sum ${this.compileOp(op.operand as BuiltinOp)}`
             case 'min': return `min ${this.compileOp(op.operand as BuiltinOp)}`

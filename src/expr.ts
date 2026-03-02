@@ -1,4 +1,4 @@
-import type { DataType, Schema } from './datatypes.js'
+import type { DataType, DataShape, Schema } from './datatypes.js'
 import {
     type IOp, type IExpr, _registerOpToExpr
 } from './ops.js'
@@ -10,47 +10,48 @@ import * as ops from './ops.js'
 
 export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
 
-export function opToExpr(op: IOp<'string'>): StringExpr
-export function opToExpr(op: IOp<'boolean'>): BooleanExpr
-export function opToExpr<T extends NumericDataType>(op: IOp<T>): NumericExpr<T>
-export function opToExpr<T extends DataType>(op: IOp<T>): BaseExpr<T>
-export function opToExpr<T extends DataType>(op: IOp<T>): BaseExpr<T> {
+export function opToExpr<S extends DataShape>(op: IOp<'string', S>): StringExpr<S>
+export function opToExpr<S extends DataShape>(op: IOp<'boolean', S>): BooleanExpr<S>
+export function opToExpr<T extends NumericDataType, S extends DataShape>(op: IOp<T, S>): NumericExpr<T, S>
+export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): BaseExpr<T, S>
+export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): BaseExpr<T, S> {
     const d = op.dtype
-    if (d === 'string') return new OpStringExpr(op as IOp<'string'>) as unknown as BaseExpr<T>
+    if (d === 'string') return new OpStringExpr(op as IOp<'string'>) as unknown as BaseExpr<T, S>
     if (d === 'int32' || d === 'int64' || d === 'float32' || d === 'float64')
-        return new OpNumericExpr(op as IOp<any>) as unknown as BaseExpr<T>
-    if (d === 'boolean') return new OpBooleanExpr(op as IOp<'boolean'>) as unknown as BaseExpr<T>
-    return new OpExpr(op) as unknown as BaseExpr<T>
+        return new OpNumericExpr(op as IOp<any>) as unknown as BaseExpr<T, S>
+    if (d === 'boolean') return new OpBooleanExpr(op as IOp<'boolean'>) as unknown as BaseExpr<T, S>
+    return new OpExpr(op) as unknown as BaseExpr<T, S>
 }
 
-_registerOpToExpr(opToExpr as <T extends DataType>(op: IOp<T>) => IExpr<T>)
+_registerOpToExpr(opToExpr as <T extends DataType, S extends DataShape>(op: IOp<T, S>) => IExpr<T, S>)
 
 // ---------------------------------------------------------------------------
 // Abstract Expression classes (public-facing API)
 // ---------------------------------------------------------------------------
 
-export abstract class BaseExpr<T extends DataType = DataType> implements IExpr<T> {
+export abstract class BaseExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IExpr<T, S> {
     abstract readonly dtype: T
-    abstract toOp(): IOp<T>
+    abstract readonly dshape: S
+    abstract toOp(): IOp<T, S>
     toExpr(): this { return this }
 
-    eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr {
-        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
+    eq(value: string | number | boolean | BaseExpr<DataType>): BooleanExpr<S> {
+        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
-    isNotNull(): BooleanExpr {
-        return opToExpr(new ops.IsNotNullOp(this.toOp()))
+    isNotNull(): BooleanExpr<S> {
+        return opToExpr(new ops.IsNotNullOp(this.toOp())) as BooleanExpr<S>
     }
-    mean(): AggExpr<'float64'> {
-        return new AggExpr(new ops.AggOp(new ops.MeanOp(this.toOp()), 'float64'))
+    mean(): BaseExpr<'float64', 'scalar'> {
+        return opToExpr(new ops.MeanOp(this.toOp()))
     }
-    sum(): AggExpr<'float64'> {
-        return new AggExpr(new ops.AggOp(new ops.SumOp(this.toOp()), 'float64'))
+    sum(): BaseExpr<'float64', 'scalar'> {
+        return opToExpr(new ops.SumOp(this.toOp()))
     }
-    min(): AggExpr<T> {
-        return new AggExpr(new ops.AggOp(new ops.MinOp(this.toOp()), this.dtype))
+    min(): BaseExpr<T, 'scalar'> {
+        return opToExpr(new ops.MinOp(this.toOp()))
     }
-    max(): AggExpr<T> {
-        return new AggExpr(new ops.AggOp(new ops.MaxOp(this.toOp()), this.dtype))
+    max(): BaseExpr<T, 'scalar'> {
+        return opToExpr(new ops.MaxOp(this.toOp()))
     }
     desc(): SortExpr {
         return new SortExpr(this, 'desc')
@@ -64,30 +65,30 @@ export abstract class BaseExpr<T extends DataType = DataType> implements IExpr<T
 // Numeric expressions (int32, int64, float32, float64)
 // ---------------------------------------------------------------------------
 
-export abstract class NumericExpr<T extends NumericDataType = NumericDataType> extends BaseExpr<T> {
-    gt(value: number | NumericExpr): BooleanExpr {
-        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
+export abstract class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
+    gt(value: number | NumericExpr): BooleanExpr<S> {
+        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
-    gte(value: number | NumericExpr): BooleanExpr {
-        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
+    gte(value: number | NumericExpr): BooleanExpr<S> {
+        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
-    lt(value: number | NumericExpr): BooleanExpr {
-        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
+    lt(value: number | NumericExpr): BooleanExpr<S> {
+        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
-    lte(value: number | NumericExpr) {
-        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
+    lte(value: number | NumericExpr): BooleanExpr<S> {
+        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
-    add(value: number | NumericExpr) {
-        return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value)))
+    add(value: number | NumericExpr): NumericExpr<'float64', S> {
+        return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
     }
-    sub(value: number | NumericExpr) {
-        return opToExpr(new ops.SubOp(this.toOp(), toOpValue(value)))
+    sub(value: number | NumericExpr): NumericExpr<'float64', S> {
+        return opToExpr(new ops.SubOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
     }
-    mul(value: number | NumericExpr) {
-        return opToExpr(new ops.MulOp(this.toOp(), toOpValue(value)))
+    mul(value: number | NumericExpr): NumericExpr<'float64', S> {
+        return opToExpr(new ops.MulOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
     }
-    div(value: number | NumericExpr) {
-        return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value)))
+    div(value: number | NumericExpr): NumericExpr<'float64', S> {
+        return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value))) as NumericExpr<'float64', S>
     }
 }
 
@@ -95,19 +96,19 @@ export abstract class NumericExpr<T extends NumericDataType = NumericDataType> e
 // String expressions
 // ---------------------------------------------------------------------------
 
-export abstract class StringExpr extends BaseExpr<'string'> {
+export abstract class StringExpr<S extends DataShape = DataShape> extends BaseExpr<'string', S> {
     readonly dtype = 'string' as const
-    upper(): StringExpr {
-        return new ops.UpperOp(this.toOp()).toExpr() as unknown as StringExpr
+    upper(): StringExpr<S> {
+        return opToExpr(new ops.UpperOp(this.toOp())) as StringExpr<S>
     }
-    lower(): StringExpr {
-        return new ops.LowerOp(this.toOp()).toExpr() as unknown as StringExpr
+    lower(): StringExpr<S> {
+        return opToExpr(new ops.LowerOp(this.toOp())) as StringExpr<S>
     }
-    contains(pattern: string): BooleanExpr {
-        return opToExpr(new ops.ContainsOp(this.toOp(), new ops.StringLiteralOp(pattern)))
+    contains(pattern: string): BooleanExpr<S> {
+        return opToExpr(new ops.ContainsOp(this.toOp(), new ops.StringLiteralOp(pattern))) as BooleanExpr<S>
     }
-    startsWith(prefix: string): BooleanExpr {
-        return opToExpr(new ops.StartsWithOp(this.toOp(), new ops.StringLiteralOp(prefix)))
+    startsWith(prefix: string): BooleanExpr<S> {
+        return opToExpr(new ops.StartsWithOp(this.toOp(), new ops.StringLiteralOp(prefix))) as BooleanExpr<S>
     }
 }
 
@@ -115,13 +116,13 @@ export abstract class StringExpr extends BaseExpr<'string'> {
 // Boolean expressions
 // ---------------------------------------------------------------------------
 
-export abstract class BooleanExpr extends BaseExpr<'boolean'> {
+export abstract class BooleanExpr<S extends DataShape = DataShape> extends BaseExpr<'boolean', S> {
     readonly dtype = 'boolean' as const
-    and(other: BooleanExpr): BooleanExpr {
-        return opToExpr(new ops.AndOp(this.toOp(), other.toOp()))
+    and(other: BooleanExpr): BooleanExpr<S> {
+        return opToExpr(new ops.AndOp(this.toOp(), other.toOp())) as BooleanExpr<S>
     }
-    or(other: BooleanExpr): BooleanExpr {
-        return opToExpr(new ops.OrOp(this.toOp(), other.toOp()))
+    or(other: BooleanExpr): BooleanExpr<S> {
+        return opToExpr(new ops.OrOp(this.toOp(), other.toOp())) as BooleanExpr<S>
     }
 }
 
@@ -129,32 +130,44 @@ export abstract class BooleanExpr extends BaseExpr<'boolean'> {
 // Generic Op-wrapping Expr implementations (internal)
 // ---------------------------------------------------------------------------
 
-class OpExpr<T extends DataType = DataType> extends BaseExpr<T> {
+class OpExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
     readonly dtype: T
-    constructor(private readonly _op: IOp<T>) {
+    readonly dshape: S
+    constructor(private readonly _op: IOp<T, S>) {
         super()
         this.dtype = _op.dtype
+        this.dshape = _op.dshape
     }
-    toOp(): IOp<T> { return this._op }
+    toOp(): IOp<T, S> { return this._op }
 }
 
-class OpNumericExpr<T extends NumericDataType = NumericDataType> extends NumericExpr<T> {
+class OpNumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends NumericExpr<T, S> {
     readonly dtype: T
-    constructor(private readonly _op: IOp<T>) {
+    readonly dshape: S
+    constructor(private readonly _op: IOp<T, S>) {
         super()
         this.dtype = _op.dtype
+        this.dshape = _op.dshape
     }
-    toOp(): IOp<T> { return this._op }
+    toOp(): IOp<T, S> { return this._op }
 }
 
-class OpStringExpr extends StringExpr {
-    constructor(private readonly _op: IOp<'string'>) { super() }
-    override toOp(): IOp<'string'> { return this._op }
+class OpStringExpr<S extends DataShape = DataShape> extends StringExpr<S> {
+    readonly dshape: S
+    constructor(private readonly _op: IOp<'string', S>) {
+        super()
+        this.dshape = _op.dshape
+    }
+    override toOp(): IOp<'string', S> { return this._op }
 }
 
-class OpBooleanExpr extends BooleanExpr {
-    constructor(private readonly _op: IOp<'boolean'>) { super() }
-    override toOp(): IOp<'boolean'> { return this._op }
+class OpBooleanExpr<S extends DataShape = DataShape> extends BooleanExpr<S> {
+    readonly dshape: S
+    constructor(private readonly _op: IOp<'boolean', S>) {
+        super()
+        this.dshape = _op.dshape
+    }
+    override toOp(): IOp<'boolean', S> { return this._op }
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +180,8 @@ export type Col<N extends string = string, T extends DataType = DataType, S exte
     T extends 'boolean' ? BooleanCol<N> :
     ColRef<N, T>
 
-export class StringCol<N extends string = string> extends StringExpr {
+export class StringCol<N extends string = string> extends StringExpr<'columnar'> {
+    readonly dshape = 'columnar' as const
     readonly name: N
     private readonly _op: ops.ColRefOp<N, 'string'>
     constructor(name: N) {
@@ -178,8 +192,9 @@ export class StringCol<N extends string = string> extends StringExpr {
     override toOp(): ops.ColRefOp<N, 'string'> { return this._op }
 }
 
-export class NumericCol<N extends string = string, T extends NumericDataType = NumericDataType> extends NumericExpr<T> {
+export class NumericCol<N extends string = string, T extends NumericDataType = NumericDataType> extends NumericExpr<T, 'columnar'> {
     readonly dtype: T
+    readonly dshape = 'columnar' as const
     readonly name: N
     private readonly _op: ops.ColRefOp<N, T>
     constructor(name: N, dtype: T) {
@@ -191,7 +206,8 @@ export class NumericCol<N extends string = string, T extends NumericDataType = N
     override toOp(): ops.ColRefOp<N, T> { return this._op }
 }
 
-export class BooleanCol<N extends string = string> extends BooleanExpr {
+export class BooleanCol<N extends string = string> extends BooleanExpr<'columnar'> {
+    readonly dshape = 'columnar' as const
     readonly name: N
     private readonly _op: ops.ColRefOp<N, 'boolean'>
     constructor(name: N) {
@@ -202,8 +218,9 @@ export class BooleanCol<N extends string = string> extends BooleanExpr {
     override toOp(): ops.ColRefOp<N, 'boolean'> { return this._op }
 }
 
-export class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<T> {
+export class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<T, 'columnar'> {
     readonly dtype: T
+    readonly dshape = 'columnar' as const
     readonly name: N
     private readonly _op: ops.ColRefOp<N, T>
     constructor(name: N, dtype: T) {
@@ -225,19 +242,6 @@ export function col<N extends string, T extends DataType>(name: N, dtype: T): Co
 }
 
 // ---------------------------------------------------------------------------
-// AggExpr — marks an expression as an aggregation result
-// ---------------------------------------------------------------------------
-
-export class AggExpr<T extends DataType = DataType> extends BaseExpr<T> {
-    readonly dtype: T
-    constructor(private readonly _op: ops.AggOp<T>) {
-        super()
-        this.dtype = _op.dtype
-    }
-    override toOp(): ops.AggOp<T> { return this._op }
-}
-
-// ---------------------------------------------------------------------------
 // SortExpr — sort key with direction (public-facing)
 // ---------------------------------------------------------------------------
 
@@ -255,12 +259,12 @@ export class SortExpr {
 // Factory functions
 // ---------------------------------------------------------------------------
 
-export function count(): AggExpr<'int64'> {
-    return new AggExpr(new ops.AggOp(new ops.CountOp(), 'int64'))
+export function count(): BaseExpr<'int64', 'scalar'> {
+    return opToExpr(new ops.CountOp())
 }
 
-export function sql<T extends DataType>(rawSql: string, dtype: T): BaseExpr<T> {
-    return opToExpr(new ops.RawSqlOp(rawSql, dtype))
+export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S): BaseExpr<T, S> {
+    return opToExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
 }
 
 export type JsType = string | number | boolean | Date

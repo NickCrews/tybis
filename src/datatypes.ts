@@ -9,6 +9,8 @@ export type DataType =
     | 'datetime'
     | 'interval'
 
+export type DataShape = 'scalar' | 'columnar'
+
 export type Schema = Record<string, DataType>
 
 export type JSType<T extends DataType> =

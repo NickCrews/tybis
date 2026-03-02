@@ -4,7 +4,7 @@ import type { Compiler } from './compilers/base.js'
 import type { IOp } from './ops.js'
 import { SortSpec } from './ops.js'
 import {
-    BaseExpr, BooleanExpr, AggExpr, SortExpr,
+    BaseExpr, BooleanExpr, SortExpr,
     col, type Col, type NumericDataType,
     StringCol, NumericCol, BooleanCol, ColRef,
 } from './expr.js'
@@ -24,14 +24,19 @@ class RowAccessor<S extends Schema> {
 }
 
 /** Result of calling g.agg({...}) inside a group() callback. */
-class GroupResult<A extends Record<string, AggExpr<DataType>>> {
+class GroupResult<A extends Record<string, BaseExpr<DataType, 'scalar'>>> {
     constructor(readonly aggregations: A) { }
 }
 
 class GroupAccessor<S extends Schema> extends RowAccessor<S> {
-    agg<A extends Record<string, AggExpr<DataType>>>(
+    agg<A extends Record<string, BaseExpr<DataType, 'scalar'>>>(
         aggregations: A
     ): GroupResult<A> {
+        for (const [key, expr] of Object.entries(aggregations)) {
+            if (expr.dshape !== 'scalar') {
+                throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape}'`)
+            }
+        }
         return new GroupResult(aggregations)
     }
 }
@@ -49,8 +54,8 @@ type ColName<C> =
 
 type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never
 
-type AggResultSchema<A extends Record<string, AggExpr<DataType>>> = {
-    [K in keyof A]: A[K] extends AggExpr<infer T> ? T : never
+type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
+    [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +67,14 @@ export class Relation<S extends Schema = Schema> {
         readonly schema: S,
         /** @internal */ readonly _ir: IRNode
     ) { }
+
+    /**
+     * Get a column expression by name.
+     * @example penguins.col("bill_length_mm")
+     */
+    col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
+        return col(name, this.schema[name] as S[K])
+    }
 
     /**
      * Filter rows using a boolean expression.
@@ -83,7 +96,7 @@ export class Relation<S extends Schema = Schema> {
      */
     group<
         KC extends Col<any, any, S>[],
-        A extends Record<string, AggExpr<DataType>>
+        A extends Record<string, BaseExpr<DataType, 'scalar'>>
     >(
         keys: (r: RowAccessor<S>) => KC,
         transform: (g: GroupAccessor<S>) => GroupResult<A>
