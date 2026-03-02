@@ -18,7 +18,7 @@ const penguins = ty.relation('penguins', {
   bill_length_mm: 'float64',
   bill_depth_mm: 'float64',
   body_mass_g: 'float64',
-} as const)
+})
 
 const bigBills = penguins
   .filter(r => r.col('bill_length_mm').gt(45))
@@ -36,7 +36,7 @@ const penguins = ty.relation('penguins', {
   year: 'int32',
   bill_length_mm: 'float64',
   body_mass_g: 'float64',
-} as const)
+})
 
 const bySpecies = penguins
   .group(
@@ -62,7 +62,7 @@ const penguins = ty.relation('penguins', {
   species: 'string',
   year: 'int32',
   bill_length_mm: 'float64',
-} as const)
+})
 
 const result = penguins
   .filter(r => r.col('bill_length_mm').gt(40))
@@ -90,7 +90,7 @@ const orders = ty.relation('orders', {
   amount: 'float64',
   placed_at: 'datetime',
   is_paid: 'boolean',
-} as const)
+})
 
 // Top paying customers with at least one paid order
 const topCustomers = orders
@@ -119,7 +119,7 @@ const products = ty.relation('products', {
   name: 'string',
   price_cents: 'int64',
   quantity: 'int32',
-} as const)
+})
 
 const enriched = products
   .derive(r => ({
@@ -141,7 +141,7 @@ const events = ty.relation('events', {
   user_id: 'int64',
   event_name: 'string',
   occurred_at: 'datetime',
-} as const)
+})
 
 const withExtract = events
   .derive(() => ({
