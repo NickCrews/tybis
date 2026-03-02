@@ -1,4 +1,5 @@
-import type { DataType, DataShape, Schema } from './datatypes.js'
+import type { DataType, Schema } from './datatypes.js'
+import type { DataShape } from './datashape.js'
 import {
     type IOp, type IExpr, _registerOpToExpr
 } from './ops.js'

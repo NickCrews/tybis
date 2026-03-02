@@ -1,4 +1,5 @@
-import type { DataType, DataShape } from './datatypes.js'
+import type { DataType } from './datatypes.js'
+import type { DataShape } from './datashape.js'
 
 // ---------------------------------------------------------------------------
 // Interfaces

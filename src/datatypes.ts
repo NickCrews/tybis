@@ -11,8 +11,6 @@ export type DataType =
     | 'interval'
     | 'uuid'
 
-export type DataShape = 'scalar' | 'columnar'
-
 export type Schema = Record<string, DataType>
 
 export type JSType<T extends DataType> =
