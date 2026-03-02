@@ -43,17 +43,25 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
     abstract toOp(): IOp<T, S>
     toExpr(): this { return this }
 
-    eq(value: string | number | boolean | IExpr<DataType>) {
-        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
-    }
     isNotNull() {
         return opToExpr(new ops.IsNotNullOp(this.toOp()))
     }
-    mean(): BaseExpr<'float64', 'scalar'> {
-        return opToExpr(new ops.MeanOp(this.toOp()))
+
+    // assumes that all expressions are "comparable"
+    eq(value: string | number | boolean | IExpr<DataType>) {
+        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
     }
-    sum(): BaseExpr<'float64', 'scalar'> {
-        return opToExpr(new ops.SumOp(this.toOp()))
+    gt(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
+    }
+    gte(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
+    }
+    lt(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
+    }
+    lte(value: number | IExpr<NumericDataType>) {
+        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
     }
     min(): BaseExpr<T, 'scalar'> {
         return opToExpr(new ops.MinOp(this.toOp()))
@@ -74,18 +82,6 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
 // ---------------------------------------------------------------------------
 
 export abstract class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
-    gt(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
-    }
-    gte(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
-    }
-    lt(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
-    }
-    lte(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
-    }
     add(value: number | IExpr<NumericDataType>) {
         return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value)))
     }
@@ -97,6 +93,12 @@ export abstract class NumericExpr<T extends NumericDataType = NumericDataType, S
     }
     div(value: number | IExpr<NumericDataType>) {
         return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value)))
+    }
+    sum(): BaseExpr<'float64', 'scalar'> {
+        return opToExpr(new ops.SumOp(this.toOp()))
+    }
+    mean(): BaseExpr<'float64', 'scalar'> {
+        return opToExpr(new ops.MeanOp(this.toOp()))
     }
 }
 
