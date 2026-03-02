@@ -1,6 +1,6 @@
 export { Relation, relation } from './relation.js'
 export {
-    BaseExpr as Expr, NumericExpr, StringExpr, BooleanExpr, DateExpr, TimeExpr, DateTimeExpr, UUIDExpr,
+    BaseExpr, NumericExpr, StringExpr, BooleanExpr, DateExpr, TimeExpr, DateTimeExpr, UUIDExpr,
     SortExpr,
     ColRef, StringCol, NumericCol, BooleanCol,
     col, count, sql, lit, opToExpr,
@@ -10,7 +10,7 @@ export {
     BaseOp,
     ColRefOp, NumberLiteralOp, StringLiteralOp, BooleanLiteralOp, NullLiteralOp, DatetimeLiteralOp,
     EqOp, GtOp, GteOp, LtOp, LteOp, IsNotNullOp,
-    AndOp, OrOp, DivOp,
+    LogicalAndOp, LogicalOrOp, DivOp,
     UpperOp, LowerOp, ContainsOp, StartsWithOp,
     MeanOp, SumOp, MinOp, MaxOp, CountOp, RawSqlOp,
     SortSpec,

@@ -132,12 +132,17 @@ export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolea
 // Boolean logic ops
 // ---------------------------------------------------------------------------
 
-export class AndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
+export class LogicalNotOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
+    readonly kind = 'not' as const
+    constructor(readonly operand: IOp<'boolean', S>) { super('boolean', operand.dshape) }
+}
+
+export class LogicalAndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'and' as const
     constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
 }
 
-export class OrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
+export class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'or' as const
     constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
 }
@@ -266,8 +271,9 @@ export type BuiltinOp =
     | LtOp
     | LteOp
     | IsNotNullOp
-    | AndOp
-    | OrOp
+    | LogicalNotOp
+    | LogicalAndOp
+    | LogicalOrOp
     | AddOp
     | SubOp
     | MulOp

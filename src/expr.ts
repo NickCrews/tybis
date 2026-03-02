@@ -129,10 +129,13 @@ export abstract class StringExpr<S extends DataShape = DataShape> extends BaseEx
 export abstract class BooleanExpr<S extends DataShape = DataShape> extends BaseExpr<'boolean', S> {
     readonly dtype = 'boolean' as const
     and(other: IExpr<'boolean'>) {
-        return opToExpr(new ops.AndOp(this.toOp(), other.toOp()))
+        return opToExpr(new ops.LogicalAndOp(this.toOp(), other.toOp()))
     }
     or(other: IExpr<'boolean'>) {
-        return opToExpr(new ops.OrOp(this.toOp(), other.toOp()))
+        return opToExpr(new ops.LogicalOrOp(this.toOp(), other.toOp()))
+    }
+    not() {
+        return opToExpr(new ops.LogicalNotOp(this.toOp()))
     }
 }
 
