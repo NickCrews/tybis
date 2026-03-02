@@ -39,7 +39,7 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
         return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value))) as BooleanExpr<S>
     }
     isNotNull(): BooleanExpr<S> {
-        return opToExpr(new ops.IsNotNullOp(this.toOp())) as BooleanExpr<S>
+        return opToExpr(new ops.IsNotNullOp(this.toOp()))
     }
     mean(): BaseExpr<'float64', 'scalar'> {
         return opToExpr(new ops.MeanOp(this.toOp()))

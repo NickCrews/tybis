@@ -113,7 +113,7 @@ export class LteOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S>
 
 export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
     readonly kind = 'is_not_null' as const
-    constructor(readonly operand: IOp) { super('boolean', operand.dshape as S) }
+    constructor(readonly operand: IOp<DataType, S>) { super('boolean', operand.dshape) }
 }
 
 // ---------------------------------------------------------------------------
