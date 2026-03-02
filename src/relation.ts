@@ -10,16 +10,25 @@ import {
 } from './expr.js'
 import { PrqlCompiler } from './compilers/prql-compiler.js'
 import { SqlCompiler } from './compilers/sql-compiler.js'
+import { suggestColumnName } from './typo.js'
 
 // ---------------------------------------------------------------------------
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
+function _colWithSchemaCheck<S extends Schema, K extends string>(schema: S, name: K): Col<K, S[K], S> {
+    if (!(name in schema)) {
+        const suggestion = suggestColumnName(name, Object.keys(schema))
+        throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+    }
+    return col(name, schema[name] as S[K])
+}
+
 class RowAccessor<S extends Schema> {
     constructor(private readonly _schema: S) { }
 
     col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
-        return col(name, this._schema[name] as S[K])
+        return _colWithSchemaCheck(this._schema, name)
     }
 }
 
@@ -73,7 +82,7 @@ export class Relation<S extends Schema = Schema> {
      * @example penguins.col("bill_length_mm")
      */
     col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
-        return col(name, this.schema[name] as S[K])
+        return _colWithSchemaCheck(this.schema, name)
     }
 
     /**
