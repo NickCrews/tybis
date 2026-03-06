@@ -12,6 +12,9 @@ Tybis provides:
   eg duckdb or postgres.
 - Escape hatches when we can't provide the functionality you need.
 
+Note: I just (March 6, 2026) was pointed to https://github.com/futu2/teta, which looks like almost the exact same idea.
+I will probably hold off on working on this further until I see if we could join efforts with that.
+
 ## Example Usage
 
 ```typescript
