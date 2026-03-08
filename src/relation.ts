@@ -5,8 +5,8 @@ import { type IOp } from './core.js'
 import { SortSpec } from './ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,
-    col, type Col, type NumericDataType,
-    StringCol, NumericCol, BooleanCol, ColRef,
+    col, type NumericDataType,
+    Expr,
 } from './expr.js'
 import { PrqlCompiler } from './compilers/prql-compiler.js'
 import { SqlCompiler } from './compilers/sql-compiler.js'
@@ -16,7 +16,9 @@ import { suggestColumnName } from './typo.js'
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
-function _colWithSchemaCheck<S extends Schema, K extends string>(schema: S, name: K): Col<K, S[K], S> {
+type Col<K extends string, T extends DataType> = Expr<T, 'columnar'>
+
+function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<K, S[K]> {
     if (!(name in schema)) {
         const suggestion = suggestColumnName(name, Object.keys(schema))
         throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
@@ -27,7 +29,7 @@ function _colWithSchemaCheck<S extends Schema, K extends string>(schema: S, name
 class RowAccessor<S extends Schema> {
     constructor(private readonly _schema: S) { }
 
-    col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
+    col<K extends keyof S & string>(name: K): Expr<S[K], 'columnar'> {
         return _colWithSchemaCheck(this._schema, name)
     }
 }
@@ -54,13 +56,7 @@ class GroupAccessor<S extends Schema> extends RowAccessor<S> {
 // Helper types for group() result schema
 // ---------------------------------------------------------------------------
 
-type ColName<C> =
-    C extends StringCol<infer N> ? N :
-    C extends NumericCol<infer N, NumericDataType> ? N :
-    C extends BooleanCol<infer N> ? N :
-    C extends ColRef<infer N, DataType> ? N :
-    never
-
+type ColName<C> = C extends Col<infer N, DataType> ? N : never
 type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never
 
 type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
@@ -81,7 +77,7 @@ export class Relation<S extends Schema = Schema> {
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
      */
-    col<K extends keyof S & string>(name: K): Col<K, S[K], S> {
+    col<K extends keyof S & string>(name: K): Col<K, S[K]> {
         return _colWithSchemaCheck(this.schema, name)
     }
 
@@ -104,7 +100,7 @@ export class Relation<S extends Schema = Schema> {
      * )
      */
     group<
-        KC extends Col<any, any, S>[],
+        KC extends Col<any, any>[],
         A extends Record<string, BaseExpr<DataType, 'scalar'>>
     >(
         keys: (r: RowAccessor<S>) => KC,

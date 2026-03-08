@@ -1,5 +1,6 @@
 import { isValidDataType, type DataType } from './datatypes.js'
 import { isValidDataShape, type DataShape } from './datashape.js'
+import { Expr } from './expr.js'
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -29,7 +30,7 @@ export interface IOp<T extends DataType = DataType, S extends DataShape = DataSh
     readonly dtype: T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     readonly dshape: S
-    toExpr(): IExpr<T, S>
+    toExpr(): Expr<T, S>
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
     [IsOpSymbol]?: boolean
 }

@@ -1,8 +1,8 @@
 import type { DataType } from './datatypes.js'
 import type { DataShape, HighestDataShape } from './datashape.js'
 import { highestDataShape } from './datashape.js'
-import { IOp, IExpr, IsOpSymbol } from './core.js'
-import { opToExpr } from './expr.js'
+import { IOp, IsOpSymbol } from './core.js'
+import { Expr, opToExpr } from './expr.js'
 
 // ---------------------------------------------------------------------------
 // Base Op class
@@ -17,7 +17,7 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
         this.dtype = dtype
         this.dshape = dshape
     }
-    toExpr(): IExpr<T, S> { return opToExpr(this) }
+    toExpr(): Expr<T, S> { return opToExpr(this) }
 }
 
 // ---------------------------------------------------------------------------
