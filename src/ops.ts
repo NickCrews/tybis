@@ -1,17 +1,8 @@
 import type { DataType } from './datatypes.js'
 import type { DataShape, HighestDataShape } from './datashape.js'
 import { highestDataShape } from './datashape.js'
-import { IOp, IExpr, IsOpSymbol, IsExprSymbol } from './core.js'
-
-
-// ---------------------------------------------------------------------------
-// Registration for toExpr (breaks circular dependency with expr.ts)
-// ---------------------------------------------------------------------------
-
-type OpToExprFn = <T extends DataType, S extends DataShape>(op: IOp<T, S>) => IExpr<T, S>
-let _opToExpr: OpToExprFn = () => { throw new Error('opToExpr not initialized') }
-/** @internal */
-export function _registerOpToExpr(fn: OpToExprFn): void { _opToExpr = fn }
+import { IOp, IExpr, IsOpSymbol } from './core.js'
+import { opToExpr } from './expr.js'
 
 // ---------------------------------------------------------------------------
 // Base Op class
@@ -26,7 +17,7 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
         this.dtype = dtype
         this.dshape = dshape
     }
-    toExpr(): IExpr<T, S> { return _opToExpr(this) }
+    toExpr(): IExpr<T, S> { return opToExpr(this) }
 }
 
 // ---------------------------------------------------------------------------

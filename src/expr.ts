@@ -1,6 +1,5 @@
 import { inferDtype, type DataType, type InferDtype, type JsType, type Schema } from './datatypes.js'
 import type { DataShape } from './datashape.js'
-import { _registerOpToExpr } from './ops.js'
 import * as ops from './ops.js'
 import { IOp, IExpr, IsExprSymbol, isOp, isExpr } from './core.js'
 
@@ -30,7 +29,7 @@ export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>)
     return new OpExpr(op) as unknown as BaseExpr<T, S>
 }
 
-_registerOpToExpr(opToExpr as <T extends DataType, S extends DataShape>(op: IOp<T, S>) => IExpr<T, S>)
+// _registerOpToExpr(opToExpr as <T extends DataType, S extends DataShape>(op: IOp<T, S>) => IExpr<T, S>)
 
 // ---------------------------------------------------------------------------
 // Abstract Expression classes (public-facing API)
