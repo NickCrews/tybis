@@ -1,7 +1,7 @@
 import type { Schema, DataType } from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
-import type { IOp } from './ops.js'
+import { type IOp } from './core.js'
 import { SortSpec } from './ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,

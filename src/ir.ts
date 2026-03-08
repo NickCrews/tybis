@@ -1,4 +1,5 @@
-import type { IOp, SortSpec } from './ops.js'
+import { IOp } from './core.js';
+import type { SortSpec } from './ops.js'
 
 export type IRNode =
     | { kind: 'from'; name: string }

@@ -15,10 +15,11 @@ export {
     MeanOp, SumOp, MinOp, MaxOp, CountOp, RawSqlOp,
     SortSpec,
 } from './ops.js'
-export type { IOp, IExpr, BuiltinOp } from './ops.js'
+export type { BuiltinOp } from './ops.js'
 export type { Compiler } from './compilers/base.js'
 export type { IRNode } from './ir.js'
 export { PrqlCompiler } from './compilers/prql-compiler.js'
 export { SqlCompiler } from './compilers/sql-compiler.js'
 export type { Schema, DataType, JSType, SchemaToJS } from './datatypes.js'
 export type { DataShape } from './datashape.js'
+export { IsOpSymbol, IsExprSymbol, isOp, isExpr, type IExpr, type IOp } from './core.js'

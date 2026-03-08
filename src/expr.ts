@@ -1,9 +1,8 @@
 import { inferDtype, type DataType, type InferDtype, type JsType, type Schema } from './datatypes.js'
 import type { DataShape } from './datashape.js'
-import {
-    type IOp, type IExpr, _registerOpToExpr
-} from './ops.js'
+import { _registerOpToExpr } from './ops.js'
 import * as ops from './ops.js'
+import { IOp, IExpr, IsExprSymbol, isOp, isExpr } from './core.js'
 
 // ---------------------------------------------------------------------------
 // opToExpr — wraps an IOp in the appropriate Expr subclass
@@ -41,7 +40,7 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
     abstract readonly dtype: T
     abstract readonly dshape: S
     abstract toOp(): IOp<T, S>
-    toExpr(): this { return this }
+    [IsExprSymbol] = true
 
     isNotNull() {
         return opToExpr(new ops.IsNotNullOp(this.toOp()))
@@ -436,16 +435,11 @@ function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
 }
 
 function toOpValue(exprOrJs: IExpr | IOp | JsType): IOp {
-    if (isRaw(exprOrJs)) {
-        return litOp(exprOrJs)
-    } else {
+    if (isOp(exprOrJs)) {
+        return exprOrJs
+    } else if (isExpr(exprOrJs)) {
         return exprOrJs.toOp()
+    } else {
+        return litOp(exprOrJs)
     }
-}
-
-function isRaw(exprOrJs: IExpr | IOp | JsType): exprOrJs is JsType {
-    return typeof exprOrJs === 'string' ||
-        typeof exprOrJs === 'number' ||
-        typeof exprOrJs === 'boolean' ||
-        exprOrJs instanceof Date
 }

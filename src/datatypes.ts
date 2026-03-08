@@ -11,6 +11,23 @@ export type DataType =
     | 'interval'
     | 'uuid'
 
+export function isValidDataType(obj: any): obj is DataType {
+    const validTypes = [
+        'string',
+        'int32',
+        'int64',
+        'float32',
+        'float64',
+        'boolean',
+        'date',
+        'time',
+        'datetime',
+        'interval',
+        'uuid',
+    ]
+    return typeof obj === 'string' && validTypes.includes(obj)
+}
+
 export type Schema = Record<string, DataType>
 
 export type JSType<T extends DataType> =

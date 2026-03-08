@@ -1,25 +1,8 @@
 import type { DataType } from './datatypes.js'
 import type { DataShape, HighestDataShape } from './datashape.js'
 import { highestDataShape } from './datashape.js'
+import { IOp, IExpr, IsOpSymbol, IsExprSymbol } from './core.js'
 
-// ---------------------------------------------------------------------------
-// Interfaces
-// ---------------------------------------------------------------------------
-
-export interface IOp<T extends DataType = DataType, S extends DataShape = DataShape> {
-    readonly kind: string
-    readonly dtype: T
-    readonly dshape: S
-    toOp(): IOp<T, S>
-    toExpr(): IExpr<T, S>
-}
-
-export interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape> {
-    readonly dtype: T
-    readonly dshape: S
-    toOp(): IOp<T, S>
-    toExpr(): IExpr<T, S>
-}
 
 // ---------------------------------------------------------------------------
 // Registration for toExpr (breaks circular dependency with expr.ts)
@@ -35,6 +18,7 @@ export function _registerOpToExpr(fn: OpToExprFn): void { _opToExpr = fn }
 // ---------------------------------------------------------------------------
 
 export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
+    [IsOpSymbol] = true
     abstract readonly kind: string
     readonly dtype: T
     readonly dshape: S
@@ -42,7 +26,6 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
         this.dtype = dtype
         this.dshape = dshape
     }
-    toOp(): this { return this }
     toExpr(): IExpr<T, S> { return _opToExpr(this) }
 }
 
