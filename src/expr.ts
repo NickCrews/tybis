@@ -1,5 +1,5 @@
 import { inferDtype, type DataType, type InferDtype, type JsType, type Schema } from './datatypes.js'
-import type { DataShape } from './datashape.js'
+import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
 import * as ops from './ops.js'
 import { IOp, IExpr, IsExprSymbol, isOp, isExpr } from './core.js'
 
@@ -9,7 +9,7 @@ import { IOp, IExpr, IsExprSymbol, isOp, isExpr } from './core.js'
 
 export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
 
-export type Expr<T extends DataType, S extends DataShape = DataShape> =
+export type Expr<T extends DataType = DataType, S extends DataShape = DataShape> =
     T extends 'string' ? StringExpr<S> :
     T extends NumericDataType ? NumericExpr<T, S> :
     T extends 'boolean' ? BooleanExpr<S> :
@@ -56,25 +56,25 @@ export class GenericExpr<T extends DataType = DataType, S extends DataShape = Da
     }
 
     // assumes that all expressions are "comparable"
-    eq(value: string | number | boolean | IExpr<DataType>) {
+    eq<T extends string | number | boolean | IExpr<DataType>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
         return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
     }
-    gt(value: number | IExpr<NumericDataType>): Expr<'boolean', S> {
+    gt(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
         return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
     }
-    gte(value: number | IExpr<NumericDataType>): Expr<'boolean', S> {
+    gte(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
         return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
     }
-    lt(value: number | IExpr<NumericDataType>): Expr<'boolean', S> {
+    lt(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
         return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
     }
-    lte(value: number | IExpr<NumericDataType>): Expr<'boolean', S> {
+    lte(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
         return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
     }
-    min(): Expr<T, S> {
+    min(): Expr<T, 'scalar'> {
         return opToExpr(new ops.MinOp(this.toOp()))
     }
-    max(): Expr<T, S> {
+    max(): Expr<T, 'scalar'> {
         return opToExpr(new ops.MaxOp(this.toOp()))
     }
     desc() {
@@ -240,7 +240,7 @@ function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
     }
 }
 
-function toOpValue(exprOrJs: IExpr | IOp | JsType): IOp {
+function toOpValue<T extends IExpr | IOp | JsType>(exprOrJs: T): IOp<InferDtype<T>, InferDataShape<T>> {
     if (isOp(exprOrJs)) {
         return exprOrJs
     } else if (isExpr(exprOrJs)) {

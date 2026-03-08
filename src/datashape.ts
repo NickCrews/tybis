@@ -1,3 +1,6 @@
+import { IExpr, IOp } from "./core"
+import { JsType } from "./datatypes"
+
 export type DataShape = 'scalar' | 'columnar'
 
 export type HighestDataShape<Shapes extends DataShape[]> =
@@ -24,3 +27,9 @@ export function highestDataShape<First extends DataShape, Rest extends DataShape
 export function isValidDataShape(obj: any): obj is DataShape {
     return obj === 'scalar' || obj === 'columnar'
 }
+
+export type InferDataShape<T> =
+    T extends IExpr<any, infer S> ? S :
+    T extends IOp<any, infer S> ? S :
+    T extends JsType ? 'scalar' :
+    never

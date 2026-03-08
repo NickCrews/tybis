@@ -3,19 +3,19 @@ import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.IExpr) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
+const compile = (e: ty.Expr) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
 
 describe('lit()', () => {
     describe('string', () => {
-        it('type is IExpr<string, scalar>', () => {
+        it('type is Expr<string, scalar>', () => {
             const e = ty.lit('hello')
-            expectTypeOf(e).toEqualTypeOf<ty.IExpr<'string', 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<'string', 'scalar'>>()
             expect(e.dtype).toBe('string')
             expect(e.dshape).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
-            const op = ty.lit('world').toOp() as ty.StringLiteralOp
+            const op = ty.lit('world').toOp() as ty.ops.StringLiteralOp
             expect(op.kind).toBe('string_literal')
             expect(op.value).toBe('world')
         })
@@ -26,15 +26,15 @@ describe('lit()', () => {
     })
 
     describe('number', () => {
-        it('type is IExpr<float64, scalar>', () => {
+        it('type is Expr<float64, scalar>', () => {
             const e = ty.lit(42)
-            expectTypeOf(e).toEqualTypeOf<ty.IExpr<'float64', 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<'float64', 'scalar'>>()
             expect(e.dtype).toBe('float64')
             expect(e.dshape).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
-            const op = ty.lit(99).toOp() as ty.NumberLiteralOp
+            const op = ty.lit(99).toOp() as ty.ops.NumberLiteralOp
             expect(op.kind).toBe('number_literal')
             expect(op.value).toBe(99)
         })
@@ -46,15 +46,15 @@ describe('lit()', () => {
     })
 
     describe('boolean', () => {
-        it('type is IExpr<boolean, scalar>', () => {
+        it('type is Expr<boolean, scalar>', () => {
             const e = ty.lit(true)
-            expectTypeOf(e).toEqualTypeOf<ty.IExpr<'boolean', 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<'boolean', 'scalar'>>()
             expect(e.dtype).toBe('boolean')
             expect(e.dshape).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
-            const op = ty.lit(true).toOp() as ty.BooleanLiteralOp
+            const op = ty.lit(true).toOp() as ty.ops.BooleanLiteralOp
             expect(op.kind).toBe('boolean_literal')
             expect(op.value).toBe(true)
         })
@@ -66,16 +66,16 @@ describe('lit()', () => {
     })
 
     describe('Date', () => {
-        it('type is IExpr<datetime, scalar>', () => {
+        it('type is Expr<datetime, scalar>', () => {
             const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'))
-            expectTypeOf(e).toEqualTypeOf<ty.IExpr<'datetime', 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<'datetime', 'scalar'>>()
             expect(e.dtype).toBe('datetime')
             expect(e.dshape).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
             const date = new Date('2024-01-15T00:00:00.000Z')
-            const op = ty.lit(date).toOp() as ty.DatetimeLiteralOp
+            const op = ty.lit(date).toOp() as ty.ops.DatetimeLiteralOp
             expect(op.kind).toBe('datetime_literal')
             expect(op.value).toBe(date)
         })

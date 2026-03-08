@@ -1,5 +1,6 @@
 export { Relation, relation } from './relation.js'
 export {
+    Expr,
     BaseExpr,
     NumericExpr,
     StringExpr,

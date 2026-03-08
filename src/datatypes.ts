@@ -1,3 +1,5 @@
+import { IExpr, IOp } from "./core"
+
 export type DataType =
     | 'string'
     | 'int32'
@@ -44,7 +46,13 @@ export type SchemaToJS<S extends Schema> = {
 
 export type JsType = string | number | boolean | Date
 
-export type InferDtype<JS extends JsType> =
+export type InferDtype<T extends JsType | IExpr | IOp> =
+    T extends IExpr<infer D, any> ? D :
+    T extends IOp<infer D, any> ? D :
+    T extends JsType ? InferDtypeFromJsType<T> :
+    never
+
+export type InferDtypeFromJsType<JS extends JsType> =
     JS extends string ? 'string'
     : JS extends number ? 'float64'
     : JS extends boolean ? 'boolean'
