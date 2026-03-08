@@ -18,6 +18,7 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
         this.dshape = dshape
     }
     toExpr(): Expr<T, S> { return opToExpr(this) }
+    getName(): string { return this.kind }
 }
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
 export class ColRefOp<N extends string = string, T extends DataType = DataType> extends BaseOp<T, 'columnar'> {
     readonly kind = 'col_ref' as const
     constructor(readonly name: N, dtype: T) { super(dtype, 'columnar') }
+    getName(): string { return this.name }
 }
 
 // ---------------------------------------------------------------------------

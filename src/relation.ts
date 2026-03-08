@@ -111,15 +111,14 @@ export class Relation<S extends Schema = Schema> {
         const groupAccessor = new GroupAccessor(this.schema)
         const result = transform(groupAccessor)
 
-        const keyNames = keyCols.map(c => (c as { name: string }).name)
+        const keyNames = keyCols.map(c => c.toOp().getName())
         const aggregations = Object.entries(result.aggregations).map(
             ([k, v]) => [k, v.toOp()] as [string, IOp]
         )
 
         const resultSchema: Record<string, DataType> = {}
         for (const c of keyCols) {
-            const colObj = c as { name: string; dtype: DataType }
-            resultSchema[colObj.name] = colObj.dtype
+            resultSchema[c.toOp().getName()] = c.dtype
         }
         for (const [k, agg] of Object.entries(result.aggregations)) {
             resultSchema[k] = agg.dtype

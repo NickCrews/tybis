@@ -31,11 +31,12 @@ export interface IOp<T extends DataType = DataType, S extends DataShape = DataSh
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     readonly dshape: S
     toExpr(): Expr<T, S>
+    getName(): string
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
     [IsOpSymbol]?: boolean
 }
 
-export interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape> {
+export interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
     /** The {@link DataType} of this expression. */
     readonly dtype: T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
