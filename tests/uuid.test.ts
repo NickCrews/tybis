@@ -12,7 +12,7 @@ describe('UUIDExpr', () => {
     describe('Type Safety', () => {
         it('should have uuid type', () => {
             const uuidCol = ty.col('id', 'uuid')
-            expectTypeOf(uuidCol).toMatchTypeOf<ty.UUIDExpr>()
+            expectTypeOf(uuidCol).toMatchTypeOf<ty.UUIDExpr<'columnar'>>()
         })
     })
 
@@ -164,8 +164,8 @@ describe('UUIDExpr', () => {
                 }
               )"
             `)
-            expectTypeOf(q.col('min_id')).toMatchTypeOf<ty.UUIDExpr>()
-            expectTypeOf(q.col('max_id')).toMatchTypeOf<ty.UUIDExpr>()
+            expectTypeOf(q.col('min_id')).toMatchTypeOf<ty.UUIDExpr<"columnar">>()
+            expectTypeOf(q.col('max_id')).toMatchTypeOf<ty.UUIDExpr<"columnar">>()
         })
     })
 
