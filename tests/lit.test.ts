@@ -10,8 +10,8 @@ describe('lit()', () => {
         it('type is Expr<string, scalar>', () => {
             const e = ty.lit('hello')
             expectTypeOf(e).toEqualTypeOf<ty.Expr<'string', 'scalar'>>()
-            expect(e.dtype).toBe('string')
-            expect(e.dshape).toBe('scalar')
+            expect(e.dtype()).toBe('string')
+            expect(e.dshape()).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
@@ -29,8 +29,8 @@ describe('lit()', () => {
         it('type is Expr<float64, scalar>', () => {
             const e = ty.lit(42)
             expectTypeOf(e).toEqualTypeOf<ty.Expr<'float64', 'scalar'>>()
-            expect(e.dtype).toBe('float64')
-            expect(e.dshape).toBe('scalar')
+            expect(e.dtype()).toBe('float64')
+            expect(e.dshape()).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
@@ -49,8 +49,8 @@ describe('lit()', () => {
         it('type is Expr<boolean, scalar>', () => {
             const e = ty.lit(true)
             expectTypeOf(e).toEqualTypeOf<ty.Expr<'boolean', 'scalar'>>()
-            expect(e.dtype).toBe('boolean')
-            expect(e.dshape).toBe('scalar')
+            expect(e.dtype()).toBe('boolean')
+            expect(e.dshape()).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
@@ -69,8 +69,8 @@ describe('lit()', () => {
         it('type is Expr<datetime, scalar>', () => {
             const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'))
             expectTypeOf(e).toEqualTypeOf<ty.Expr<'datetime', 'scalar'>>()
-            expect(e.dtype).toBe('datetime')
-            expect(e.dshape).toBe('scalar')
+            expect(e.dtype()).toBe('datetime')
+            expect(e.dshape()).toBe('scalar')
         })
 
         it('preserves value and kind', () => {

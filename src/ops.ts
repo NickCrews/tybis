@@ -11,12 +11,14 @@ import { Expr, opToExpr } from './expr.js'
 export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
     [IsOpSymbol] = true
     abstract readonly kind: string
-    readonly dtype: T
-    readonly dshape: S
+    private readonly _dtype: T
+    private readonly _dshape: S
     constructor(dtype: T, dshape: S) {
-        this.dtype = dtype
-        this.dshape = dshape
+        this._dtype = dtype
+        this._dshape = dshape
     }
+    dtype(): T { return this._dtype }
+    dshape(): S { return this._dshape }
     toExpr(): Expr<T, S> { return opToExpr(this) }
     getName(): string { return this.kind }
 }
@@ -110,7 +112,7 @@ export function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar
 
 export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
     readonly kind = 'is_not_null' as const
-    constructor(readonly operand: IOp<DataType, S>) { super('boolean', operand.dshape) }
+    constructor(readonly operand: IOp<DataType, S>) { super('boolean', operand.dshape()) }
 }
 
 export class CountOp extends BaseOp<'int64', 'scalar'> {
@@ -128,37 +130,37 @@ export class RawSqlOp<T extends DataType = DataType, S extends DataShape = DataS
 
 export class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'eq' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'gt' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class GteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'gte' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'lt' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'lte' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'min' as const
-    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
+    constructor(readonly operand: IOp<T>) { super(operand.dtype(), 'scalar') }
 }
 
 export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'max' as const
-    constructor(readonly operand: IOp<T>) { super(operand.dtype, 'scalar') }
+    constructor(readonly operand: IOp<T>) { super(operand.dtype(), 'scalar') }
 }
 
 // ---------------------------------------------------------------------------
@@ -167,17 +169,17 @@ export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
 
 export class LogicalNotOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
     readonly kind = 'not' as const
-    constructor(readonly operand: IOp<'boolean', S>) { super('boolean', operand.dshape) }
+    constructor(readonly operand: IOp<'boolean', S>) { super('boolean', operand.dshape()) }
 }
 
 export class LogicalAndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'and' as const
-    constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
     readonly kind = 'or' as const
-    constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<'boolean', S1>, readonly right: IOp<'boolean', S2>) { super('boolean', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 // ---------------------------------------------------------------------------
@@ -186,22 +188,22 @@ export class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape 
 
 export class AddOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
     readonly kind = 'add' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class SubOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
     readonly kind = 'sub' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class MulOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
     readonly kind = 'mul' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
     readonly kind = 'div' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape, right.dshape) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super('float64', highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 export class SumOp extends BaseOp<'float64', 'scalar'> {
     readonly kind = 'sum' as const
@@ -220,22 +222,22 @@ export class MeanOp extends BaseOp<'float64', 'scalar'> {
 
 export class UpperOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
     readonly kind = 'upper' as const
-    constructor(readonly operand: IOp<'string', S>) { super('string', operand.dshape) }
+    constructor(readonly operand: IOp<'string', S>) { super('string', operand.dshape()) }
 }
 
 export class LowerOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
     readonly kind = 'lower' as const
-    constructor(readonly operand: IOp<'string', S>) { super('string', operand.dshape) }
+    constructor(readonly operand: IOp<'string', S>) { super('string', operand.dshape()) }
 }
 
 export class ContainsOp<S1 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, 'scalar']>> {
     readonly kind = 'contains' as const
-    constructor(readonly operand: IOp<'string', S1>, readonly pattern: StringLiteralOp) { super('boolean', highestDataShape(operand.dshape, pattern.dshape) as HighestDataShape<[S1, 'scalar']>) }
+    constructor(readonly operand: IOp<'string', S1>, readonly pattern: StringLiteralOp) { super('boolean', highestDataShape(operand.dshape(), pattern.dshape()) as HighestDataShape<[S1, 'scalar']>) }
 }
 
 export class StartsWithOp<S1 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, 'scalar']>> {
     readonly kind = 'starts_with' as const
-    constructor(readonly operand: IOp<'string', S1>, readonly prefix: StringLiteralOp) { super('boolean', highestDataShape(operand.dshape, prefix.dshape) as HighestDataShape<[S1, 'scalar']>) }
+    constructor(readonly operand: IOp<'string', S1>, readonly prefix: StringLiteralOp) { super('boolean', highestDataShape(operand.dshape(), prefix.dshape()) as HighestDataShape<[S1, 'scalar']>) }
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +248,7 @@ type TemporalDataType = 'date' | 'time' | 'datetime'
 
 export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
     readonly kind = 'temporal_to_string' as const
-    constructor(readonly operand: IOp<TemporalDataType, S>, readonly format: string) { super('string', operand.dshape) }
+    constructor(readonly operand: IOp<TemporalDataType, S>, readonly format: string) { super('string', operand.dshape()) }
 }
 
 // ---------------------------------------------------------------------------

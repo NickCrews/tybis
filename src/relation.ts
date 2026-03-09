@@ -44,8 +44,8 @@ class GroupAccessor<S extends Schema> extends RowAccessor<S> {
         aggregations: A
     ): GroupResult<A> {
         for (const [key, expr] of Object.entries(aggregations)) {
-            if (expr.dshape !== 'scalar') {
-                throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape}'`)
+            if (expr.dshape() !== 'scalar') {
+                throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape()}'`)
             }
         }
         return new GroupResult(aggregations)
@@ -118,10 +118,10 @@ export class Relation<S extends Schema = Schema> {
 
         const resultSchema: Record<string, DataType> = {}
         for (const c of keyCols) {
-            resultSchema[c.toOp().getName()] = c.dtype
+            resultSchema[c.toOp().getName()] = c.dtype()
         }
         for (const [k, agg] of Object.entries(result.aggregations)) {
-            resultSchema[k] = agg.dtype
+            resultSchema[k] = agg.dtype()
         }
 
         return new Relation(resultSchema as any, {
@@ -145,7 +145,7 @@ export class Relation<S extends Schema = Schema> {
 
         const newSchema = { ...this.schema } as Record<string, DataType>
         for (const [k, v] of Object.entries(derivations)) {
-            newSchema[k] = v.dtype
+            newSchema[k] = v.dtype()
         }
 
         return new Relation(newSchema as any, {

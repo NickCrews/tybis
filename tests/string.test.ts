@@ -24,16 +24,16 @@ describe('String Operations', () => {
         it('should preserve shape from operand', () => {
             const col = new ty.ops.ColRefOp('name', 'string')
             const op = new ty.ops.UpperOp(col)
-            expect(op.dshape).toBe('columnar')
-            expect(op.dtype).toBe('string')
-            expectTypeOf(op.dshape).toEqualTypeOf<'columnar'>()
+            expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toBe('string')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should work with scalar strings', () => {
             const scalar = new ty.ops.StringLiteralOp('hello')
             const op = new ty.ops.UpperOp(scalar)
-            expect(op.dshape).toBe('scalar')
-            expectTypeOf(op.dshape).toEqualTypeOf<'scalar'>()
+            expect(op.dshape()).toBe('scalar')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
     })
 
@@ -53,8 +53,8 @@ describe('String Operations', () => {
         it('should preserve shape from operand', () => {
             const col = new ty.ops.ColRefOp('name', 'string')
             const op = new ty.ops.LowerOp(col)
-            expect(op.dshape).toBe('columnar')
-            expect(op.dtype).toBe('string')
+            expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toBe('string')
         })
     })
 
@@ -71,18 +71,18 @@ describe('String Operations', () => {
             const col = new ty.ops.ColRefOp('email', 'string')
             const pattern = new ty.ops.StringLiteralOp('gmail')
             const op = new ty.ops.ContainsOp(col, pattern)
-            expect(op.dshape).toBe('columnar')
-            expect(op.dtype).toBe('boolean')
-            expectTypeOf(op.dshape).toEqualTypeOf<'columnar'>()
+            expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toBe('boolean')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have scalar shape when operand is scalar', () => {
             const str = new ty.ops.StringLiteralOp('hello@gmail.com')
             const pattern = new ty.ops.StringLiteralOp('gmail')
             const op = new ty.ops.ContainsOp(str, pattern)
-            expect(op.dshape).toBe('scalar')
-            expect(op.dtype).toBe('boolean')
-            expectTypeOf(op.dshape).toEqualTypeOf<'scalar'>()
+            expect(op.dshape()).toBe('scalar')
+            expect(op.dtype()).toBe('boolean')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
     })
 
@@ -99,18 +99,18 @@ describe('String Operations', () => {
             const col = new ty.ops.ColRefOp('name', 'string')
             const prefix = new ty.ops.StringLiteralOp('Dr.')
             const op = new ty.ops.StartsWithOp(col, prefix)
-            expect(op.dshape).toBe('columnar')
-            expect(op.dtype).toBe('boolean')
-            expectTypeOf(op.dshape).toEqualTypeOf<'columnar'>()
+            expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toBe('boolean')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have scalar shape when operand is scalar', () => {
             const str = new ty.ops.StringLiteralOp('Dr. Smith')
             const prefix = new ty.ops.StringLiteralOp('Dr.')
             const op = new ty.ops.StartsWithOp(str, prefix)
-            expect(op.dshape).toBe('scalar')
-            expect(op.dtype).toBe('boolean')
-            expectTypeOf(op.dshape).toEqualTypeOf<'scalar'>()
+            expect(op.dshape()).toBe('scalar')
+            expect(op.dtype()).toBe('boolean')
+            expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
     })
 

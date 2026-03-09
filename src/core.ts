@@ -17,7 +17,9 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * ```ts
  * class StringUpperOp<S extends DataShape> implements IOp<'string', S> {
  *     readonly kind = 'upper' as const
- *     constructor(readonly operand: IOp<'string', S>) { this.dtype = 'string'; this.dshape = operand.dshape }
+ *     constructor(readonly operand: IOp<'string', S>) {}
+ *     dtype() { return 'string' as const }
+ *     dshape() { return this.operand.dshape() }
  *     toExpr() { return new StringExpr(this) }
  * }
  * ```
@@ -27,9 +29,9 @@ export const DependsOnSymbol = Symbol('dependsOn')
 export interface IOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
     readonly kind: K
     /** The {@link DataType} of this expression. */
-    readonly dtype: T
+    dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
-    readonly dshape: S
+    dshape(): S
     toExpr(): Expr<T, S>
     getName(): string
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
@@ -38,9 +40,9 @@ export interface IOp<T extends DataType = DataType, S extends DataShape = DataSh
 
 export interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
     /** The {@link DataType} of this expression. */
-    readonly dtype: T
+    dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
-    readonly dshape: S
+    dshape(): S
     /** Convert this expression to its internal operation representation. */
     toOp(): IOp<T, S>
     /** Optional symbol to mark this object as an Expr. If not present, the object will be checked for the presence of 'dtype' and 'dshape' properties. */
@@ -60,8 +62,8 @@ export function isOp(obj: any): obj is IOp {
         return false
     }
     const hasKind = 'kind' in obj
-    const hasProperDtype = 'dtype' in obj && isValidDataType(obj.dtype)
-    const hasProperDshape = 'dshape' in obj && isValidDataShape(obj.dshape)
+    const hasProperDtype = 'dtype' in obj && typeof obj.dtype === 'function' && isValidDataType(obj.dtype())
+    const hasProperDshape = 'dshape' in obj && typeof obj.dshape === 'function' && isValidDataShape(obj.dshape())
     return hasKind && hasProperDtype && hasProperDshape
 }
 
@@ -77,8 +79,8 @@ export function isExpr(obj: any): obj is IExpr {
     if (!obj || typeof obj !== 'object') {
         return false
     }
-    const hasProperDtype = 'dtype' in obj && isValidDataType(obj.dtype)
-    const hasProperDshape = 'dshape' in obj && isValidDataShape(obj.dshape)
+    const hasProperDtype = 'dtype' in obj && typeof obj.dtype === 'function' && isValidDataType(obj.dtype())
+    const hasProperDshape = 'dshape' in obj && typeof obj.dshape === 'function' && isValidDataShape(obj.dshape())
     return hasProperDtype && hasProperDshape
 }
 

@@ -21,7 +21,7 @@ export type Expr<T extends DataType = DataType, S extends DataShape = DataShape>
     never
 
 export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): Expr<T, S> {
-    const d = op.dtype
+    const d = op.dtype()
     if (d === 'string') return new StringExpr(op as IOp<'string', S>) as Expr<T, S>
     if (d === 'int32' || d === 'int64' || d === 'float32' || d === 'float64') return new NumericExpr(op as IOp<NumericDataType, S>) as Expr<T, S>
     if (d === 'boolean') return new BooleanExpr(op as IOp<'boolean', S>) as Expr<T, S>
@@ -40,13 +40,10 @@ export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>)
 // ---------------------------------------------------------------------------
 
 export abstract class BaseExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IExpr<T, S> {
-    readonly dtype: T
-    readonly dshape: S
-    constructor(private readonly _op: IOp<T, S>) {
-        this.dtype = _op.dtype
-        this.dshape = _op.dshape
-    }
+    constructor(private readonly _op: IOp<T, S>) { }
     [IsExprSymbol] = true
+    dtype(): T { return this._op.dtype() }
+    dshape(): S { return this._op.dshape() }
     toOp(): IOp<T, S> { return this._op }
 }
 export class GenericExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
@@ -150,7 +147,7 @@ export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<'b
 // ---------------------------------------------------------------------------
 
 export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<'date', S> {
-    toString(format: string) {
+    toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
@@ -160,13 +157,13 @@ export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<'date
 // ---------------------------------------------------------------------------
 
 export class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<'time', S> {
-    toString(format: string) {
+    toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
 export class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<'datetime', S> {
-    toString(format: string) {
+    toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
