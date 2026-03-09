@@ -242,10 +242,10 @@ function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
 
 function toOpValue<T extends IExpr | IOp | JsType>(exprOrJs: T): IOp<InferDtype<T>, InferDataShape<T>> {
     if (isOp(exprOrJs)) {
-        return exprOrJs
+        return exprOrJs as any
     } else if (isExpr(exprOrJs)) {
-        return exprOrJs.toOp()
+        return exprOrJs.toOp() as any
     } else {
-        return litOp(exprOrJs)
+        return litOp(exprOrJs as JsType) as any
     }
 }

@@ -3,7 +3,7 @@ import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.Expr) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
+const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
 
 describe('lit()', () => {
     describe('string', () => {
