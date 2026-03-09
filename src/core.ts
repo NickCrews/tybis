@@ -15,9 +15,9 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * user-facing API of an IExpr. For example, you might have
  * 
  * ```ts
- * class StringUpperOp implements IOp<'string', DataShape> {
+ * class StringUpperOp<S extends DataShape> implements IOp<'string', S> {
  *     readonly kind = 'upper' as const
- *     constructor(readonly operand: IOp<'string'>) { this.dtype = 'string'; this.dshape = operand.dshape }
+ *     constructor(readonly operand: IOp<'string', S>) { this.dtype = 'string'; this.dshape = operand.dshape }
  *     toExpr() { return new StringExpr(this) }
  * }
  * ```
