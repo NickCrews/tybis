@@ -1,7 +1,7 @@
-import type { DataType } from './datatypes.js'
-import type { DataShape, HighestDataShape } from './datashape.js'
+import { inferDtype, type DataType, type InferDtype, type JsType } from './datatypes.js'
+import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
 import { highestDataShape } from './datashape.js'
-import { IOp, IsOpSymbol } from './core.js'
+import { IExpr, IOp, isExpr, isOp, IsOpSymbol } from './core.js'
 import { Expr, opToExpr } from './expr.js'
 
 // ---------------------------------------------------------------------------
@@ -20,6 +20,18 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
     toExpr(): Expr<T, S> { return opToExpr(this) }
     getName(): string { return this.kind }
 }
+
+/** Convert an expression, op, or JS value to an Op. */
+export function toOpValue<T extends IExpr | IOp | JsType>(exprOrJs: T): IOp<InferDtype<T>, InferDataShape<T>> {
+    if (isOp(exprOrJs)) {
+        return exprOrJs as any
+    } else if (isExpr(exprOrJs)) {
+        return exprOrJs.toOp() as any
+    } else {
+        return litOp(exprOrJs as JsType) as any
+    }
+}
+
 
 // ---------------------------------------------------------------------------
 // Column reference
@@ -68,6 +80,28 @@ export class DateLiteralOp extends BaseOp<'date', 'scalar'> {
 export class TimeLiteralOp extends BaseOp<'time', 'scalar'> {
     readonly kind = 'time_literal' as const
     constructor(readonly value: Date) { super('time', 'scalar') }
+}
+
+/** Create a literal Op from a JS value. */
+export function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
+    const inferredDtype = inferDtype(value)
+    type R = IOp<InferDtype<JS>, 'scalar'>
+    switch (inferredDtype) {
+        case 'string':
+            return new StringLiteralOp(value as string) as unknown as R
+        case 'boolean':
+            return new BooleanLiteralOp(value as boolean) as unknown as R
+        case 'float64':
+            return new NumberLiteralOp(value as number) as unknown as R
+        case 'datetime':
+            return new DatetimeLiteralOp(value as Date) as unknown as R
+        case 'date':
+            return new DateLiteralOp(value as Date) as unknown as R
+        case 'time':
+            return new TimeLiteralOp(value as Date) as unknown as R
+        default:
+            throw new Error(`Unsupported JS value type: ${inferredDtype satisfies never}`)
+    }
 }
 
 // ---------------------------------------------------------------------------

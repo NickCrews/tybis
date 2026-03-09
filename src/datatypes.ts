@@ -1,4 +1,4 @@
-import { IExpr, IOp } from "./core"
+import { type IExpr, type IOp } from "./core"
 
 export type DataType =
     | 'string'
@@ -13,7 +13,10 @@ export type DataType =
     | 'interval'
     | 'uuid'
 
-export function isValidDataType(obj: any): obj is DataType {
+/**
+ * Check if a value is a valid DataType, eg 'string', 'int32', etc.
+ */
+export function isValidDataType(datatype: any): datatype is DataType {
     const validTypes = [
         'string',
         'int32',
@@ -27,7 +30,7 @@ export function isValidDataType(obj: any): obj is DataType {
         'interval',
         'uuid',
     ]
-    return typeof obj === 'string' && validTypes.includes(obj)
+    return typeof datatype === 'string' && validTypes.includes(datatype)
 }
 
 export type Schema = Record<string, DataType>

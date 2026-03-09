@@ -1,7 +1,7 @@
-import { inferDtype, type DataType, type InferDtype, type JsType, type Schema } from './datatypes.js'
+import { type DataType, type InferDtype, type JsType } from './datatypes.js'
 import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
 import * as ops from './ops.js'
-import { IOp, IExpr, IsExprSymbol, isOp, isExpr } from './core.js'
+import { IOp, IExpr, IsExprSymbol } from './core.js'
 
 // ---------------------------------------------------------------------------
 // opToExpr — wraps an IOp in the appropriate Expr subclass
@@ -57,19 +57,19 @@ export class GenericExpr<T extends DataType = DataType, S extends DataShape = Da
 
     // assumes that all expressions are "comparable"
     eq<T extends string | number | boolean | IExpr<DataType>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
-        return opToExpr(new ops.EqOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.EqOp(this.toOp(), ops.toOpValue(value)))
     }
     gt(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
-        return opToExpr(new ops.GtOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.GtOp(this.toOp(), ops.toOpValue(value)))
     }
     gte(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
-        return opToExpr(new ops.GteOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.GteOp(this.toOp(), ops.toOpValue(value)))
     }
     lt(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
-        return opToExpr(new ops.LtOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.LtOp(this.toOp(), ops.toOpValue(value)))
     }
     lte(value: number | IExpr<NumericDataType>): BooleanExpr<HighestDataShape<[InferDataShape<typeof value>, S]>> {
-        return opToExpr(new ops.LteOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.LteOp(this.toOp(), ops.toOpValue(value)))
     }
     min(): Expr<T, 'scalar'> {
         return opToExpr(new ops.MinOp(this.toOp()))
@@ -91,16 +91,16 @@ export class GenericExpr<T extends DataType = DataType, S extends DataShape = Da
 
 export class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends GenericExpr<T, S> {
     add(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.AddOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.AddOp(this.toOp(), ops.toOpValue(value)))
     }
     sub(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.SubOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.SubOp(this.toOp(), ops.toOpValue(value)))
     }
     mul(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.MulOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.MulOp(this.toOp(), ops.toOpValue(value)))
     }
     div(value: number | IExpr<NumericDataType>) {
-        return opToExpr(new ops.DivOp(this.toOp(), toOpValue(value)))
+        return opToExpr(new ops.DivOp(this.toOp(), ops.toOpValue(value)))
     }
     sum() {
         return opToExpr(new ops.SumOp(this.toOp()))
@@ -215,37 +215,5 @@ export function sql<T extends DataType, S extends DataShape>(rawSql: string, dty
 }
 
 export function lit<JS extends JsType>(value: JS): Expr<InferDtype<JS>, 'scalar'> {
-    const op = litOp(value)
-    return opToExpr(op)
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-function litOp<JS extends JsType>(value: JS): IOp<InferDtype<JS>, 'scalar'> {
-    const inferredDtype = inferDtype(value)
-    type R = IOp<InferDtype<JS>, 'scalar'>
-    switch (inferredDtype) {
-        case 'string':
-            return new ops.StringLiteralOp(value as string) as unknown as R
-        case 'boolean':
-            return new ops.BooleanLiteralOp(value as boolean) as unknown as R
-        case 'float64':
-            return new ops.NumberLiteralOp(value as number) as unknown as R
-        case 'datetime':
-            return new ops.DatetimeLiteralOp(value as Date) as unknown as R
-        default:
-            throw new Error(`Unsupported JS value type: ${inferredDtype satisfies never}`)
-    }
-}
-
-function toOpValue<T extends IExpr | IOp | JsType>(exprOrJs: T): IOp<InferDtype<T>, InferDataShape<T>> {
-    if (isOp(exprOrJs)) {
-        return exprOrJs as any
-    } else if (isExpr(exprOrJs)) {
-        return exprOrJs.toOp() as any
-    } else {
-        return litOp(exprOrJs as JsType) as any
-    }
+    return ops.litOp(value).toExpr()
 }
