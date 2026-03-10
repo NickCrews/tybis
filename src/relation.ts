@@ -64,6 +64,11 @@ type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
     [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never
 }
 
+type DeriveSchema<S extends dt.Schema, D extends Record<string, IExpr<any, any>>> =
+    Omit<S, keyof D> & {
+        [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never
+    }
+
 // ---------------------------------------------------------------------------
 // Relation class
 // ---------------------------------------------------------------------------
@@ -133,13 +138,15 @@ export class Relation<S extends Schema = Schema> {
         })
     }
 
+
+
     /**
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
     derive<D extends Record<string, IExpr<any, any>>>(
         cb: (r: RowAccessor<S>) => D
-    ): Relation<S & { [K in keyof D]: D[K] extends IExpr<infer T> ? T : never }> {
+    ): Relation<DeriveSchema<S, D>> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IOp])

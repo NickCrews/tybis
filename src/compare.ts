@@ -32,7 +32,10 @@ export function isComparable<A extends dt.DataType, B extends dt.DataType>(dtype
     return false as IsComparable<A, B>
 }
 
-export type IntoValueComparableTo<Target extends dt.DataType> = ops.LiteralValueCoercibleTo<Target> | core.IExpr<DtypesComparableTo<Target>> | core.IOp<DtypesComparableTo<Target>>
+export type IntoValueComparableTo<Target extends dt.DataType> =
+    | ops.LiteralValueCoercibleTo<Target>
+    | core.IExpr<DtypesComparableTo<Target>, any>
+    | core.IOp<DtypesComparableTo<Target>, any>
 
 /** Given a target dtype and an IntoValue, coerce the value into a type that is comparable to the dtype */
 export function coerceToComparable<Target extends dt.DataType, Value extends IntoValueComparableTo<Target>>(target: Target, value: Value): core.IOp<DtypesComparableTo<Target>, InferDataShape<Value>> {
