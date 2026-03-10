@@ -125,11 +125,84 @@ describe('lit()', () => {
     })
 
     describe('boolean', () => {
+        it('lit(true)', () => {
+            const e = ty.lit(true)
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('true')
+        })
 
+        it("lit('true', 'boolean')", () => {
+            const e = ty.lit('true', 'boolean')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('true')
+        })
+
+        it("lit(0, 'boolean')", () => {
+            const e = ty.lit(0, 'boolean')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('false')
+        })
+
+        it("lit(null, 'boolean')", () => {
+            const e = ty.lit(null, 'boolean')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('false')
+        })
+
+        it("lit('bogus', 'boolean')", () => {
+            // @ts-expect-error - should error with non-boolean string
+            expect(() => ty.lit('bogus', 'boolean')).toThrow("Cannot convert string 'bogus' to boolean literal")
+        })
     })
 
     describe('Date', () => {
+        it("lit(new Date('2024-01-15T12:34:56.000Z'))", () => {
+            const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'))
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDateTime, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'datetime' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')
+        })
 
+        it("lit(new Date('2024-01-15T12:34:56.000Z'), 'date')", () => {
+            const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'), 'date')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDate, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'date' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('@2024-01-15')
+        })
+
+        it("lit('2024-01-15', 'date')", () => {
+            const e = ty.lit('2024-01-15', 'date')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDate, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'date' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('@2024-01-15')
+        })
+
+        it("lit('2024-01-15T12:34:56.000Z', 'datetime')", () => {
+            const e = ty.lit('2024-01-15T12:34:56.000Z', 'datetime')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDateTime, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'datetime' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')
+        })
+
+        it("lit('bogus', 'date')", () => {
+            expect(() => ty.lit('bogus', 'date')).toThrow('Invalid date string: bogus')
+        })
+
+        it("lit('bogus', 'datetime')", () => {
+            expect(() => ty.lit('bogus', 'datetime')).toThrow('Invalid date string: bogus')
+        })
     })
 
     describe('integration in queries', () => {
