@@ -4,9 +4,9 @@ import * as ty from '../src/index.js'
 
 describe('Group aggregation', () => {
     const penguins = ty.relation('penguins', {
-        species: ty.DT.string,
-        year: ty.DT.int32,
-        bill_length_mm: ty.DT.float64,
+        species: 'string',
+        year: 'int32',
+        bill_length_mm: 'float64',
     })
 
     it('should accept scalar expressions in agg()', () => {
@@ -30,11 +30,11 @@ describe('Group aggregation', () => {
             }
           )"
         `)
-        expectTypeOf(q.col('species')).toEqualTypeOf<ty.Expr<{ typecode: 'string' }, 'columnar'>>()
-        expectTypeOf(q.col('count')).toEqualTypeOf<ty.Expr<{ typecode: 'int64' }, 'columnar'>>()
-        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.Expr<{ typecode: 'float64' }, 'columnar'>>()
-        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.Expr<{ typecode: 'float64' }, 'columnar'>>()
-        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.Expr<{ typecode: 'float64' }, 'columnar'>>()
+        expectTypeOf(q.col('species')).toEqualTypeOf<ty.Expr<'string', 'columnar'>>()
+        expectTypeOf(q.col('count')).toEqualTypeOf<ty.Expr<'int64', 'columnar'>>()
+        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.Expr<'float64', 'columnar'>>()
+        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.Expr<'float64', 'columnar'>>()
+        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.Expr<'float64', 'columnar'>>()
     })
 
     it('should throw runtime and type error when passing columnar expression to agg()', () => {

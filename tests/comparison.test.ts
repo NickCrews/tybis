@@ -4,9 +4,9 @@ import * as ty from '../src/index.js'
 
 describe('Comparison Operations', () => {
     const table = ty.relation('data', {
-        x: ty.DT.float64,
-        y: ty.DT.float64,
-        name: ty.DT.string,
+        x: 'float64',
+        y: 'float64',
+        name: 'string',
     })
 
     describe('equality', () => {
@@ -18,40 +18,41 @@ describe('Comparison Operations', () => {
                 is_five = x == 5
               }"
             `)
+            expect(q.col('is_five').dtype()).toEqual({ typecode: 'boolean' })
+            expect(q.col('is_five').dshape()).toEqual('columnar')
             expectTypeOf(q.col('is_five').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_five').dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have columnar shape when comparing columnar == scalar', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(5)
-            const op = new ty.ops.EqOp(col, scalar)
-            expect(op.dshape()).toBe('columnar')
-            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
+            const e = table.col("x").eq(5)
+            expect(e.dshape()).toBe('columnar')
+            expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
+        })
+        it('should have columnar shape when comparing scalar == columnar', () => {
+            const e = ty.lit(5).eq(table.col("x"))
+            expect(e.dshape()).toBe('columnar')
+            expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
         })
 
         it('should have scalar shape when comparing scalar == scalar', () => {
-            const scalar1 = new ty.ops.NumberLiteralOp(5)
-            const scalar2 = new ty.ops.NumberLiteralOp(10)
-            const op = new ty.ops.EqOp(scalar1, scalar2)
-            expect(op.dshape()).toBe('scalar')
-            expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
+            const e = ty.lit(5).eq(10)
+            expect(e.dshape()).toBe('scalar')
+            expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
         })
 
         it('should have columnar shape when comparing columnar == columnar', () => {
-            const col1 = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const col2 = new ty.ops.ColRefOp('y', ty.DT.float64)
-            const op = new ty.ops.EqOp(col1, col2)
-            expect(op.dshape()).toBe('columnar')
-            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
-        })
-
-        it('should return boolean type', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(5)
-            const op = new ty.ops.EqOp(col, scalar)
-            expect(op.dtype()).toEqual({ typecode: 'boolean' })
-            expectTypeOf(op.dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
+            const e = table.col("x").eq(table.col("y"))
+            expect(e.dshape()).toBe('columnar')
+            expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
         })
     })
 
@@ -69,8 +70,8 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(10)
+            const col = new ty.ops.ColRefOp('x', 'float64')
+            const scalar = new ty.ops.FloatLiteralOp(10)
             const op = new ty.ops.GtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
@@ -91,8 +92,8 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(10)
+            const col = new ty.ops.ColRefOp('x', 'float64')
+            const scalar = new ty.ops.FloatLiteralOp(10)
             const op = new ty.ops.GteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
@@ -112,8 +113,8 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(20)
+            const col = new ty.ops.ColRefOp('x', 'float64')
+            const scalar = new ty.ops.FloatLiteralOp(20)
             const op = new ty.ops.LtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
@@ -133,8 +134,8 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
-            const scalar = new ty.ops.NumberLiteralOp(20)
+            const col = new ty.ops.ColRefOp('x', 'float64')
+            const scalar = new ty.ops.FloatLiteralOp(20)
             const op = new ty.ops.LteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })

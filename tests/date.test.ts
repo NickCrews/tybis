@@ -4,19 +4,19 @@ import * as ty from '../src/index.js'
 
 describe('DateExpr', () => {
     const events = ty.relation('events', {
-        id: ty.DT.int32,
-        event_date: ty.DT.date,
-        description: ty.DT.string,
+        id: 'int32',
+        event_date: 'date',
+        description: 'string',
     })
 
     describe('Type Safety', () => {
         it('should have date type', () => {
-            const dateCol = ty.col('event_date', ty.DT.date)
+            const dateCol = ty.col('event_date', 'date')
             expectTypeOf(dateCol).toMatchTypeOf<ty.IExpr<{ typecode: 'date' }, 'columnar'>>()
         })
 
         it('toString() returns StringExpr', () => {
-            const dateCol = ty.col('event_date', ty.DT.date)
+            const dateCol = ty.col('event_date', 'date')
             const strExpr = dateCol.toString('%Y-%m-%d')
             expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<{ typecode: 'string' }, 'columnar'>>()
         })

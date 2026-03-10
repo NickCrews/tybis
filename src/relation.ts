@@ -1,11 +1,12 @@
 import type { Schema, DataType, InferSchema, IntoSchema } from './datatypes.js'
+import * as dt from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
 import { type IOp } from './core.js'
 import { SortSpec } from './ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,
-    col, type NumericDataType,
+    col,
     Expr,
 } from './expr.js'
 import { PrqlCompiler } from './compilers/prql-compiler.js'
@@ -16,20 +17,20 @@ import { suggestColumnName } from './typo.js'
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
-type Col<K extends string, T extends DataType> = Expr<T, 'columnar'>
+type Col<K extends string = string, T extends DataType = DataType> = Expr<T, 'columnar'>
 
 function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<K, S[K]> {
     if (!(name in schema)) {
         const suggestion = suggestColumnName(name, Object.keys(schema))
         throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
     }
-    return col(name, schema[name] as S[K])
+    return col(name, schema[name] as S[K]) as Col<K, S[K]>
 }
 
 class RowAccessor<S extends Schema> {
     constructor(private readonly _schema: S) { }
 
-    col<K extends keyof S & string>(name: K): Expr<S[K], 'columnar'> {
+    col<K extends keyof S & string>(name: K): Col<K, S[K]> {
         return _colWithSchemaCheck(this._schema, name)
     }
 }
@@ -100,7 +101,7 @@ export class Relation<S extends Schema = Schema> {
      * )
      */
     group<
-        KC extends Col<any, any>[],
+        KC extends Col[],
         A extends Record<string, BaseExpr<DataType, 'scalar'>>
     >(
         keys: (r: RowAccessor<S>) => KC,
@@ -136,7 +137,7 @@ export class Relation<S extends Schema = Schema> {
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, BaseExpr<DataType>>>(
+    derive<D extends Record<string, BaseExpr>>(
         cb: (r: RowAccessor<S>) => D
     ): Relation<S & { [K in keyof D]: D[K] extends BaseExpr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
@@ -209,5 +210,5 @@ export class Relation<S extends Schema = Schema> {
  * })
  */
 export function relation<S extends IntoSchema>(name: string, schema: S): Relation<InferSchema<S>> {
-    return new Relation(schema, { kind: 'from', name })
+    return new Relation(dt.schema(schema), { kind: 'from', name })
 }

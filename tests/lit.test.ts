@@ -28,14 +28,14 @@ describe('lit()', () => {
     describe('number', () => {
         it('type is Expr<{typecode: float64}, scalar>', () => {
             const e = ty.lit(42)
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'float64' }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float64' })
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'float', size: 64 }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('preserves value and kind', () => {
-            const op = ty.lit(99).toOp() as ty.ops.NumberLiteralOp
-            expect(op.kind).toBe('number_literal')
+            const op = ty.lit(99).toOp() as ty.ops.FloatLiteralOp
+            expect(op.kind).toBe('float_literal')
             expect(op.value).toBe(99)
         })
 
@@ -86,7 +86,7 @@ describe('lit()', () => {
     })
 
     describe('integration in queries', () => {
-        const t = ty.relation('tbl', { x: ty.DT.float64, name: ty.DT.string })
+        const t = ty.relation('tbl', { x: 'float64', name: 'string' })
 
         it('lit used in eq filter', () => {
             const q = t.filter(r => r.col('name').eq(ty.lit('alice')))

@@ -10,15 +10,15 @@ import { IOp, IExpr, IsExprSymbol } from './core.js'
 
 export type NumericDataType = dt.DTInt | dt.DTFloat
 
-export type Expr<T extends DataType = DataType, S extends DataShape = DataShape> =
-    T extends { typecode: 'string' } ? StringExpr<S> :
-    T extends NumericDataType ? NumericExpr<T, S> :
-    T extends { typecode: 'boolean' } ? BooleanExpr<S> :
-    T extends { typecode: 'date' } ? DateExpr<S> :
-    T extends { typecode: 'time' } ? TimeExpr<S> :
-    T extends { typecode: 'datetime' } ? DateTimeExpr<S> :
-    T extends { typecode: 'uuid' } ? UUIDExpr<S> :
-    T extends { typecode: 'interval' } ? IntervalExpr<S> :
+export type Expr<T extends IntoDtype = DataType, S extends DataShape = DataShape> =
+    InferDtype<T> extends { typecode: 'string' } ? StringExpr<S> :
+    InferDtype<T> extends NumericDataType ? NumericExpr<InferDtype<T>, S> :
+    InferDtype<T> extends { typecode: 'boolean' } ? BooleanExpr<S> :
+    InferDtype<T> extends { typecode: 'date' } ? DateExpr<S> :
+    InferDtype<T> extends { typecode: 'time' } ? TimeExpr<S> :
+    InferDtype<T> extends { typecode: 'datetime' } ? DateTimeExpr<S> :
+    InferDtype<T> extends { typecode: 'uuid' } ? UUIDExpr<S> :
+    InferDtype<T> extends { typecode: 'interval' } ? IntervalExpr<S> :
     never
 
 export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): Expr<T, S> {

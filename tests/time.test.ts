@@ -4,10 +4,10 @@ import * as ty from '../src/index.js'
 
 describe('TimeExpr', () => {
     const logs = ty.relation('logs', {
-        id: ty.DT.int32,
-        mytime: ty.DT.time,
-        mytime2: ty.DT.time,
-        message: ty.DT.string,
+        id: 'int32',
+        mytime: 'time',
+        mytime2: 'time',
+        message: 'string',
     })
 
     describe('Common operations', () => {
@@ -38,7 +38,7 @@ describe('TimeExpr', () => {
 
     describe('toString()', () => {
         it('returns StringExpr', () => {
-            const timeCol = ty.col('mytime', ty.DT.time)
+            const timeCol = ty.col('mytime', 'time')
             const strExpr = timeCol.toString('%H:%M:%S')
             expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<{ typecode: 'string' }, 'columnar'>>()
         })
