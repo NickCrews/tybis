@@ -57,6 +57,8 @@ describe('Comparison Operations', () => {
 
         it('should error when comparing incompatible types', () => {
             // @ts-expect-error
+            expect(() => ty.lit(5).eq("hello")).toThrow()
+            // @ts-expect-error
             expect(() => table.col("f64a").eq(table.col("name"))).toThrow()
             // @ts-expect-error
             expect(() => table.col("f64a").eq("hello")).toThrow()
