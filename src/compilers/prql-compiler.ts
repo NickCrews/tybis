@@ -9,7 +9,8 @@ export class PrqlCompiler implements Compiler {
         const kind = op.kind
         switch (kind) {
             case 'col_ref': return op.name
-            case 'number_literal': return String(op.value)
+            case 'int_literal': return String(op.value)
+            case 'float_literal': return String(op.value)
             case 'string_literal': return `"${op.value}"`
             case 'boolean_literal': return String(op.value)
             case 'null_literal': return 'null'

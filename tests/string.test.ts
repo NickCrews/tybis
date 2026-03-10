@@ -4,9 +4,9 @@ import * as ty from '../src/index.js'
 
 describe('String Operations', () => {
     const table = ty.relation('users', {
-        name: 'string',
-        email: 'string',
-    } as const)
+        name: ty.DT.string,
+        email: ty.DT.string,
+    })
 
     describe('upper', () => {
         it('should generate correct PRQL for upper', () => {
@@ -22,10 +22,10 @@ describe('String Operations', () => {
         })
 
         it('should preserve shape from operand', () => {
-            const col = new ty.ops.ColRefOp('name', 'string')
+            const col = new ty.ops.ColRefOp('name', ty.DT.string)
             const op = new ty.ops.UpperOp(col)
             expect(op.dshape()).toBe('columnar')
-            expect(op.dtype()).toBe('string')
+            expect(op.dtype()).toEqual({ typecode: 'string' })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
@@ -51,10 +51,10 @@ describe('String Operations', () => {
         })
 
         it('should preserve shape from operand', () => {
-            const col = new ty.ops.ColRefOp('name', 'string')
+            const col = new ty.ops.ColRefOp('name', ty.DT.string)
             const op = new ty.ops.LowerOp(col)
             expect(op.dshape()).toBe('columnar')
-            expect(op.dtype()).toBe('string')
+            expect(op.dtype()).toEqual({ typecode: 'string' })
         })
     })
 
@@ -68,11 +68,11 @@ describe('String Operations', () => {
         })
 
         it('should have columnar shape when operand is columnar', () => {
-            const col = new ty.ops.ColRefOp('email', 'string')
+            const col = new ty.ops.ColRefOp('email', ty.DT.string)
             const pattern = new ty.ops.StringLiteralOp('gmail')
             const op = new ty.ops.ContainsOp(col, pattern)
             expect(op.dshape()).toBe('columnar')
-            expect(op.dtype()).toBe('boolean')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
@@ -81,7 +81,7 @@ describe('String Operations', () => {
             const pattern = new ty.ops.StringLiteralOp('gmail')
             const op = new ty.ops.ContainsOp(str, pattern)
             expect(op.dshape()).toBe('scalar')
-            expect(op.dtype()).toBe('boolean')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
             expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
     })
@@ -96,11 +96,11 @@ describe('String Operations', () => {
         })
 
         it('should have columnar shape when operand is columnar', () => {
-            const col = new ty.ops.ColRefOp('name', 'string')
+            const col = new ty.ops.ColRefOp('name', ty.DT.string)
             const prefix = new ty.ops.StringLiteralOp('Dr.')
             const op = new ty.ops.StartsWithOp(col, prefix)
             expect(op.dshape()).toBe('columnar')
-            expect(op.dtype()).toBe('boolean')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
@@ -109,7 +109,7 @@ describe('String Operations', () => {
             const prefix = new ty.ops.StringLiteralOp('Dr.')
             const op = new ty.ops.StartsWithOp(str, prefix)
             expect(op.dshape()).toBe('scalar')
-            expect(op.dtype()).toBe('boolean')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
             expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
     })

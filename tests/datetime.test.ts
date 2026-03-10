@@ -4,21 +4,21 @@ import * as ty from '../src/index.js'
 
 describe('DateExpr', () => {
     const events = ty.relation('events', {
-        id: 'int32',
-        event_datetime: 'datetime',
-        description: 'string',
-    } as const)
+        id: ty.DT.int32,
+        event_datetime: ty.DT.datetime,
+        description: ty.DT.string,
+    })
 
     describe('Type Safety', () => {
         it('should have datetime type', () => {
-            const datetimeCol = ty.col('event_datetime', 'datetime')
-            expectTypeOf(datetimeCol).toMatchTypeOf<ty.IExpr<'datetime', 'columnar'>>()
+            const datetimeCol = ty.col('event_datetime', ty.DT.datetime)
+            expectTypeOf(datetimeCol).toMatchTypeOf<ty.IExpr<{ typecode: 'datetime' }, 'columnar'>>()
         })
 
         it('toString() returns StringExpr', () => {
-            const datetimeCol = ty.col('event_datetime', 'datetime')
+            const datetimeCol = ty.col('event_datetime', ty.DT.datetime)
             const strExpr = datetimeCol.toString('%Y-%m-%d')
-            expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<'string', 'columnar'>>()
+            expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<{ typecode: 'string' }, 'columnar'>>()
         })
     })
 

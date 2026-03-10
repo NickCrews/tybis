@@ -1,37 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { inferDtype } from '../src/datatypes'
+import { inferDtypeFromJs } from '../src/datatypes'
 
 describe('inferDtype', () => {
     it('infers string type', () => {
-        expect(inferDtype('hello')).toBe('string')
-        expect(inferDtype('')).toBe('string')
+        expect(inferDtypeFromJs('hello')).toEqual({ typecode: 'string' })
+        expect(inferDtypeFromJs('')).toEqual({ typecode: 'string' })
     })
 
     it('infers boolean type', () => {
-        expect(inferDtype(true)).toBe('boolean')
-        expect(inferDtype(false)).toBe('boolean')
+        expect(inferDtypeFromJs(true)).toEqual({ typecode: 'boolean' })
+        expect(inferDtypeFromJs(false)).toEqual({ typecode: 'boolean' })
     })
 
     it('infers number type as float64', () => {
-        expect(inferDtype(42)).toBe('float64')
-        expect(inferDtype(3.14)).toBe('float64')
-        expect(inferDtype(0)).toBe('float64')
-        expect(inferDtype(-1)).toBe('float64')
+        expect(inferDtypeFromJs(42)).toEqual({ typecode: 'float', size: 64 })
+        expect(inferDtypeFromJs(3.14)).toEqual({ typecode: 'float', size: 64 })
+        expect(inferDtypeFromJs(0)).toEqual({ typecode: 'float', size: 64 })
+        expect(inferDtypeFromJs(-1)).toEqual({ typecode: 'float', size: 64 })
     })
 
     it('infers Date type as datetime', () => {
-        expect(inferDtype(new Date())).toBe('datetime')
-        expect(inferDtype(new Date('2024-01-01'))).toBe('datetime')
+        expect(inferDtypeFromJs(new Date())).toEqual({ typecode: 'datetime' })
+        expect(inferDtypeFromJs(new Date('2024-01-01'))).toEqual({ typecode: 'datetime' })
     })
 
     it('throws error for unsupported types', () => {
         // @ts-expect-error
-        expect(() => inferDtype({})).toThrow('Cannot infer dtype for value: [object Object]')
+        expect(() => inferDtypeFromJs({})).toThrow('Cannot infer dtype for value: [object Object]')
         // @ts-expect-error
-        expect(() => inferDtype([])).toThrow('Cannot infer dtype for value: ')
+        expect(() => inferDtypeFromJs([])).toThrow('Cannot infer dtype for value: ')
         // @ts-expect-error
-        expect(() => inferDtype(null)).toThrow('Cannot infer dtype for value: null')
+        expect(() => inferDtypeFromJs(null)).toThrow('Cannot infer dtype for value: null')
         // @ts-expect-error
-        expect(() => inferDtype(undefined)).toThrow('Cannot infer dtype for value: undefined')
+        expect(() => inferDtypeFromJs(undefined)).toThrow('Cannot infer dtype for value: undefined')
     })
 })

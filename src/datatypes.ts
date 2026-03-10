@@ -1,71 +1,193 @@
-import { type IExpr, type IOp } from "./core"
+import { type IExpr, type IOp, isExpr, isOp } from "./core"
+
+export interface DTString { typecode: 'string' }
+export function DTString(): DTString { return { typecode: 'string' } }
+export interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'int', size: S }
+export function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTInt<S> { return { typecode: 'int', size } }
+export interface DTInt8 { typecode: 'int', size: 8 }
+export function DTInt8(): DTInt8 { return { typecode: 'int', size: 8 } }
+export interface DTInt16 { typecode: 'int', size: 16 }
+export function DTInt16(): DTInt16 { return { typecode: 'int', size: 16 } }
+export interface DTInt32 { typecode: 'int', size: 32 }
+export function DTInt32(): DTInt32 { return { typecode: 'int', size: 32 } }
+export interface DTInt64 { typecode: 'int', size: 64 }
+export function DTInt64(): DTInt64 { return { typecode: 'int', size: 64 } }
+export interface DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'float', size: S }
+export function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTFloat<S> { return { typecode: 'float', size } }
+export interface DTFloat8 { typecode: 'float', size: 8 }
+export function DTFloat8(): DTFloat8 { return { typecode: 'float', size: 8 } }
+export interface DTFloat16 { typecode: 'float', size: 16 }
+export function DTFloat16(): DTFloat16 { return { typecode: 'float', size: 16 } }
+export interface DTFloat32 { typecode: 'float', size: 32 }
+export function DTFloat32(): DTFloat32 { return { typecode: 'float', size: 32 } }
+export interface DTFloat64 { typecode: 'float', size: 64 }
+export function DTFloat64(): DTFloat64 { return { typecode: 'float', size: 64 } }
+export interface DTBoolean { typecode: 'boolean' }
+export function DTBoolean(): DTBoolean { return { typecode: 'boolean' } }
+export interface DTDate { typecode: 'date' }
+export function DTDate(): DTDate { return { typecode: 'date' } }
+export interface DTTime { typecode: 'time' }
+export function DTTime(): DTTime { return { typecode: 'time' } }
+export interface DTDateTime { typecode: 'datetime' }
+export function DTDateTime(): DTDateTime { return { typecode: 'datetime' } }
+export interface DTInterval { typecode: 'interval' }
+export function DTInterval(): DTInterval { return { typecode: 'interval' } }
+export interface DTUUID { typecode: 'uuid' }
+export function DTUUID(): DTUUID { return { typecode: 'uuid' } }
 
 export type DataType =
-    | 'string'
-    | 'int32'
-    | 'int64'
-    | 'float32'
-    | 'float64'
-    | 'boolean'
-    | 'date'
-    | 'time'
-    | 'datetime'
-    | 'interval'
-    | 'uuid'
+    | DTString
+    | DTInt
+    | DTFloat
+    | DTBoolean
+    | DTDate
+    | DTTime
+    | DTDateTime
+    | DTInterval
+    | DTUUID
+
+type DTypeShorthands =
+    | DataType['typecode']
+    | 'int8' | 'int16' | 'int32' | 'int64'
+    | 'float8' | 'float16' | 'float32' | 'float64'
 
 /**
- * Check if a value is a valid DataType, eg 'string', 'int32', etc.
+ * Check if a value is a valid DataType, eg {typecode: 'string'}, {typecode: 'int', size: 32}, etc.
  */
 export function isValidDataType(datatype: any): datatype is DataType {
-    const validTypes = [
-        'string',
-        'int32',
-        'int64',
-        'float32',
-        'float64',
-        'boolean',
-        'date',
-        'time',
-        'datetime',
-        'interval',
-        'uuid',
-    ]
-    return typeof datatype === 'string' && validTypes.includes(datatype)
+    let typecode: DataType['typecode']
+    if (!datatype || typeof datatype !== 'object' || typeof datatype.typecode !== 'string') {
+        return false
+    }
+    typecode = datatype.typecode as DataType['typecode']
+    switch (typecode) {
+        case 'string':
+        case 'boolean':
+        case 'date':
+        case 'time':
+        case 'datetime':
+        case 'interval':
+        case 'uuid':
+            return true
+        case 'int':
+            return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
+        case 'float':
+            return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
+        default:
+            const _exhaustiveCheck = typecode satisfies never
+            return false
+    }
 }
 
-export type Schema = Record<string, DataType>
 
-export type JSType<T extends DataType> =
-    T extends 'string' ? string
-    : T extends 'int32' | 'int64' | 'float32' | 'float64' ? number
-    : T extends 'boolean' ? boolean
-    : T extends 'date' | 'time' | 'datetime' ? Date
-    : T extends 'interval' | 'uuid' ? string
+export type InferDtypeFromShorthand<S extends DTypeShorthands> =
+    S extends 'string' ? DTString
+    : S extends 'int' ? { typecode: 'int', size: 64 }
+    : S extends 'int8' ? { typecode: 'int', size: 8 }
+    : S extends 'int16' ? { typecode: 'int', size: 16 }
+    : S extends 'int32' ? { typecode: 'int', size: 32 }
+    : S extends 'int64' ? { typecode: 'int', size: 64 }
+    : S extends 'float' ? { typecode: 'float', size: 64 }
+    : S extends 'float8' ? { typecode: 'float', size: 8 }
+    : S extends 'float16' ? { typecode: 'float', size: 16 }
+    : S extends 'float32' ? { typecode: 'float', size: 32 }
+    : S extends 'float64' ? { typecode: 'float', size: 64 }
+    : S extends 'boolean' ? DTBoolean
+    : S extends 'date' ? DTDate
+    : S extends 'time' ? DTTime
+    : S extends 'datetime' ? DTDateTime
+    : S extends 'interval' ? DTInterval
+    : S extends 'uuid' ? DTUUID
     : never
 
-export type SchemaToJS<S extends Schema> = {
-    [K in keyof S]: JSType<S[K]>
+export function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): InferDtypeFromShorthand<T> {
+    switch (typecode) {
+        case 'int': return { typecode: 'int', size: 64 } as InferDtypeFromShorthand<T>
+        case 'int8': return { typecode: 'int', size: 8 } as InferDtypeFromShorthand<T>
+        case 'int16': return { typecode: 'int', size: 16 } as InferDtypeFromShorthand<T>
+        case 'int32': return { typecode: 'int', size: 32 } as InferDtypeFromShorthand<T>
+        case 'int64': return { typecode: 'int', size: 64 } as InferDtypeFromShorthand<T>
+
+        case 'float': return { typecode: 'float', size: 64 } as InferDtypeFromShorthand<T>
+        case 'float8': return { typecode: 'float', size: 8 } as InferDtypeFromShorthand<T>
+        case 'float16': return { typecode: 'float', size: 16 } as InferDtypeFromShorthand<T>
+        case 'float32': return { typecode: 'float', size: 32 } as InferDtypeFromShorthand<T>
+        case 'float64': return { typecode: 'float', size: 64 } as InferDtypeFromShorthand<T>
+
+        case 'string': return { typecode: 'string' } as InferDtypeFromShorthand<T>
+        case 'boolean': return { typecode: 'boolean' } as InferDtypeFromShorthand<T>
+        case 'date': return { typecode: 'date' } as InferDtypeFromShorthand<T>
+        case 'time': return { typecode: 'time' } as InferDtypeFromShorthand<T>
+        case 'datetime': return { typecode: 'datetime' } as InferDtypeFromShorthand<T>
+        case 'interval': return { typecode: 'interval' } as InferDtypeFromShorthand<T>
+        case 'uuid': return { typecode: 'uuid' } as InferDtypeFromShorthand<T>
+        default:
+            throw new Error(`Unsupported typecode in dtypeFromShorthand: ${typecode satisfies never}`)
+    }
 }
+
+export type JSType<T extends DataType> =
+    T extends DTString ? string
+    : T extends DTInt ? number
+    : T extends DTFloat ? number
+    : T extends DTBoolean ? boolean
+    : T extends DTDate ? Date
+    : T extends DTTime ? Date
+    : T extends DTDateTime ? Date
+    : T extends DTInterval ? string
+    : T extends DTUUID ? string
+    : never
 
 export type JsType = string | number | boolean | Date
 
-export type InferDtype<T extends JsType | IExpr | IOp> =
-    T extends IExpr<infer D, any> ? D :
-    T extends IOp<infer D, any> ? D :
-    T extends JsType ? InferDtypeFromJsType<T> :
-    never
-
-export type InferDtypeFromJsType<JS extends JsType> =
-    JS extends string ? 'string'
-    : JS extends number ? 'float64'
-    : JS extends boolean ? 'boolean'
-    : JS extends Date ? 'datetime'
+export type InferDtypeFromJs<JS extends JsType> =
+    JS extends string ? DTString
+    : JS extends number ? DTFloat<64>
+    : JS extends boolean ? DTBoolean
+    : JS extends Date ? DTDateTime
     : never
 
-export function inferDtype<JS extends JsType>(value: JS): InferDtype<JS> {
-    if (typeof value === 'string') return 'string' as InferDtype<JS>
-    if (typeof value === 'boolean') return 'boolean' as InferDtype<JS>
-    if (typeof value === 'number') return 'float64' as InferDtype<JS>
-    if (value instanceof Date) return 'datetime' as InferDtype<JS>
+export function inferDtypeFromJs<JS extends JsType>(value: JS): InferDtypeFromJs<JS> {
+    if (typeof value === 'string') return { typecode: 'string' } as InferDtypeFromJs<JS>
+    if (typeof value === 'boolean') return { typecode: 'boolean' } as InferDtypeFromJs<JS>
+    if (typeof value === 'number') return { typecode: 'float', size: 64 } as InferDtypeFromJs<JS>
+    if (value instanceof Date) return { typecode: 'datetime' } as InferDtypeFromJs<JS>
     throw new Error(`Cannot infer dtype for value: ${value}`)
+}
+
+export type IntoDtype = DataType | DTypeShorthands | IExpr | IOp
+export type InferDtype<T extends IntoDtype> =
+    T extends DataType ? T :
+    T extends DTypeShorthands ? InferDtypeFromShorthand<T> :
+    T extends IExpr<infer D, any> ? D :
+    T extends IOp<infer D, any> ? D :
+    never
+
+export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
+    if (isValidDataType(thing)) return thing as InferDtype<T>
+    if (typeof thing === 'string') return dtypeFromShorthand(thing as DTypeShorthands) as InferDtype<T>
+    if (typeof thing === 'object' && thing !== null) {
+        if (isExpr(thing)) return thing.dtype() as InferDtype<T>
+        if (isOp(thing)) return thing.dtype() as InferDtype<T>
+    }
+    throw new Error(`Cannot determine dtype of: ${thing}`)
+}
+
+
+export type Schema = Record<string, DataType>
+export type SchemaToJS<S extends Schema> = {
+    [K in keyof S]: JSType<S[K]>
+}
+export type IntoSchema = Schema | Record<string, IntoDtype>
+export type InferSchema<T extends IntoSchema> =
+    T extends Schema ? T :
+    T extends Record<string, IntoDtype> ? { [K in keyof T]: InferDtype<T[K]> } :
+    never
+
+export function schema<T extends IntoSchema>(s: T): InferSchema<T> {
+    const result: Record<string, DataType> = {}
+    for (const key in s) {
+        result[key] = dtype(s[key]!)
+    }
+    return result as InferSchema<T>
 }

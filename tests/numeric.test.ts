@@ -5,9 +5,9 @@ import { AddOp, SubOp, MulOp, DivOp } from '../src/ops.js'
 
 describe('Numeric Operations', () => {
     const table = ty.relation('nums', {
-        x: 'float64',
-        y: 'float64',
-    } as const)
+        x: ty.DT.float64,
+        y: ty.DT.float64,
+    })
 
     describe('addition', () => {
         it('should generate correct PRQL for columnar + scalar', () => {
@@ -35,7 +35,7 @@ describe('Numeric Operations', () => {
         })
 
         it('should have columnar shape when adding columnar + scalar', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
+            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
             const scalar = new ty.ops.NumberLiteralOp(5)
             const op = new AddOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
@@ -44,7 +44,7 @@ describe('Numeric Operations', () => {
 
         it('should have columnar shape when adding scalar + columnar', () => {
             const scalar = new ty.ops.NumberLiteralOp(5)
-            const col = new ty.ops.ColRefOp('x', 'float64')
+            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
             const op = new AddOp(scalar, col)
             expect(op.dshape()).toBe('columnar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
@@ -59,8 +59,8 @@ describe('Numeric Operations', () => {
         })
 
         it('should have columnar shape when adding columnar + columnar', () => {
-            const col1 = new ty.ops.ColRefOp('x', 'float64')
-            const col2 = new ty.ops.ColRefOp('y', 'float64')
+            const col1 = new ty.ops.ColRefOp('x', ty.DT.float64)
+            const col2 = new ty.ops.ColRefOp('y', ty.DT.float64)
             const op = new AddOp(col1, col2)
             expect(op.dshape()).toBe('columnar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
@@ -81,7 +81,7 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
+            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
             const scalar = new ty.ops.NumberLiteralOp(5)
             const op = new SubOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
@@ -102,7 +102,7 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
+            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
             const scalar = new ty.ops.NumberLiteralOp(2)
             const op = new MulOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
@@ -123,7 +123,7 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
+            const col = new ty.ops.ColRefOp('x', ty.DT.float64)
             const scalar = new ty.ops.NumberLiteralOp(2)
             const op = new DivOp(col, scalar)
             expect(op.dshape()).toBe('columnar')

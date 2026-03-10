@@ -5,23 +5,23 @@ import * as ty from '../src/index.js'
 describe('Type Safety', () => {
     it('should accept an explicit schema', () => {
         const penguins = ty.relation('penguins', {
-            species: 'string' as const,
-            year: 'int32' as const,
-            bill_length_mm: 'float64' as const,
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
         })
 
         expectTypeOf(penguins).toMatchTypeOf<ty.Relation<{
-            species: 'string'
-            year: 'int32'
-            bill_length_mm: 'float64'
+            species: ty.dt.DTString
+            year: ty.dt.DTInt32
+            bill_length_mm: ty.dt.DTFloat64
         }>>()
     })
 
     it('should track schema through group and agg', () => {
         const penguins = ty.relation('penguins', {
-            species: 'string' as const,
-            year: 'int32' as const,
-            bill_length_mm: 'float64' as const,
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
         })
 
         const result = penguins.group(
@@ -33,17 +33,17 @@ describe('Type Safety', () => {
         )
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: 'string'
-            year: 'int32'
-            count: 'int64'
-            mean_bill: 'float64'
+            species: { typecode: 'string' }
+            year: { typecode: 'int', size: 32 }
+            count: { typecode: 'int', size: 64 }
+            mean_bill: { typecode: 'float', size: 64 }
         }>>()
     })
 
     it('should track schema through derive', () => {
         const penguins = ty.relation('penguins', {
-            species: 'string' as const,
-            bill_length_mm: 'float64' as const,
+            species: 'string',
+            bill_length_mm: 'float64',
         })
 
         const result = penguins.derive(r => ({
@@ -51,24 +51,23 @@ describe('Type Safety', () => {
         }))
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: 'string'
-            bill_length_mm: 'float64'
-            ratio: 'float64'
+            species: { typecode: 'string' }
+            bill_length_mm: { typecode: 'float', size: 64 }
+            ratio: { typecode: 'float', size: 64 }
         }>>()
     })
 
     it('string columns should have string methods', () => {
-        const r = ty.relation('t', { name: 'string' as const })
+        const r = ty.relation('t', { name: 'string' })
         const nameCol = r.col('name')
-        // StringCol should have upper/lower/contains/startsWith
-        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IExpr<'string', 'columnar'>>()
-        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IExpr<'string', 'columnar'>>()
-        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IExpr<'boolean', 'columnar'>>()
+        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IExpr<ty.dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IExpr<ty.dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
     })
 
     it('numeric columns should have comparison methods', () => {
         const numCol = ty.col('age', 'int32')
-        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IExpr<'boolean', 'columnar'>>()
-        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IExpr<'float64', 'columnar'>>()
+        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
+        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IExpr<ty.dt.DTFloat64, 'columnar'>>()
     })
 })

@@ -1,4 +1,5 @@
-import { type DataType, type InferDtype, type JsType } from './datatypes.js'
+import { type DataType, type InferDtype, type JsType, IntoDtype } from './datatypes.js'
+import * as dt from './datatypes.js'
 import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
 import * as ops from './ops.js'
 import { IOp, IExpr, IsExprSymbol } from './core.js'
@@ -7,30 +8,31 @@ import { IOp, IExpr, IsExprSymbol } from './core.js'
 // opToExpr — wraps an IOp in the appropriate Expr subclass
 // ---------------------------------------------------------------------------
 
-export type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64'
+export type NumericDataType = dt.DTInt | dt.DTFloat
 
 export type Expr<T extends DataType = DataType, S extends DataShape = DataShape> =
-    T extends 'string' ? StringExpr<S> :
+    T extends { typecode: 'string' } ? StringExpr<S> :
     T extends NumericDataType ? NumericExpr<T, S> :
-    T extends 'boolean' ? BooleanExpr<S> :
-    T extends 'date' ? DateExpr<S> :
-    T extends 'time' ? TimeExpr<S> :
-    T extends 'datetime' ? DateTimeExpr<S> :
-    T extends 'uuid' ? UUIDExpr<S> :
-    T extends 'interval' ? IntervalExpr<S> :
+    T extends { typecode: 'boolean' } ? BooleanExpr<S> :
+    T extends { typecode: 'date' } ? DateExpr<S> :
+    T extends { typecode: 'time' } ? TimeExpr<S> :
+    T extends { typecode: 'datetime' } ? DateTimeExpr<S> :
+    T extends { typecode: 'uuid' } ? UUIDExpr<S> :
+    T extends { typecode: 'interval' } ? IntervalExpr<S> :
     never
 
 export function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): Expr<T, S> {
     const d = op.dtype()
-    if (d === 'string') return new StringExpr(op as IOp<'string', S>) as Expr<T, S>
-    if (d === 'int32' || d === 'int64' || d === 'float32' || d === 'float64') return new NumericExpr(op as IOp<NumericDataType, S>) as Expr<T, S>
-    if (d === 'boolean') return new BooleanExpr(op as IOp<'boolean', S>) as Expr<T, S>
-    if (d === 'date') return new DateExpr(op as IOp<'date', S>) as Expr<T, S>
-    if (d === 'time') return new TimeExpr(op as IOp<'time', S>) as Expr<T, S>
-    if (d === 'datetime') return new DateTimeExpr(op as IOp<'datetime', S>) as Expr<T, S>
-    if (d === 'uuid') return new UUIDExpr(op as IOp<'uuid', S>) as Expr<T, S>
-    if (d === 'interval') return new IntervalExpr(op as IOp<'interval', S>) as Expr<T, S>
-    throw new Error(`Unsupported dtype in opToExpr: ${d satisfies never}`)
+    if (d.typecode === 'string') return new StringExpr(op as IOp<{ typecode: 'string' }, S>) as Expr<T, S>
+    if (d.typecode === 'int') return new NumericExpr(op as IOp<NumericDataType, S>) as Expr<T, S>
+    if (d.typecode === 'float') return new NumericExpr(op as IOp<NumericDataType, S>) as Expr<T, S>
+    if (d.typecode === 'boolean') return new BooleanExpr(op as IOp<{ typecode: 'boolean' }, S>) as Expr<T, S>
+    if (d.typecode === 'date') return new DateExpr(op as IOp<{ typecode: 'date' }, S>) as Expr<T, S>
+    if (d.typecode === 'time') return new TimeExpr(op as IOp<{ typecode: 'time' }, S>) as Expr<T, S>
+    if (d.typecode === 'datetime') return new DateTimeExpr(op as IOp<{ typecode: 'datetime' }, S>) as Expr<T, S>
+    if (d.typecode === 'uuid') return new UUIDExpr(op as IOp<{ typecode: 'uuid' }, S>) as Expr<T, S>
+    if (d.typecode === 'interval') return new IntervalExpr(op as IOp<{ typecode: 'interval' }, S>) as Expr<T, S>
+    throw new Error(`Unsupported dtype in opToExpr: ${(d satisfies never)}`)
 }
 
 
@@ -48,7 +50,7 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
 }
 export class GenericExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
 
-    isNotNull(): Expr<'boolean', S> {
+    isNotNull(): Expr<{ typecode: 'boolean' }, S> {
         return opToExpr(new ops.IsNotNullOp(this.toOp()))
     }
 
@@ -111,7 +113,7 @@ export class NumericExpr<T extends NumericDataType = NumericDataType, S extends 
 // String expressions
 // ---------------------------------------------------------------------------
 
-export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<'string', S> {
+export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'string' }, S> {
     upper() {
         return opToExpr(new ops.UpperOp(this.toOp()))
     }
@@ -130,11 +132,11 @@ export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<'st
 // Boolean expressions
 // ---------------------------------------------------------------------------
 
-export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<'boolean', S> {
-    and(other: IExpr<'boolean'>) {
+export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'boolean' }, S> {
+    and(other: IExpr<{ typecode: 'boolean' }>) {
         return opToExpr(new ops.LogicalAndOp(this.toOp(), other.toOp()))
     }
-    or(other: IExpr<'boolean'>) {
+    or(other: IExpr<{ typecode: 'boolean' }>) {
         return opToExpr(new ops.LogicalOrOp(this.toOp(), other.toOp()))
     }
     not() {
@@ -146,7 +148,7 @@ export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<'b
 // Date expressions
 // ---------------------------------------------------------------------------
 
-export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<'date', S> {
+export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'date' }, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
@@ -156,19 +158,19 @@ export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<'date
 // Time expressions
 // ---------------------------------------------------------------------------
 
-export class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<'time', S> {
+export class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'time' }, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<'datetime', S> {
+export class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'datetime' }, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<'interval', S> {
+export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'interval' }, S> {
     // could add interval-specific methods here, e.g. to extract components like years, months, etc.
 }
 
@@ -176,11 +178,11 @@ export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<'
 // UUID expressions
 // ---------------------------------------------------------------------------
 
-export class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<'uuid', S> {
+export class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'uuid' }, S> {
     // no methods yet, but could add things like uuidv4(), etc.
 }
 
-export function col<N extends string, T extends DataType>(name: N, dtype: T): Expr<T, "columnar"> {
+export function col<N extends string, T extends IntoDtype>(name: N, dtype: T): Expr<dt.InferDtype<T>, "columnar"> {
     const op = new ops.ColRefOp(name, dtype)
     return op.toExpr()
 }
@@ -203,7 +205,7 @@ export class SortExpr {
 // Factory functions
 // ---------------------------------------------------------------------------
 
-export function count(): NumericExpr<'int64', 'scalar'> {
+export function count(): NumericExpr<dt.DTInt64, 'scalar'> {
     return opToExpr(new ops.CountOp())
 }
 
@@ -211,6 +213,6 @@ export function sql<T extends DataType, S extends DataShape>(rawSql: string, dty
     return opToExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
 }
 
-export function lit<JS extends JsType>(value: JS): Expr<InferDtype<JS>, 'scalar'> {
+export function lit<JS extends JsType>(value: JS): Expr<dt.InferDtypeFromJs<JS>, 'scalar'> {
     return ops.litOp(value).toExpr()
 }

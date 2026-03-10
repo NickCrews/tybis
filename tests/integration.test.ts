@@ -3,10 +3,10 @@ import * as ty from '../src/index.js'
 
 describe('Tybis Integration Tests', () => {
     const penguins = ty.relation('penguins', {
-        species: 'string',
-        year: 'int32',
-        bill_length_mm: 'float64',
-    } as const)
+        species: ty.DT.string,
+        year: ty.DT.int32,
+        bill_length_mm: ty.DT.float64,
+    })
 
     describe('toPrql()', () => {
         it('simple relation', () => {

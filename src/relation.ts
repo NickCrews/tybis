@@ -1,4 +1,4 @@
-import type { Schema, DataType } from './datatypes.js'
+import type { Schema, DataType, InferSchema, IntoSchema } from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
 import { type IOp } from './core.js'
@@ -203,11 +203,11 @@ export class Relation<S extends Schema = Schema> {
  * Define a relation with an explicit name and schema.
  * @example
  * const penguins = relation('penguins', {
- *   species: 'string',
- *   year: 'int32',
- *   bill_length_mm: 'float64',
+ *   species: DT.string,
+ *   year: DT.int32,
+ *   bill_length_mm: DT.float64,
  * })
  */
-export function relation<S extends Schema>(name: string, schema: S): Relation<S> {
+export function relation<S extends IntoSchema>(name: string, schema: S): Relation<InferSchema<S>> {
     return new Relation(schema, { kind: 'from', name })
 }

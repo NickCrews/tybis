@@ -7,10 +7,10 @@ const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ty.Buil
 
 describe('lit()', () => {
     describe('string', () => {
-        it('type is Expr<string, scalar>', () => {
+        it('type is Expr<{typecode: string}, scalar>', () => {
             const e = ty.lit('hello')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<'string', 'scalar'>>()
-            expect(e.dtype()).toBe('string')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'string' }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -26,10 +26,10 @@ describe('lit()', () => {
     })
 
     describe('number', () => {
-        it('type is Expr<float64, scalar>', () => {
+        it('type is Expr<{typecode: float64}, scalar>', () => {
             const e = ty.lit(42)
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<'float64', 'scalar'>>()
-            expect(e.dtype()).toBe('float64')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'float64' }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float64' })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -46,10 +46,10 @@ describe('lit()', () => {
     })
 
     describe('boolean', () => {
-        it('type is Expr<boolean, scalar>', () => {
+        it('type is Expr<{typecode: boolean}, scalar>', () => {
             const e = ty.lit(true)
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<'boolean', 'scalar'>>()
-            expect(e.dtype()).toBe('boolean')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'boolean' }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -66,10 +66,10 @@ describe('lit()', () => {
     })
 
     describe('Date', () => {
-        it('type is Expr<datetime, scalar>', () => {
+        it('type is Expr<{typecode: datetime}, scalar>', () => {
             const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'))
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<'datetime', 'scalar'>>()
-            expect(e.dtype()).toBe('datetime')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'datetime' }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'datetime' })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -86,7 +86,7 @@ describe('lit()', () => {
     })
 
     describe('integration in queries', () => {
-        const t = ty.relation('tbl', { x: 'float64', name: 'string' } as const)
+        const t = ty.relation('tbl', { x: ty.DT.float64, name: ty.DT.string })
 
         it('lit used in eq filter', () => {
             const q = t.filter(r => r.col('name').eq(ty.lit('alice')))

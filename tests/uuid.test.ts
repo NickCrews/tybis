@@ -4,14 +4,14 @@ import * as ty from '../src/index.js'
 
 describe('UUIDExpr', () => {
     const users = ty.relation('users', {
-        id: 'uuid',
-        name: 'string',
-        email: 'string',
-    } as const)
+        id: "uuid",
+        name: "string",
+        email: "string",
+    })
 
     describe('Type Safety', () => {
         it('should have uuid type', () => {
-            const uuidCol = ty.col('id', 'uuid')
+            const uuidCol = ty.col('id', "uuid")
             expectTypeOf(uuidCol).toMatchTypeOf<ty.UUIDExpr<'columnar'>>()
         })
     })
@@ -108,9 +108,9 @@ describe('UUIDExpr', () => {
     describe('Common operations', () => {
         it('supports eq() comparison', () => {
             const anotherTable = ty.relation('orders', {
-                order_id: 'uuid',
-                user_id: 'uuid',
-            } as const)
+                order_id: "uuid",
+                user_id: "uuid",
+            })
 
             const q = anotherTable.filter(r =>
                 r.col('user_id').eq(r.col('order_id'))
@@ -127,7 +127,7 @@ describe('UUIDExpr', () => {
               "from users
               filter id != null"
             `)
-            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.BooleanExpr>()
+            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
         })
 
         it('can be used in aggregations', () => {
@@ -171,10 +171,10 @@ describe('UUIDExpr', () => {
 
     describe('Multiple UUID columns', () => {
         const relationships = ty.relation('relationships', {
-            follower_id: 'uuid',
-            following_id: 'uuid',
-            created_at: 'date',
-        } as const)
+            follower_id: "uuid",
+            following_id: "uuid",
+            created_at: "date",
+        })
 
         it('filter with multiple uuid comparisons', () => {
             const q = relationships.filter(r =>
