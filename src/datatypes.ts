@@ -158,20 +158,6 @@ export type InferDtypeFromJs<JS extends InferrableJsType> =
     : JS extends null ? DTNull
     : never
 
-/** Given a DataType, what JS types will be inferred to this? */
-export type JSTypesInferredTo<T extends DataType> =
-    T extends DTString ? string
-    : T extends DTInt ? number
-    : T extends DTFloat ? number
-    : T extends DTBoolean ? boolean
-    : T extends DTDate ? Date
-    : T extends DTTime ? Date
-    : T extends DTDateTime ? Date
-    : T extends DTInterval ? never
-    : T extends DTUUID ? never
-    : T extends DTNull ? null
-    : never
-
 /** Given a JS value, infer the DataType of it */
 export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferDtypeFromJs<JS> {
     if (value === null) return { typecode: 'null' } as InferDtypeFromJs<JS>
