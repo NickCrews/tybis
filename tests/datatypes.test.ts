@@ -26,10 +26,13 @@ describe('inferDtype', () => {
 
     it('infers nulls and undefined as null', () => {
         expect(inferDtypeFromJs(null)).toEqual({ typecode: 'null' })
-        expect(inferDtypeFromJs(undefined)).toEqual({ typecode: 'null' })
     })
 
     it('throws error for unsupported types', () => {
+        // @ts-expect-error
+        expect(() => inferDtypeFromJs()).toThrow('Cannot infer dtype for value: undefined')
+        // @ts-expect-error
+        expect(() => inferDtypeFromJs(undefined)).toThrow('Cannot infer dtype for value: undefined')
         // @ts-expect-error
         expect(() => inferDtypeFromJs({})).toThrow('Cannot infer dtype for value: [object Object]')
         // @ts-expect-error

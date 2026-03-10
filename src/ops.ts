@@ -51,32 +51,48 @@ export class ColRefOp<N extends string = string, T extends dt.IntoDtype = DataTy
 // Literals
 // ---------------------------------------------------------------------------
 
-type IntoIntLiteralValue = number
+type IntoIntLiteralValue = number | `${number}`
 function ensureIntLiteralValue(value: IntoIntLiteralValue): number {
     if (typeof value === 'number' && Number.isInteger(value)) {
         return value
+    } else if (typeof value === 'string') {
+        const parsed = parseInt(value, 10)
+        if (!isNaN(parsed)) {
+            return parsed
+        }
     }
-    throw new Error(`Cannot convert value of type ${typeof value} to int literal`)
+    throw new Error(`Cannot convert ${typeof value} '${value}' to int literal`)
 }
-export class IntLiteralOp extends BaseOp<dt.DTInt, 'scalar'> {
+export class IntLiteralOp<T extends dt.DTInt = dt.DTInt> extends BaseOp<T, 'scalar'> {
     readonly kind = 'int_literal' as const
     readonly value: number
-    constructor(readonly raw: IntoIntLiteralValue, readonly dtype: dt.DTInt = dt.DTInt(64)) {
+    constructor(readonly raw: IntoIntLiteralValue, dtype: T = dt.DTInt(64) as T) {
         super(dtype, 'scalar')
         this.value = ensureIntLiteralValue(raw)
     }
 }
-type IntoFloatLiteralValue = number
+
+type IntoFloatLiteralValue = number | `${number}` | 'NAN' | 'nan' | 'NaN'
 function ensureFloatLiteralValue(value: IntoFloatLiteralValue): number {
     if (typeof value === 'number') {
         return value
     }
-    throw new Error(`Cannot convert value of type ${typeof value} to float literal`)
+    if (typeof value === 'string') {
+        if (value.toLowerCase() === 'nan') {
+            return NaN
+        } else {
+            const parsed = parseFloat(value)
+            if (!isNaN(parsed)) {
+                return parsed
+            }
+        }
+    }
+    throw new Error(`Cannot convert ${typeof value} '${value}' to float literal`)
 }
-export class FloatLiteralOp extends BaseOp<dt.DTFloat, 'scalar'> {
+export class FloatLiteralOp<T extends dt.DTFloat = dt.DTFloat> extends BaseOp<T, 'scalar'> {
     readonly kind = 'float_literal' as const
     readonly value: number
-    constructor(readonly raw: IntoFloatLiteralValue, readonly dtype: dt.DTFloat = dt.DTFloat(64)) {
+    constructor(readonly raw: IntoFloatLiteralValue, dtype: T = dt.DTFloat(64) as T) {
         super(dtype, 'scalar')
         this.value = ensureFloatLiteralValue(raw)
     }
@@ -93,7 +109,7 @@ function ensureStringLiteralValue(value: IntoStringLiteralValue): string {
     } else if (value instanceof Date) {
         return value.toISOString()
     } else {
-        throw new Error(`Cannot convert value of type ${typeof value} to string literal`)
+        throw new Error(`Cannot convert ${typeof value} ${value} to string literal`)
     }
 }
 export class StringLiteralOp extends BaseOp<dt.DTString, 'scalar'> {
@@ -118,7 +134,7 @@ function ensureBooleanLiteralValue(value: IntoBooleanLiteralValue): boolean {
     } else if (value === null) {
         return false
     } else {
-        throw new Error(`Cannot convert value of type ${typeof value} to boolean literal`)
+        throw new Error(`Cannot convert ${typeof value} '${value}' to boolean literal`)
     }
 }
 export class BooleanLiteralOp extends BaseOp<dt.DTBoolean, 'scalar'> {
@@ -146,7 +162,7 @@ function ensureDatetimeLiteralValue(value: IntoDatetimeLiteralValue): Date {
         }
         return date
     } else {
-        throw new Error(`Cannot convert value of type ${typeof value} to datetime literal`)
+        throw new Error(`Cannot convert ${typeof value} '${value}' to datetime literal`)
     }
 }
 export class DatetimeLiteralOp extends BaseOp<dt.DTDateTime, 'scalar'> {
@@ -169,7 +185,7 @@ function ensureDateLiteralValue(value: IntoDateLiteralValue): Date {
         }
         return date
     } else {
-        throw new Error(`Cannot convert value of type ${typeof value} to date literal`)
+        throw new Error(`Cannot convert ${typeof value} '${value}' to date literal`)
     }
 }
 export class DateLiteralOp extends BaseOp<dt.DTDate, 'scalar'> {
@@ -192,7 +208,7 @@ function ensureTimeLiteralValue(value: IntoTimeLiteralValue): Date {
         }
         return date
     } else {
-        throw new Error(`Cannot convert value of type ${typeof value} to time literal`)
+        throw new Error(`Cannot convert ${typeof value} '${value}' to time literal`)
     }
 }
 export class TimeLiteralOp extends BaseOp<dt.DTTime, 'scalar'> {
@@ -209,7 +225,7 @@ function ensureIntervalLiteralValue(value: IntoIntervalLiteralValue): number {
     if (typeof value === 'number') {
         return value
     }
-    throw new Error(`Cannot convert value of type ${typeof value} to interval literal`)
+    throw new Error(`Cannot convert ${typeof value} '${value}' to interval literal`)
 }
 export class IntervalLiteralOp extends BaseOp<dt.DTInterval, 'scalar'> {
     readonly kind = 'interval_literal' as const
@@ -231,7 +247,7 @@ function ensureUuidLiteralValue(value: IntoUuidLiteralValue): string {
             throw new Error(`Invalid UUID string: ${value}`)
         }
     }
-    throw new Error(`Cannot convert value of type ${typeof value} to UUID literal`)
+    throw new Error(`Cannot convert ${typeof value} '${value}' to UUID literal`)
 }
 export class UuidLiteralOp extends BaseOp<dt.DTUUID, 'scalar'> {
     readonly kind = 'uuid_literal' as const

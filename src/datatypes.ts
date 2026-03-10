@@ -147,7 +147,7 @@ export type JSTypeFromDtype<T extends DataType> =
     : T extends DTNull ? null
     : never
 
-export type InferrableJsType = string | number | boolean | Date | null | undefined
+export type InferrableJsType = string | number | boolean | Date | null
 
 /** Given a JS type, what DataType will be inferred? */
 export type InferDtypeFromJs<JS extends InferrableJsType> =
@@ -156,7 +156,6 @@ export type InferDtypeFromJs<JS extends InferrableJsType> =
     : JS extends boolean ? DTBoolean
     : JS extends Date ? DTDateTime
     : JS extends null ? DTNull
-    : JS extends undefined ? DTNull
     : never
 
 /** Given a DataType, what JS types will be inferred to this? */
@@ -176,7 +175,6 @@ export type JSTypesInferredTo<T extends DataType> =
 /** Given a JS value, infer the DataType of it */
 export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferDtypeFromJs<JS> {
     if (value === null) return { typecode: 'null' } as InferDtypeFromJs<JS>
-    if (value === undefined) return { typecode: 'null' } as InferDtypeFromJs<JS>
     if (typeof value === 'string') return { typecode: 'string' } as InferDtypeFromJs<JS>
     if (typeof value === 'boolean') return { typecode: 'boolean' } as InferDtypeFromJs<JS>
     if (typeof value === 'number') return { typecode: 'float', size: 64 } as InferDtypeFromJs<JS>
