@@ -60,17 +60,21 @@ export class GenericExpr<T extends DataType = DataType, S extends DataShape = Da
         const other = cmp.coerceToComparable(this.dtype(), value)
         return opToExpr(new ops.EqOp(this.toOp(), other))
     }
-    gt<T extends number | IExpr<dt.NumericDataType, any>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
-        return opToExpr(new ops.GtOp(this.toOp(), ops.toOpValue(value as any))) as any
+    gt<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+        const other = cmp.coerceToComparable(this.dtype(), value)
+        return opToExpr(new ops.GtOp(this.toOp(), other))
     }
-    gte<T extends number | IExpr<dt.NumericDataType, any>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
-        return opToExpr(new ops.GteOp(this.toOp(), ops.toOpValue(value as any))) as any
+    gte<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+        const other = cmp.coerceToComparable(this.dtype(), value)
+        return opToExpr(new ops.GteOp(this.toOp(), other))
     }
-    lt<T extends number | IExpr<dt.NumericDataType, any>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
-        return opToExpr(new ops.LtOp(this.toOp(), ops.toOpValue(value as any))) as any
+    lt<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+        const other = cmp.coerceToComparable(this.dtype(), value)
+        return opToExpr(new ops.LtOp(this.toOp(), other))
     }
-    lte<T extends number | IExpr<dt.NumericDataType, any>>(value: T): BooleanExpr<HighestDataShape<[InferDataShape<T>, S]>> {
-        return opToExpr(new ops.LteOp(this.toOp(), ops.toOpValue(value as any))) as any
+    lte<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+        const other = cmp.coerceToComparable(this.dtype(), value)
+        return opToExpr(new ops.LteOp(this.toOp(), other))
     }
     min(): Expr<T, 'scalar'> {
         return opToExpr(new ops.MinOp(this.toOp()))

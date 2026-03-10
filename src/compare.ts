@@ -55,5 +55,8 @@ export function coerceToComparable<Target extends dt.DataType, Value extends Int
             throw new Error(`Cannot compare value of type ${JSON.stringify(valueDtype)} to target type ${JSON.stringify(target)}`)
         }
     }
-    return ops.litOp(value as ops.LiteralValueCoercibleTo<Target>, target)
+    return ops.litOp(
+        value as unknown as ops.AcceptableJsVal<Target>,
+        target,
+    ) as unknown as core.IOp<DtypesComparableTo<Target>, InferDataShape<Value>>
 }
