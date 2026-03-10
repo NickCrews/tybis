@@ -1,5 +1,5 @@
 import { IExpr, IOp } from "./core"
-import { JsType } from "./datatypes"
+import { InferrableJsType } from "./datatypes"
 
 export type DataShape = 'scalar' | 'columnar'
 
@@ -28,8 +28,11 @@ export function isValidDataShape(obj: any): obj is DataShape {
     return obj === 'scalar' || obj === 'columnar'
 }
 
-export type InferDataShape<T> =
+export type IntoDataShape = DataShape | IExpr<any, any> | IOp<any, any> | InferrableJsType
+
+export type InferDataShape<T extends IntoDataShape> =
+    T extends DataShape ? T :
     T extends IExpr<any, infer S> ? S :
     T extends IOp<any, infer S> ? S :
-    T extends JsType ? 'scalar' :
+    T extends InferrableJsType ? 'scalar' :
     never

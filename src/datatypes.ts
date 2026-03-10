@@ -1,5 +1,7 @@
 import { type IExpr, type IOp, isExpr, isOp } from "./core"
 
+export interface DTNull { typecode: 'null' }
+export function DTNull(): DTNull { return { typecode: 'null' } }
 export interface DTString { typecode: 'string' }
 export function DTString(): DTString { return { typecode: 'string' } }
 export interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'int', size: S }
@@ -35,7 +37,10 @@ export function DTInterval(): DTInterval { return { typecode: 'interval' } }
 export interface DTUUID { typecode: 'uuid' }
 export function DTUUID(): DTUUID { return { typecode: 'uuid' } }
 
+export type NumericDataType = DTInt | DTFloat
+
 export type DataType =
+    | DTNull
     | DTString
     | DTInt
     | DTFloat
@@ -61,6 +66,7 @@ export function isValidDataType(datatype: any): datatype is DataType {
     }
     typecode = datatype.typecode as DataType['typecode']
     switch (typecode) {
+        case 'null':
         case 'string':
         case 'boolean':
         case 'date':
@@ -81,7 +87,8 @@ export function isValidDataType(datatype: any): datatype is DataType {
 
 
 export type InferDtypeFromShorthand<S extends DTypeShorthands> =
-    S extends 'string' ? DTString
+    S extends 'null' ? DTNull
+    : S extends 'string' ? DTString
     : S extends 'int' ? { typecode: 'int', size: 64 }
     : S extends 'int8' ? { typecode: 'int', size: 8 }
     : S extends 'int16' ? { typecode: 'int', size: 16 }
@@ -114,6 +121,7 @@ export function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): Infe
         case 'float32': return { typecode: 'float', size: 32 } as InferDtypeFromShorthand<T>
         case 'float64': return { typecode: 'float', size: 64 } as InferDtypeFromShorthand<T>
 
+        case 'null': return { typecode: 'null' } as InferDtypeFromShorthand<T>
         case 'string': return { typecode: 'string' } as InferDtypeFromShorthand<T>
         case 'boolean': return { typecode: 'boolean' } as InferDtypeFromShorthand<T>
         case 'date': return { typecode: 'date' } as InferDtypeFromShorthand<T>
@@ -126,7 +134,7 @@ export function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): Infe
     }
 }
 
-export type JSType<T extends DataType> =
+export type JSTypeFromDtype<T extends DataType> =
     T extends DTString ? string
     : T extends DTInt ? number
     : T extends DTFloat ? number
@@ -136,18 +144,39 @@ export type JSType<T extends DataType> =
     : T extends DTDateTime ? Date
     : T extends DTInterval ? string
     : T extends DTUUID ? string
+    : T extends DTNull ? null
     : never
 
-export type JsType = string | number | boolean | Date
+export type InferrableJsType = string | number | boolean | Date | null | undefined
 
-export type InferDtypeFromJs<JS extends JsType> =
+/** Given a JS type, what DataType will be inferred? */
+export type InferDtypeFromJs<JS extends InferrableJsType> =
     JS extends string ? DTString
     : JS extends number ? DTFloat<64>
     : JS extends boolean ? DTBoolean
     : JS extends Date ? DTDateTime
+    : JS extends null ? DTNull
+    : JS extends undefined ? DTNull
     : never
 
-export function inferDtypeFromJs<JS extends JsType>(value: JS): InferDtypeFromJs<JS> {
+/** Given a DataType, what JS types will be inferred to this? */
+export type JSTypesInferredTo<T extends DataType> =
+    T extends DTString ? string
+    : T extends DTInt ? number
+    : T extends DTFloat ? number
+    : T extends DTBoolean ? boolean
+    : T extends DTDate ? Date
+    : T extends DTTime ? Date
+    : T extends DTDateTime ? Date
+    : T extends DTInterval ? never
+    : T extends DTUUID ? never
+    : T extends DTNull ? null
+    : never
+
+/** Given a JS value, infer the DataType of it */
+export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferDtypeFromJs<JS> {
+    if (value === null) return { typecode: 'null' } as InferDtypeFromJs<JS>
+    if (value === undefined) return { typecode: 'null' } as InferDtypeFromJs<JS>
     if (typeof value === 'string') return { typecode: 'string' } as InferDtypeFromJs<JS>
     if (typeof value === 'boolean') return { typecode: 'boolean' } as InferDtypeFromJs<JS>
     if (typeof value === 'number') return { typecode: 'float', size: 64 } as InferDtypeFromJs<JS>
@@ -176,7 +205,7 @@ export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
 
 export type Schema = Record<string, DataType>
 export type SchemaToJS<S extends Schema> = {
-    [K in keyof S]: JSType<S[K]>
+    [K in keyof S]: JSTypeFromDtype<S[K]>
 }
 export type IntoSchema = Schema | Record<string, IntoDtype>
 export type InferSchema<T extends IntoSchema> =
@@ -191,3 +220,44 @@ export function schema<T extends IntoSchema>(s: T): InferSchema<T> {
     }
     return result as InferSchema<T>
 }
+
+export type HighestDataType<Types extends DataType[]> =
+    Types extends [] ? never :
+    Types[number] extends DTFloat64 ? DTFloat64 :
+    Types[number] extends DTFloat32 ? DTFloat32 :
+    Types[number] extends DTFloat16 ? DTFloat16 :
+    Types[number] extends DTFloat8 ? DTFloat8 :
+    Types[number] extends DTInt64 ? DTInt64 :
+    Types[number] extends DTInt32 ? DTInt32 :
+    Types[number] extends DTInt16 ? DTInt16 :
+    Types[number] extends DTInt8 ? DTInt8 :
+    never
+
+export function highestDataType<First extends DataType, Rest extends DataType[]>(dtype1: First, ...rest: Rest): HighestDataType<[First, ...Rest]> {
+    const floats = [dtype1, ...rest].filter(dt => dt.typecode === 'float') as Extract<DataType, { typecode: 'float' }>[]
+    const ints = [dtype1, ...rest].filter(dt => dt.typecode === 'int') as Extract<DataType, { typecode: 'int' }>[]
+    const highestFloatSize = floats.reduce((max, dt) => Math.max(max, dt.size), 0)
+    const highestIntSize = ints.reduce((max, dt) => Math.max(max, dt.size), 0)
+    const floatsPresent = floats.length > 0
+    const intsPresent = ints.length > 0
+
+    if (floatsPresent) {
+        return DTFloat(highestFloatSize as 8 | 16 | 32 | 64) as HighestDataType<[First, ...Rest]>
+    }
+    if (intsPresent) {
+        return DTInt(highestIntSize as 8 | 16 | 32 | 64) as HighestDataType<[First, ...Rest]>
+    }
+
+    throw new Error(`Cannot determine highest type for non-numeric types`)
+}
+
+export type ComparableTo<T extends DataType> =
+    T extends DTInt ? string | number | boolean
+    : T extends DTFloat ? string | number | boolean
+    : T extends DTString ? string
+    : T extends DTBoolean ? boolean
+    : T extends DTDate ? Date
+    : T extends DTTime ? Date
+    : T extends DTDateTime ? Date
+    : T extends DTUUID ? string
+    : never

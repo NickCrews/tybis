@@ -2,7 +2,7 @@ import type { Schema, DataType, InferSchema, IntoSchema } from './datatypes.js'
 import * as dt from './datatypes.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
-import { type IOp } from './core.js'
+import { type IOp, type IExpr } from './core.js'
 import { SortSpec } from './ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,
@@ -137,9 +137,9 @@ export class Relation<S extends Schema = Schema> {
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, BaseExpr>>(
+    derive<D extends Record<string, IExpr<any, any>>>(
         cb: (r: RowAccessor<S>) => D
-    ): Relation<S & { [K in keyof D]: D[K] extends BaseExpr<infer T> ? T : never }> {
+    ): Relation<S & { [K in keyof D]: D[K] extends IExpr<infer T> ? T : never }> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IOp])

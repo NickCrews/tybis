@@ -1,4 +1,4 @@
-import { inferDtypeFromJs, type DataType, type InferDtype, type JsType } from './datatypes.js'
+import { inferDtypeFromJs, type DataType, type InferDtype, type InferrableJsType } from './datatypes.js'
 import * as dt from './datatypes.js'
 import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
 import { highestDataShape } from './datashape.js'
@@ -10,7 +10,7 @@ import { Expr, opToExpr } from './expr.js'
 // ---------------------------------------------------------------------------
 
 export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
-    [IsOpSymbol] = true
+    [IsOpSymbol] = true as const
     abstract readonly kind: string
     private readonly _dtype: T
     private readonly _dshape: S
@@ -24,15 +24,15 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
     getName(): string { return this.kind }
 }
 
-type DT<T extends JsType | dt.IntoDtype> = T extends JsType ? dt.InferDtypeFromJs<T> : T extends dt.IntoDtype ? InferDtype<T> : never
+type DT<T extends InferrableJsType | dt.IntoDtype> = T extends InferrableJsType ? dt.InferDtypeFromJs<T> : T extends dt.IntoDtype ? InferDtype<T> : never
 /** Convert an expression, op, or JS value to an Op. */
-export function toOpValue<T extends IExpr | IOp | JsType>(exprOrJs: T): IOp<DT<T>, InferDataShape<T>> {
+export function toOpValue<T extends IExpr | IOp | InferrableJsType>(exprOrJs: T): IOp<DT<T>, InferDataShape<T>> {
     if (isOp(exprOrJs)) {
         return exprOrJs as any
     } else if (isExpr(exprOrJs)) {
         return exprOrJs.toOp() as any
     } else {
-        return litOp(exprOrJs as JsType) as any
+        return litOp(exprOrJs as InferrableJsType) as any
     }
 }
 
@@ -51,63 +51,244 @@ export class ColRefOp<N extends string = string, T extends dt.IntoDtype = DataTy
 // Literals
 // ---------------------------------------------------------------------------
 
-export class IntLiteralOp extends BaseOp<dt.DTInt<64>, 'scalar'> {
-    readonly kind = 'int_literal' as const
-    constructor(readonly value: number) { super(dt.DTInt(64), 'scalar') }
+type IntoIntLiteralValue = number
+function ensureIntLiteralValue(value: IntoIntLiteralValue): number {
+    if (typeof value === 'number' && Number.isInteger(value)) {
+        return value
+    }
+    throw new Error(`Cannot convert value of type ${typeof value} to int literal`)
 }
-export class FloatLiteralOp extends BaseOp<dt.DTFloat<64>, 'scalar'> {
+export class IntLiteralOp extends BaseOp<dt.DTInt, 'scalar'> {
+    readonly kind = 'int_literal' as const
+    readonly value: number
+    constructor(readonly raw: IntoIntLiteralValue, readonly dtype: dt.DTInt = dt.DTInt(64)) {
+        super(dtype, 'scalar')
+        this.value = ensureIntLiteralValue(raw)
+    }
+}
+type IntoFloatLiteralValue = number
+function ensureFloatLiteralValue(value: IntoFloatLiteralValue): number {
+    if (typeof value === 'number') {
+        return value
+    }
+    throw new Error(`Cannot convert value of type ${typeof value} to float literal`)
+}
+export class FloatLiteralOp extends BaseOp<dt.DTFloat, 'scalar'> {
     readonly kind = 'float_literal' as const
-    constructor(readonly value: number) { super(dt.DTFloat(64), 'scalar') }
+    readonly value: number
+    constructor(readonly raw: IntoFloatLiteralValue, readonly dtype: dt.DTFloat = dt.DTFloat(64)) {
+        super(dtype, 'scalar')
+        this.value = ensureFloatLiteralValue(raw)
+    }
 }
 
+type IntoStringLiteralValue = string | boolean | number | null | Date
+function ensureStringLiteralValue(value: IntoStringLiteralValue): string {
+    if (typeof value === 'string') {
+        return value
+    } else if (typeof value === 'boolean' || typeof value === 'number') {
+        return String(value)
+    } else if (value === null) {
+        return 'null'
+    } else if (value instanceof Date) {
+        return value.toISOString()
+    } else {
+        throw new Error(`Cannot convert value of type ${typeof value} to string literal`)
+    }
+}
 export class StringLiteralOp extends BaseOp<dt.DTString, 'scalar'> {
     readonly kind = 'string_literal' as const
-    constructor(readonly value: string) { super(dt.DTString(), 'scalar') }
+    readonly value: string
+    constructor(readonly raw: IntoStringLiteralValue) {
+        super(dt.DTString(), 'scalar')
+        this.value = ensureStringLiteralValue(raw)
+    }
 }
 
+type IntoBooleanLiteralValue = boolean | number | null | 'true' | 'false'
+function ensureBooleanLiteralValue(value: IntoBooleanLiteralValue): boolean {
+    if (typeof value === 'boolean') {
+        return value
+    } else if (typeof value === 'number') {
+        return value !== 0
+    } else if (value === 'true') {
+        return true
+    } else if (value === 'false') {
+        return false
+    } else if (value === null) {
+        return false
+    } else {
+        throw new Error(`Cannot convert value of type ${typeof value} to boolean literal`)
+    }
+}
 export class BooleanLiteralOp extends BaseOp<dt.DTBoolean, 'scalar'> {
     readonly kind = 'boolean_literal' as const
-    constructor(readonly value: boolean) { super(dt.DTBoolean(), 'scalar') }
+    readonly value: boolean
+    constructor(readonly raw: IntoBooleanLiteralValue) {
+        super(dt.DTBoolean(), 'scalar')
+        this.value = ensureBooleanLiteralValue(raw)
+    }
 }
 
-export class NullLiteralOp extends BaseOp<dt.DTString, 'scalar'> {
+export class NullLiteralOp extends BaseOp<dt.DTNull, 'scalar'> {
     readonly kind = 'null_literal' as const
-    constructor() { super(dt.DTString(), 'scalar') }
+    constructor() { super(dt.DTNull(), 'scalar') }
 }
 
+type IntoDatetimeLiteralValue = Date | string
+function ensureDatetimeLiteralValue(value: IntoDatetimeLiteralValue): Date {
+    if (value instanceof Date) {
+        return value
+    } else if (typeof value === 'string') {
+        const date = new Date(value)
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date string: ${value}`)
+        }
+        return date
+    } else {
+        throw new Error(`Cannot convert value of type ${typeof value} to datetime literal`)
+    }
+}
 export class DatetimeLiteralOp extends BaseOp<dt.DTDateTime, 'scalar'> {
     readonly kind = 'datetime_literal' as const
-    constructor(readonly value: Date) { super(dt.DTDateTime(), 'scalar') }
+    readonly value: Date
+    constructor(readonly raw: IntoDatetimeLiteralValue) {
+        super(dt.DTDateTime(), 'scalar')
+        this.value = ensureDatetimeLiteralValue(raw)
+    }
 }
 
+type IntoDateLiteralValue = Date | string
+function ensureDateLiteralValue(value: IntoDateLiteralValue): Date {
+    if (value instanceof Date) {
+        return value
+    } else if (typeof value === 'string') {
+        const date = new Date(value)
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date string: ${value}`)
+        }
+        return date
+    } else {
+        throw new Error(`Cannot convert value of type ${typeof value} to date literal`)
+    }
+}
 export class DateLiteralOp extends BaseOp<dt.DTDate, 'scalar'> {
     readonly kind = 'date_literal' as const
-    constructor(readonly value: Date) { super(dt.DTDate(), 'scalar') }
+    readonly value: Date
+    constructor(readonly raw: IntoDateLiteralValue) {
+        super(dt.DTDate(), 'scalar')
+        this.value = ensureDateLiteralValue(raw)
+    }
 }
 
+type IntoTimeLiteralValue = Date | string
+function ensureTimeLiteralValue(value: IntoTimeLiteralValue): Date {
+    if (value instanceof Date) {
+        return value
+    } else if (typeof value === 'string') {
+        const date = new Date(`1970-01-01T${value}Z`)
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid time string: ${value}`)
+        }
+        return date
+    } else {
+        throw new Error(`Cannot convert value of type ${typeof value} to time literal`)
+    }
+}
 export class TimeLiteralOp extends BaseOp<dt.DTTime, 'scalar'> {
     readonly kind = 'time_literal' as const
-    constructor(readonly value: Date) { super(dt.DTTime(), 'scalar') }
+    readonly value: Date
+    constructor(readonly raw: IntoTimeLiteralValue) {
+        super(dt.DTTime(), 'scalar')
+        this.value = ensureTimeLiteralValue(raw)
+    }
 }
 
+type IntoIntervalLiteralValue = number
+function ensureIntervalLiteralValue(value: IntoIntervalLiteralValue): number {
+    if (typeof value === 'number') {
+        return value
+    }
+    throw new Error(`Cannot convert value of type ${typeof value} to interval literal`)
+}
+export class IntervalLiteralOp extends BaseOp<dt.DTInterval, 'scalar'> {
+    readonly kind = 'interval_literal' as const
+    readonly value: number
+    constructor(readonly raw: IntoIntervalLiteralValue) {
+        super(dt.DTInterval(), 'scalar')
+        this.value = ensureIntervalLiteralValue(raw)
+    }
+}
+
+type IntoUuidLiteralValue = string
+function ensureUuidLiteralValue(value: IntoUuidLiteralValue): string {
+    if (typeof value === 'string') {
+        // Simple regex check for UUID format (not fully RFC compliant, but good enough for basic validation)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        if (uuidRegex.test(value)) {
+            return value
+        } else {
+            throw new Error(`Invalid UUID string: ${value}`)
+        }
+    }
+    throw new Error(`Cannot convert value of type ${typeof value} to UUID literal`)
+}
+export class UuidLiteralOp extends BaseOp<dt.DTUUID, 'scalar'> {
+    readonly kind = 'uuid_literal' as const
+    readonly value: string
+    constructor(readonly raw: IntoUuidLiteralValue) {
+        super(dt.DTUUID(), 'scalar')
+        this.value = ensureUuidLiteralValue(raw)
+    }
+}
+
+export type LiteralValueCoercibleTo<T extends DataType> =
+    T extends dt.DTInt ? IntoIntLiteralValue :
+    T extends dt.DTFloat ? IntoFloatLiteralValue :
+    T extends dt.DTString ? IntoStringLiteralValue :
+    T extends dt.DTBoolean ? IntoBooleanLiteralValue :
+    T extends dt.DTDateTime ? IntoDatetimeLiteralValue :
+    T extends dt.DTDate ? IntoDateLiteralValue :
+    T extends dt.DTTime ? IntoTimeLiteralValue :
+    T extends dt.DTInterval ? IntoIntervalLiteralValue :
+    T extends dt.DTUUID ? IntoUuidLiteralValue :
+    never
+
+export type AcceptableJsVal<DT extends dt.IntoDtype | undefined = undefined> = DT extends dt.IntoDtype ? LiteralValueCoercibleTo<dt.InferDtype<DT>> : InferrableJsType
+export type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends dt.IntoDtype | undefined> = DT extends dt.IntoDtype ? dt.InferDtype<DT> : dt.InferDtypeFromJs<JS>
+
 /** Create a literal Op from a JS value. */
-export function litOp<JS extends JsType>(value: JS): IOp<dt.InferDtypeFromJs<JS>, 'scalar'> {
-    const inferredDtype = inferDtypeFromJs(value)
-    type R = IOp<dt.InferDtypeFromJs<JS>, 'scalar'>
-    const tc = inferredDtype.typecode
+export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): IOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
+    const finalDtype = dtype ? dt.dtype(dtype) : inferDtypeFromJs(value)
+    type R = IOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'>
+    const tc = finalDtype.typecode
     switch (tc) {
+        case 'null':
+            return new NullLiteralOp() as unknown as R
         case 'string':
-            return new StringLiteralOp(value as string) as unknown as R
+            return new StringLiteralOp(value as IntoStringLiteralValue) as unknown as R
         case 'boolean':
-            return new BooleanLiteralOp(value as boolean) as unknown as R
+            return new BooleanLiteralOp(value as IntoBooleanLiteralValue) as unknown as R
+        case 'int':
+            return new IntLiteralOp(value as IntoIntLiteralValue, finalDtype) as unknown as R
         case 'float':
-            return new FloatLiteralOp(value as number) as unknown as R
+            return new FloatLiteralOp(value as IntoFloatLiteralValue, finalDtype) as unknown as R
         case 'datetime':
-            return new DatetimeLiteralOp(value as Date) as unknown as R
+            return new DatetimeLiteralOp(value as IntoDatetimeLiteralValue) as unknown as R
+        case 'date':
+            return new DateLiteralOp(value as IntoDateLiteralValue) as unknown as R
+        case 'time':
+            return new TimeLiteralOp(value as IntoTimeLiteralValue) as unknown as R
+        case 'interval':
+            return new IntervalLiteralOp(value as IntoIntervalLiteralValue) as unknown as R
+        case 'uuid':
+            return new UuidLiteralOp(value as IntoUuidLiteralValue) as unknown as R
         default:
             throw new Error(`Unsupported JS value type: ${tc satisfies never}`)
     }
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Generic operations
@@ -133,7 +314,9 @@ export class RawSqlOp<T extends DataType = DataType, S extends DataShape = DataS
 
 export class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'eq' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) {
+        super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>)
+    }
 }
 
 export class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
@@ -189,33 +372,73 @@ export class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape 
 // Arithmetic ops
 // ---------------------------------------------------------------------------
 
-export class AddOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTFloat64, HighestDataShape<[S1, S2]>> {
+export class AddOp<
+    S1 extends DataShape = DataShape,
+    S2 extends DataShape = DataShape,
+    D1 extends DataType = DataType,
+    D2 extends DataType = DataType,
+> extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'add' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTFloat64(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+        super(
+            dt.highestDataType(left.dtype(), right.dtype()),
+            highestDataShape(left.dshape(), right.dshape()),
+        )
+    }
 }
 
-export class SubOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTFloat64, HighestDataShape<[S1, S2]>> {
+export class SubOp<
+    S1 extends DataShape = DataShape,
+    S2 extends DataShape = DataShape,
+    D1 extends DataType = DataType,
+    D2 extends DataType = DataType,
+> extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'sub' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTFloat64(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+        super(
+            dt.highestDataType(left.dtype(), right.dtype()),
+            highestDataShape(left.dshape(), right.dshape()),
+        )
+    }
 }
 
-export class MulOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTFloat64, HighestDataShape<[S1, S2]>> {
+export class MulOp<
+    S1 extends DataShape = DataShape,
+    S2 extends DataShape = DataShape,
+    D1 extends DataType = DataType,
+    D2 extends DataType = DataType,
+> extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'mul' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTFloat64(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+        super(
+            dt.highestDataType(left.dtype(), right.dtype()),
+            highestDataShape(left.dshape(), right.dshape()),
+        )
+    }
 }
 
-export class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTFloat64, HighestDataShape<[S1, S2]>> {
+export class DivOp<
+    S1 extends DataShape = DataShape,
+    S2 extends DataShape = DataShape,
+    D1 extends DataType = DataType,
+    D2 extends DataType = DataType,
+> extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'div' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTFloat64(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+        super(
+            dt.highestDataType(left.dtype(), right.dtype()),
+            highestDataShape(left.dshape(), right.dshape()),
+        )
+    }
 }
-export class SumOp extends BaseOp<dt.DTFloat64, 'scalar'> {
+export class SumOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'sum' as const
-    constructor(readonly operand: IOp) { super(dt.DTFloat64(), 'scalar') }
+    constructor(readonly operand: IOp<T, any>) { super(operand.dtype(), 'scalar') }
 }
 
 export class MeanOp extends BaseOp<dt.DTFloat64, 'scalar'> {
     readonly kind = 'mean' as const
-    constructor(readonly operand: IOp) { super(dt.DTFloat64(), 'scalar') }
+    constructor(readonly operand: IOp<any, any>) { super(dt.DTFloat64(), 'scalar') }
 }
 
 
@@ -259,7 +482,7 @@ export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<
 // ---------------------------------------------------------------------------
 
 export class SortSpec {
-    constructor(readonly op: IOp, readonly direction: 'asc' | 'desc') { }
+    constructor(readonly op: IOp<any, any>, readonly direction: 'asc' | 'desc') { }
 }
 
 // ---------------------------------------------------------------------------

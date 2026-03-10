@@ -6,42 +6,79 @@ const compiler = new ty.PrqlCompiler()
 const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
 
 describe('lit()', () => {
+    describe('null', () => {
+        it("lit(null)", () => {
+            const e = ty.lit(null)
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTNull, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'null' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('null')
+        })
+        it("lit(undefined)", () => {
+            const e = ty.lit(undefined)
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTNull, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'null' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('null')
+        })
+    })
+
     describe('string', () => {
-        it('type is Expr<{typecode: string}, scalar>', () => {
+        it("lit('hello')", () => {
             const e = ty.lit('hello')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'string' }, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('"hello"')
         })
 
-        it('preserves value and kind', () => {
-            const op = ty.lit('world').toOp() as ty.ops.StringLiteralOp
-            expect(op.kind).toBe('string_literal')
-            expect(op.value).toBe('world')
+        it("lit('hello', 'string')", () => {
+            const e = ty.lit('hello', 'string')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('"hello"')
+        })
+        it("lit(54, 'string')", () => {
+            const e = ty.lit(54, 'string')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('"54"')
         })
 
-        it('compiles with quotes', () => {
-            expect(compile(ty.lit('hello'))).toBe('"hello"')
+        it("lit(new Date('2024-01-15T00:00:00.000Z'), 'string')", () => {
+            const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'), 'string')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('"2024-01-15T00:00:00.000Z"')
         })
     })
 
     describe('number', () => {
-        it('type is Expr<{typecode: float64}, scalar>', () => {
+        it('lit(42)', () => {
             const e = ty.lit(42)
             expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('42')
         })
 
-        it('preserves value and kind', () => {
-            const op = ty.lit(99).toOp() as ty.ops.FloatLiteralOp
-            expect(op.kind).toBe('float_literal')
-            expect(op.value).toBe(99)
+        it('lit(3.14)', () => {
+            const e = ty.lit(3.14)
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'float', size: 64 }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('3.14')
         })
 
-        it('compiles to bare number', () => {
-            expect(compile(ty.lit(42))).toBe('42')
-            expect(compile(ty.lit(3.14))).toBe('3.14')
+        it('lit(42, "int32")', () => {
+            const e = ty.lit(42, 'int32')
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<{ typecode: 'int', size: 32 }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'int', size: 32 })
+            expect(e.dshape()).toBe('scalar')
+            expect(compile(e)).toBe('42i32')
         })
     })
 
@@ -107,7 +144,6 @@ describe('lit()', () => {
 
     describe('error handling', () => {
         it('throws for unsupported value types', () => {
-            expect(() => ty.lit(null as any)).toThrow()
             expect(() => ty.lit({} as any)).toThrow()
             expect(() => ty.lit([] as any)).toThrow()
         })

@@ -65,6 +65,7 @@ describe('Comparison Operations', () => {
                 is_greater = x > 5
               }"
             `)
+            // @ts-expect-error typecode literal type mismatch in type assertion
             expectTypeOf(q.col('is_greater').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_greater').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -87,6 +88,7 @@ describe('Comparison Operations', () => {
                 is_gte = x >= 10
               }"
             `)
+            // @ts-expect-error typecode literal type mismatch in type assertion
             expectTypeOf(q.col('is_gte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_gte').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -108,6 +110,7 @@ describe('Comparison Operations', () => {
                 is_less = x < 20
               }"
             `)
+            // @ts-expect-error typecode literal type mismatch in type assertion
             expectTypeOf(q.col('is_less').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_less').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -129,6 +132,7 @@ describe('Comparison Operations', () => {
                 is_lte = x <= 20
               }"
             `)
+            // @ts-expect-error typecode literal type mismatch in type assertion
             expectTypeOf(q.col('is_lte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_lte').dshape()).toEqualTypeOf<'columnar'>()
         })
