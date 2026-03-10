@@ -52,7 +52,7 @@ export abstract class BaseExpr<T extends DataType = DataType, S extends DataShap
 
 export class GenericExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
 
-    isNotNull(): Expr<{ typecode: 'boolean' }, S> {
+    isNotNull(): Expr<dt.DTBoolean, S> {
         return opToExpr(new ops.IsNotNullOp(this.toOp()))
     }
 
@@ -123,7 +123,7 @@ export class NumericExpr<T extends dt.NumericDataType = dt.NumericDataType, S ex
 // String expressions
 // ---------------------------------------------------------------------------
 
-export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'string' }, S> {
+export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTString, S> {
     upper() {
         return opToExpr(new ops.UpperOp(this.toOp()))
     }
@@ -142,12 +142,12 @@ export class StringExpr<S extends DataShape = DataShape> extends GenericExpr<{ t
 // Boolean expressions
 // ---------------------------------------------------------------------------
 
-export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'boolean' }, S> {
-    and(other: IExpr<{ typecode: 'boolean' }, any>) {
-        return opToExpr(new ops.LogicalAndOp(this.toOp(), other.toOp()))
+export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTBoolean, S> {
+    and(other: boolean | IExpr<dt.DTBoolean, any>) {
+        return opToExpr(new ops.LogicalAndOp(this.toOp(), ops.toOpValue(other)))
     }
-    or(other: IExpr<{ typecode: 'boolean' }, any>) {
-        return opToExpr(new ops.LogicalOrOp(this.toOp(), other.toOp()))
+    or(other: boolean | IExpr<dt.DTBoolean, any>) {
+        return opToExpr(new ops.LogicalOrOp(this.toOp(), ops.toOpValue(other)))
     }
     not() {
         return opToExpr(new ops.LogicalNotOp(this.toOp()))
@@ -158,7 +158,7 @@ export class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<{ 
 // Date expressions
 // ---------------------------------------------------------------------------
 
-export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'date' }, S> {
+export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTDate, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
@@ -168,19 +168,19 @@ export class DateExpr<S extends DataShape = DataShape> extends GenericExpr<{ typ
 // Time expressions
 // ---------------------------------------------------------------------------
 
-export class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'time' }, S> {
+export class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTTime, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'datetime' }, S> {
+export class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTDateTime, S> {
     toString(format: string): StringExpr<S> {
         return opToExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'interval' }, S> {
+export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTInterval, S> {
     // could add interval-specific methods here, e.g. to extract components like years, months, etc.
 }
 
@@ -188,7 +188,7 @@ export class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<{
 // UUID expressions
 // ---------------------------------------------------------------------------
 
-export class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<{ typecode: 'uuid' }, S> {
+export class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<dt.DTUUID, S> {
     // no methods yet, but could add things like uuidv4(), etc.
 }
 
