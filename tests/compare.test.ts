@@ -71,12 +71,14 @@ describe('coerceToComparable()', () => {
     it('throws when expr dtype is incompatible with target', () => {
         const target = { typecode: 'float', size: 64 } as const
         const incompatibleExpr = ty.lit('hello')
-        expect(() => coerceToComparable(target, incompatibleExpr as any)).toThrow('Cannot compare')
+        // @ts-expect-error — string expr is not comparable to float
+        expect(() => coerceToComparable(target, incompatibleExpr)).toThrow('Cannot compare')
     })
 
     it('throws when op dtype is incompatible with target', () => {
         const target = { typecode: 'string' } as const
         const incompatibleOp = new ty.ops.FloatLiteralOp(3.14)
-        expect(() => coerceToComparable(target, incompatibleOp as any)).toThrow('Cannot compare')
+        // @ts-expect-error — float op is not comparable to string
+        expect(() => coerceToComparable(target, incompatibleOp)).toThrow('Cannot compare')
     })
 })
