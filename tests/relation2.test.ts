@@ -11,22 +11,26 @@ const penguins = ty.relation('penguins', {
 
 describe('Relation.col() error handling', () => {
     it('throws when accessing a non-existent column with no close match', () => {
-        expect(() => penguins.col('totally_unknown_column' as any)).toThrow("Column 'totally_unknown_column' does not exist")
+        // @ts-expect-error — 'totally_unknown_column' is not in the schema
+        expect(() => penguins.col('totally_unknown_column')).toThrow("Column 'totally_unknown_column' does not exist")
     })
 
     it('throws with a typo suggestion when a close column exists', () => {
-        expect(() => penguins.col('spcies' as any)).toThrow("Did you mean 'species'?")
+        // @ts-expect-error — 'spcies' is not in the schema
+        expect(() => penguins.col('spcies')).toThrow("Did you mean 'species'?")
     })
 
     it('throws with a typo suggestion in filter callback', () => {
         expect(() =>
-            penguins.filter(r => (r as any).col('yeer').gt(2000))
+            // @ts-expect-error — 'yeer' is not in the schema
+            penguins.filter(r => r.col('yeer').gt(2000))
         ).toThrow("Did you mean 'year'?")
     })
 
     it('throws without suggestion for completely unrelated column', () => {
         const err = (() => {
-            try { penguins.col('xyz' as any) } catch (e) { return e as Error }
+            // @ts-expect-error — 'xyz' is not in the schema
+            try { penguins.col('xyz') } catch (e) { return e as Error }
         })()
         expect(err?.message).toContain("Column 'xyz' does not exist")
         expect(err?.message).not.toContain('Did you mean')
@@ -107,8 +111,8 @@ describe('GroupAccessor.agg() validation', () => {
             penguins.group(
                 r => [r.col('species')],
                 g => g.agg({
-                    // A column reference is columnar, not scalar — should fail
-                    bad: g.col('bill_length_mm') as any,
+                    // @ts-expect-error — columnar expr is not assignable to scalar aggregation
+                    bad: g.col('bill_length_mm'),
                 })
             )
         ).toThrow("Aggregation 'bad' must be a scalar expression")

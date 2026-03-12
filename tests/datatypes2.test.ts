@@ -84,8 +84,10 @@ describe('highestDataType()', () => {
     })
 
     it('throws when no numeric types provided', () => {
-        expect(() => highestDataType({ typecode: 'string' } as any)).toThrow('Cannot determine highest type for non-numeric types')
-        expect(() => highestDataType({ typecode: 'boolean' } as any, { typecode: 'string' } as any)).toThrow('Cannot determine highest type')
+        // @ts-expect-error — string is not a numeric DataType
+        expect(() => highestDataType({ typecode: 'string' })).toThrow('Cannot determine highest type for non-numeric types')
+        // @ts-expect-error — boolean and string are not numeric DataTypes
+        expect(() => highestDataType({ typecode: 'boolean' }, { typecode: 'string' })).toThrow('Cannot determine highest type')
     })
 })
 
