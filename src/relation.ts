@@ -1,5 +1,5 @@
-import type { Schema, DataType, InferSchema, IntoSchema } from './datatypes.js'
-import * as dt from './datatypes.js'
+import { type DataType } from './datatypes.js'
+import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
 import { type IOp, type IExpr } from './core.js'
@@ -64,7 +64,7 @@ type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
     [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never
 }
 
-type DeriveSchema<S extends dt.Schema, D extends Record<string, IExpr<any, any>>> =
+type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> =
     Omit<S, keyof D> & {
         [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never
     }
@@ -216,6 +216,6 @@ export class Relation<S extends Schema = Schema> {
  *   bill_length_mm: DT.float64,
  * })
  */
-export function relation<S extends IntoSchema>(name: string, schema: S): Relation<InferSchema<S>> {
-    return new Relation(dt.schema(schema), { kind: 'from', name })
+export function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>> {
+    return new Relation(schema(sch), { kind: 'from', name })
 }
