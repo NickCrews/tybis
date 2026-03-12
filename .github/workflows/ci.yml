@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - &setup_checkout
+        name: Checkout
+        uses: actions/checkout@v6
+
+      - &setup_install_pnpm
+        name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - &setup_node
+        name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 25
+          cache: pnpm
+
+      - &setup_install_deps
+        name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test run
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - *setup_checkout
+      - *setup_install_pnpm
+      - *setup_node
+      - *setup_install_deps
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - *setup_checkout
+      - *setup_install_pnpm
+      - *setup_node
+      - *setup_install_deps
+
+      - name: Build
+        run: pnpm build
