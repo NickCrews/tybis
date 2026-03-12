@@ -86,7 +86,7 @@ export function isValidDataType(datatype: any): datatype is DataType {
 }
 
 
-export type InferDtypeFromShorthand<S extends DTypeShorthands> =
+type InferDtypeFromShorthand<S extends DTypeShorthands> =
     S extends 'null' ? DTNull
     : S extends 'string' ? DTString
     : S extends 'int' ? { typecode: 'int', size: 64 }
@@ -107,7 +107,7 @@ export type InferDtypeFromShorthand<S extends DTypeShorthands> =
     : S extends 'uuid' ? DTUUID
     : never
 
-export function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): InferDtypeFromShorthand<T> {
+function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): InferDtypeFromShorthand<T> {
     switch (typecode) {
         case 'int': return { typecode: 'int', size: 64 } as InferDtypeFromShorthand<T>
         case 'int8': return { typecode: 'int', size: 8 } as InferDtypeFromShorthand<T>
@@ -218,6 +218,17 @@ export type HighestDataType<Types extends DataType[]> =
     never
 
 export function highestDataType<First extends DataType, Rest extends DataType[]>(dtype1: First, ...rest: Rest): HighestDataType<[First, ...Rest]> {
+    if (rest.length === 0) {
+        if (isValidDataType(dtype1)) {
+            return dtype1 as HighestDataType<[First, ...Rest]>
+        } else {
+            throw new Error(`Invalid DataType: ${dtype1}`)
+        }
+    }
+    const nonNumeric = [dtype1, ...rest].filter(dt => dt.typecode !== 'int' && dt.typecode !== 'float')
+    if (nonNumeric.length > 0) {
+        throw new Error(`Cannot determine highest type for non-numeric types: ${nonNumeric.map(dt => JSON.stringify(dt)).join(', ')}`)
+    }
     const floats = [dtype1, ...rest].filter(dt => dt.typecode === 'float') as Extract<DataType, { typecode: 'float' }>[]
     const ints = [dtype1, ...rest].filter(dt => dt.typecode === 'int') as Extract<DataType, { typecode: 'int' }>[]
     const highestFloatSize = floats.reduce((max, dt) => Math.max(max, dt.size), 0)
