@@ -50,7 +50,13 @@ export interface IExpr<T extends DataType = DataType, S extends DataShape = Data
 }
 
 /**
- * Check if the given object is an IOp. First checks for the presence of the IsOpSymbol, then falls back to checking for 'kind', 'dtype', and 'dshape' properties.
+ * Check if the given object is an IOp.
+ * 
+ * First checks for the presence of the IsOpSymbol, then falls back to checking for all of the following properties:
+ * - kind exists
+ * - toExpr() exists
+ * - dtype() returns a valid DataType
+ * - dshape() returns a valid DataShape
  */
 export function isOp(obj: any): obj is IOp {
     // First check for the presence of the symbol property
@@ -64,11 +70,17 @@ export function isOp(obj: any): obj is IOp {
     const hasKind = 'kind' in obj
     const hasProperDtype = 'dtype' in obj && typeof obj.dtype === 'function' && isValidDataType(obj.dtype())
     const hasProperDshape = 'dshape' in obj && typeof obj.dshape === 'function' && isValidDataShape(obj.dshape())
-    return hasKind && hasProperDtype && hasProperDshape
+    const hasToExpr = 'toExpr' in obj && typeof obj.toExpr === 'function'
+    return hasKind && hasProperDtype && hasProperDshape && hasToExpr
 }
 
 /**
- * Check if the given object is an IExpr. First checks for the presence of the IsExprSymbol, then falls back to checking for 'dtype' and 'dshape' properties.
+ * Check if the given object is an IExpr.
+ * 
+ * First checks for the presence of the IsExprSymbol, then falls back to checking for all of the following properties:
+ * - dtype() returns a valid DataType
+ * - dshape() returns a valid DataShape
+ * - toOp() exists
  */
 export function isExpr(obj: any): obj is IExpr {
     // First check for the presence of the symbol property
@@ -81,6 +93,7 @@ export function isExpr(obj: any): obj is IExpr {
     }
     const hasProperDtype = 'dtype' in obj && typeof obj.dtype === 'function' && isValidDataType(obj.dtype())
     const hasProperDshape = 'dshape' in obj && typeof obj.dshape === 'function' && isValidDataShape(obj.dshape())
-    return hasProperDtype && hasProperDshape
+    const hasToOp = 'toOp' in obj && typeof obj.toOp === 'function'
+    return hasProperDtype && hasProperDshape && hasToOp
 }
 

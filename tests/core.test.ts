@@ -16,13 +16,23 @@ describe('isOp()', () => {
     })
 
     describe('fallback duck-type detection', () => {
-        it('returns true for objects with kind, valid dtype(), and valid dshape()', () => {
+        it('returns true for objects with kind, valid dtype(), valid dshape(), and toExpr()', () => {
+            const obj = {
+                kind: 'fake_op',
+                dtype: () => ({ typecode: 'string' }),
+                dshape: () => 'scalar',
+                toExpr: () => ty.lit('test'),
+            }
+            expect(isOp(obj)).toBe(true)
+        })
+
+        it('returns false for objects missing toExpr()', () => {
             const obj = {
                 kind: 'fake_op',
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'scalar',
             }
-            expect(isOp(obj)).toBe(true)
+            expect(isOp(obj)).toBe(false)
         })
 
         it('returns false when kind is missing', () => {
@@ -80,6 +90,11 @@ describe('isOp()', () => {
             expect(isOp(new ty.ops.StringLiteralOp('hello'))).toBe(true)
         })
     })
+
+    it('does not recognize an Expr as an Op', () => {
+        const result = isOp(ty.lit(42))
+        expect(result).toBe(false)
+    })
 })
 
 describe('isExpr()', () => {
@@ -100,10 +115,19 @@ describe('isExpr()', () => {
     })
 
     describe('fallback duck-type detection', () => {
-        it('returns true for objects with valid dtype() and valid dshape()', () => {
+        it('returns false for objects with valid dtype() and valid dshape() but missing toOp()', () => {
             const obj = {
                 dtype: () => ({ typecode: 'boolean' }),
                 dshape: () => 'columnar',
+            }
+            expect(isExpr(obj)).toBe(false)
+        })
+
+        it('returns true for objects with valid dtype(), valid dshape(), and toOp()', () => {
+            const obj = {
+                dtype: () => ({ typecode: 'boolean' }),
+                dshape: () => 'columnar',
+                toOp: () => new ty.ops.BooleanLiteralOp(true),
             }
             expect(isExpr(obj)).toBe(true)
         })
@@ -147,16 +171,10 @@ describe('isExpr()', () => {
             expect(isExpr(ty.col('name', 'string'))).toBe(true)
         })
 
-        it('does not recognize an Op as an Expr (ops lack IsExprSymbol and toOp)', () => {
-            // Ops don't implement IExpr; they are not Exprs
+        it('does not recognize an Op as an Expr', () => {
             const op = new ty.ops.StringLiteralOp('hello')
-            // ops have IsOpSymbol=true but not IsExprSymbol, and they don't have toOp()
-            // The fallback checks dtype+dshape only, so this *could* be true unless IsExprSymbol is absent
-            // Let's just confirm our expectations based on actual behavior:
-            // ops DO have dtype and dshape, so the duck-type fallback would return true
-            // This is acceptable since we don't rely on isExpr to exclude ops
             const result = isExpr(op)
-            expect(typeof result).toBe('boolean')
+            expect(result).toBe(false)
         })
     })
 })

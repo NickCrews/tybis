@@ -5,7 +5,6 @@ import {
     highestDataType,
     dtype,
     schema,
-    dtypeFromShorthand,
 } from '../src/datatypes.js'
 import * as ty from '../src/index.js'
 
@@ -75,18 +74,14 @@ describe('highestDataType()', () => {
         expect(highestDataType({ typecode: 'int', size: 8 }, { typecode: 'int', size: 16 })).toEqual({ typecode: 'int', size: 16 })
     })
 
-    it('returns single float when only one float', () => {
+    it('returns input type when passed a single one', () => {
         expect(highestDataType({ typecode: 'float', size: 32 })).toEqual({ typecode: 'float', size: 32 })
-    })
-
-    it('returns single int when only one int', () => {
         expect(highestDataType({ typecode: 'int', size: 64 })).toEqual({ typecode: 'int', size: 64 })
+        expect(highestDataType({ typecode: 'string' })).toEqual({ typecode: 'string' })
     })
 
-    it('throws when no numeric types provided', () => {
-        // @ts-expect-error — string is not a numeric DataType
-        expect(() => highestDataType({ typecode: 'string' })).toThrow('Cannot determine highest type for non-numeric types')
-        // @ts-expect-error — boolean and string are not numeric DataTypes
+    it('throws when a non numeric types provided along with a numeric', () => {
+        expect(() => highestDataType({ typecode: 'string' }, { typecode: 'int', size: 32 })).toThrow('Cannot determine highest type for non-numeric types')
         expect(() => highestDataType({ typecode: 'boolean' }, { typecode: 'string' })).toThrow('Cannot determine highest type')
     })
 })
@@ -95,24 +90,66 @@ describe('dtype()', () => {
     it('accepts a DataType object and returns it', () => {
         const dt = { typecode: 'string' } as const
         expect(dtype(dt)).toEqual({ typecode: 'string' })
-    })
-
-    it('accepts shorthand strings and converts them', () => {
-        expect(dtype('string')).toEqual({ typecode: 'string' })
-        expect(dtype('int32')).toEqual({ typecode: 'int', size: 32 })
-        expect(dtype('float64')).toEqual({ typecode: 'float', size: 64 })
-        expect(dtype('boolean')).toEqual({ typecode: 'boolean' })
-        expect(dtype('date')).toEqual({ typecode: 'date' })
+        expectTypeOf(dt).toEqualTypeOf<{ readonly typecode: 'string' }>()
     })
 
     it('accepts an Expr and returns its dtype', () => {
-        const expr = ty.lit('hello')
-        expect(dtype(expr)).toEqual({ typecode: 'string' })
+        const result = dtype(ty.lit('hello'))
+        expect(result).toEqual({ typecode: 'string' })
+        // @ts-expect-error TODO: make this work
+        expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'string' }>()
     })
 
     it('accepts an Op and returns its dtype', () => {
-        const op = new ty.ops.IntLiteralOp(42)
-        expect(dtype(op)).toEqual({ typecode: 'int', size: 64 })
+        const result = dtype(new ty.ops.IntLiteralOp(42))
+        expect(result).toEqual({ typecode: 'int', size: 64 })
+        // @ts-expect-error TODO: make this work
+        expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'int', readonly size: 64 }>()
+    })
+
+    it('converts all int shorthands', () => {
+        expect(dtype('int')).toEqual({ typecode: 'int', size: 64 })
+        expectTypeOf(dtype('int')).toEqualTypeOf<{ typecode: 'int', size: 64 }>()
+        expect(dtype('int8')).toEqual({ typecode: 'int', size: 8 })
+        expectTypeOf(dtype('int8')).toEqualTypeOf<{ typecode: 'int', size: 8 }>()
+        expect(dtype('int16')).toEqual({ typecode: 'int', size: 16 })
+        expectTypeOf(dtype('int16')).toEqualTypeOf<{ typecode: 'int', size: 16 }>()
+        expect(dtype('int32')).toEqual({ typecode: 'int', size: 32 })
+        expectTypeOf(dtype('int32')).toEqualTypeOf<{ typecode: 'int', size: 32 }>()
+        expect(dtype('int64')).toEqual({ typecode: 'int', size: 64 })
+        expectTypeOf(dtype('int64')).toEqualTypeOf<{ typecode: 'int', size: 64 }>()
+    })
+
+    it('converts all float shorthands', () => {
+        expect(dtype('float')).toEqual({ typecode: 'float', size: 64 })
+        expectTypeOf(dtype('float')).toEqualTypeOf<{ typecode: 'float', size: 64 }>()
+        expect(dtype('float8')).toEqual({ typecode: 'float', size: 8 })
+        expectTypeOf(dtype('float8')).toEqualTypeOf<{ typecode: 'float', size: 8 }>()
+        expect(dtype('float16')).toEqual({ typecode: 'float', size: 16 })
+        expectTypeOf(dtype('float16')).toEqualTypeOf<{ typecode: 'float', size: 16 }>()
+        expect(dtype('float32')).toEqual({ typecode: 'float', size: 32 })
+        expectTypeOf(dtype('float32')).toEqualTypeOf<{ typecode: 'float', size: 32 }>()
+        expect(dtype('float64')).toEqual({ typecode: 'float', size: 64 })
+        expectTypeOf(dtype('float64')).toEqualTypeOf<{ typecode: 'float', size: 64 }>()
+    })
+
+    it('converts non-numeric shorthands', () => {
+        expect(dtype('null')).toEqual({ typecode: 'null' })
+        expectTypeOf(dtype('null')).toEqualTypeOf<{ typecode: 'null' }>()
+        expect(dtype('string')).toEqual({ typecode: 'string' })
+        expectTypeOf(dtype('string')).toEqualTypeOf<{ typecode: 'string' }>()
+        expect(dtype('boolean')).toEqual({ typecode: 'boolean' })
+        expectTypeOf(dtype('boolean')).toEqualTypeOf<{ typecode: 'boolean' }>()
+        expect(dtype('date')).toEqual({ typecode: 'date' })
+        expectTypeOf(dtype('date')).toEqualTypeOf<{ typecode: 'date' }>()
+        expect(dtype('time')).toEqual({ typecode: 'time' })
+        expectTypeOf(dtype('time')).toEqualTypeOf<{ typecode: 'time' }>()
+        expect(dtype('datetime')).toEqual({ typecode: 'datetime' })
+        expectTypeOf(dtype('datetime')).toEqualTypeOf<{ typecode: 'datetime' }>()
+        expect(dtype('interval')).toEqual({ typecode: 'interval' })
+        expectTypeOf(dtype('interval')).toEqualTypeOf<{ typecode: 'interval' }>()
+        expect(dtype('uuid')).toEqual({ typecode: 'uuid' })
+        expectTypeOf(dtype('uuid')).toEqualTypeOf<{ typecode: 'uuid' }>()
     })
 })
 
@@ -122,46 +159,21 @@ describe('schema()', () => {
         expect(s.name).toEqual({ typecode: 'string' })
         expect(s.age).toEqual({ typecode: 'int', size: 32 })
         expect(s.score).toEqual({ typecode: 'float', size: 64 })
+        expectTypeOf(s).toEqualTypeOf<{ name: { typecode: 'string' }, age: { typecode: 'int', size: 32 }, score: { typecode: 'float', size: 64 } }>()
     })
 
     it('passes through a schema that already uses DataType objects', () => {
-        const s = schema({ name: { typecode: 'string' }, active: { typecode: 'boolean' } })
+        const already = { name: { typecode: 'string' }, active: { typecode: 'boolean' } } as const
+        const s = schema(already)
         expect(s.name).toEqual({ typecode: 'string' })
         expect(s.active).toEqual({ typecode: 'boolean' })
+        expectTypeOf(s).toEqualTypeOf(already)
     })
 
     it('converts mixed shorthand and DataType objects', () => {
         const s = schema({ name: 'string', score: { typecode: 'float', size: 32 } })
         expect(s.name).toEqual({ typecode: 'string' })
         expect(s.score).toEqual({ typecode: 'float', size: 32 })
-    })
-})
-
-describe('dtypeFromShorthand()', () => {
-    it('converts all int shorthands', () => {
-        expect(dtypeFromShorthand('int')).toEqual({ typecode: 'int', size: 64 })
-        expect(dtypeFromShorthand('int8')).toEqual({ typecode: 'int', size: 8 })
-        expect(dtypeFromShorthand('int16')).toEqual({ typecode: 'int', size: 16 })
-        expect(dtypeFromShorthand('int32')).toEqual({ typecode: 'int', size: 32 })
-        expect(dtypeFromShorthand('int64')).toEqual({ typecode: 'int', size: 64 })
-    })
-
-    it('converts all float shorthands', () => {
-        expect(dtypeFromShorthand('float')).toEqual({ typecode: 'float', size: 64 })
-        expect(dtypeFromShorthand('float8')).toEqual({ typecode: 'float', size: 8 })
-        expect(dtypeFromShorthand('float16')).toEqual({ typecode: 'float', size: 16 })
-        expect(dtypeFromShorthand('float32')).toEqual({ typecode: 'float', size: 32 })
-        expect(dtypeFromShorthand('float64')).toEqual({ typecode: 'float', size: 64 })
-    })
-
-    it('converts non-numeric shorthands', () => {
-        expect(dtypeFromShorthand('null')).toEqual({ typecode: 'null' })
-        expect(dtypeFromShorthand('string')).toEqual({ typecode: 'string' })
-        expect(dtypeFromShorthand('boolean')).toEqual({ typecode: 'boolean' })
-        expect(dtypeFromShorthand('date')).toEqual({ typecode: 'date' })
-        expect(dtypeFromShorthand('time')).toEqual({ typecode: 'time' })
-        expect(dtypeFromShorthand('datetime')).toEqual({ typecode: 'datetime' })
-        expect(dtypeFromShorthand('interval')).toEqual({ typecode: 'interval' })
-        expect(dtypeFromShorthand('uuid')).toEqual({ typecode: 'uuid' })
+        expectTypeOf(s).toEqualTypeOf<{ name: { typecode: 'string' }, score: { typecode: 'float', size: 32 } }>()
     })
 })
