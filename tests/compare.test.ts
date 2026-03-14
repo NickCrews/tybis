@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import { isComparable, coerceToComparable } from '../src/compare.js'
+import { isComparable, coerceToComparable } from '../src/value/compare.js'
 import * as ty from '../src/index.js'
 
 describe('isComparable()', () => {
@@ -77,8 +77,8 @@ describe('coerceToComparable()', () => {
 
     it('throws when op dtype is incompatible with target', () => {
         const target = { typecode: 'string' } as const
-        const incompatibleOp = new ty.ops.FloatLiteralOp(3.14)
+        const float64 = ty.lit(42)
         // @ts-expect-error — float op is not comparable to string
-        expect(() => coerceToComparable(target, incompatibleOp)).toThrow('Cannot compare')
+        expect(() => coerceToComparable(target, float64)).toThrow('Cannot compare')
     })
 })

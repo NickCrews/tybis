@@ -1,6 +1,7 @@
 import { describe, it } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as dt from '../src/datatype.js'
 
 describe('Type Safety', () => {
     it('should accept an explicit schema', () => {
@@ -11,9 +12,9 @@ describe('Type Safety', () => {
         })
 
         expectTypeOf(penguins).toMatchTypeOf<ty.Relation<{
-            species: ty.dt.DTString
-            year: ty.dt.DTInt32
-            bill_length_mm: ty.dt.DTFloat64
+            species: dt.DTString
+            year: dt.DTInt32
+            bill_length_mm: dt.DTFloat64
         }>>()
     })
 
@@ -60,14 +61,14 @@ describe('Type Safety', () => {
     it('string columns should have string methods', () => {
         const r = ty.relation('t', { name: 'string' })
         const nameCol = r.col('name')
-        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IExpr<ty.dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IExpr<ty.dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
+        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
     })
 
     it('numeric columns should have comparison methods', () => {
         const numCol = ty.col('age', 'int32')
-        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
-        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IExpr<ty.dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
+        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IExpr<dt.DTFloat64, 'columnar'>>()
     })
 })

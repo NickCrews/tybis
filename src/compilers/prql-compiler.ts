@@ -2,7 +2,7 @@ import type { Compiler } from './base.js'
 import type { IRNode } from '../ir.js'
 import {
     type BuiltinOp, type SortSpec,
-} from '../ops.js'
+} from '../value/ops.js'
 
 export class PrqlCompiler implements Compiler {
     compileOp(op: BuiltinOp): string {

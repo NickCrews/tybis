@@ -1,5 +1,5 @@
-import { isValidDataType, type DataType } from './datatypes.js'
-import { isValidDataShape, type DataShape } from './datashape.js'
+import { isValidDataType, type DataType } from '../datatype.js'
+import { isValidDataShape, type DataShape } from '../datashape.js'
 import { Expr } from './expr.js'
 
 // ---------------------------------------------------------------------------

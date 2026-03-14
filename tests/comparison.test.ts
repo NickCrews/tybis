@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as ops from '../src/value/ops.js'
 
 describe('Comparison Operations', () => {
     const table = ty.relation('data', {
@@ -79,9 +80,9 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('f64a', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(10)
-            const op = new ty.ops.GtOp(col, scalar)
+            const col = new ops.ColRefOp('f64a', 'float64')
+            const scalar = new ops.FloatLiteralOp(10)
+            const op = new ops.GtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
         })
@@ -101,9 +102,9 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(10)
-            const op = new ty.ops.GteOp(col, scalar)
+            const col = new ops.ColRefOp('x', 'float64')
+            const scalar = new ops.FloatLiteralOp(10)
+            const op = new ops.GteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })
@@ -122,9 +123,9 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('f64a', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(20)
-            const op = new ty.ops.LtOp(col, scalar)
+            const col = new ops.ColRefOp('f64a', 'float64')
+            const scalar = new ops.FloatLiteralOp(20)
+            const op = new ops.LtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })
@@ -143,9 +144,9 @@ describe('Comparison Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('f64a', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(20)
-            const op = new ty.ops.LteOp(col, scalar)
+            const col = new ops.ColRefOp('f64a', 'float64')
+            const scalar = new ops.FloatLiteralOp(20)
+            const op = new ops.LteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })

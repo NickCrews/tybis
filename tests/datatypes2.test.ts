@@ -4,8 +4,9 @@ import {
     isValidDataType,
     highestDataType,
     dtype,
-} from '../src/datatypes.js'
+} from '../src/datatype'
 import * as ty from '../src/index.js'
+import * as ops from '../src/value/ops.js'
 
 describe('isValidDataType()', () => {
     it('returns true for all valid simple typecodes', () => {
@@ -100,7 +101,7 @@ describe('dtype()', () => {
     })
 
     it('accepts an Op and returns its dtype', () => {
-        const result = dtype(new ty.ops.IntLiteralOp(42))
+        const result = dtype(new ops.IntLiteralOp(42))
         expect(result).toEqual({ typecode: 'int', size: 64 })
         // @ts-expect-error TODO: make this work
         expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'int', readonly size: 64 }>()

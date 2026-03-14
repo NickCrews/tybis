@@ -1,15 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as dt from '../src/datatype.js'
+import * as ops from '../src/value/ops.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
+const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
 
 describe('lit()', () => {
     describe('null', () => {
         it("lit(null)", () => {
             const e = ty.lit(null)
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTNull, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTNull, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'null' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('null')
@@ -19,7 +21,7 @@ describe('lit()', () => {
     describe('string', () => {
         it("lit('hello')", () => {
             const e = ty.lit('hello')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('"hello"')
@@ -27,14 +29,14 @@ describe('lit()', () => {
 
         it("lit('hello', 'string')", () => {
             const e = ty.lit('hello', 'string')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('"hello"')
         })
         it("lit(54, 'string')", () => {
             const e = ty.lit(54, 'string')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('"54"')
@@ -42,7 +44,7 @@ describe('lit()', () => {
 
         it("lit(new Date('2024-01-15T00:00:00.000Z'), 'string')", () => {
             const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'), 'string')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('"2024-01-15T00:00:00.000Z"')
@@ -127,7 +129,7 @@ describe('lit()', () => {
     describe('boolean', () => {
         it('lit(true)', () => {
             const e = ty.lit(true)
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('true')
@@ -135,7 +137,7 @@ describe('lit()', () => {
 
         it("lit('true', 'boolean')", () => {
             const e = ty.lit('true', 'boolean')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('true')
@@ -143,7 +145,7 @@ describe('lit()', () => {
 
         it("lit(0, 'boolean')", () => {
             const e = ty.lit(0, 'boolean')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('false')
@@ -151,7 +153,7 @@ describe('lit()', () => {
 
         it("lit(null, 'boolean')", () => {
             const e = ty.lit(null, 'boolean')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTBoolean, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('false')
@@ -166,7 +168,7 @@ describe('lit()', () => {
     describe('Date', () => {
         it("lit(new Date('2024-01-15T12:34:56.000Z'))", () => {
             const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'))
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDateTime, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTDateTime, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'datetime' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')
@@ -174,7 +176,7 @@ describe('lit()', () => {
 
         it("lit(new Date('2024-01-15T12:34:56.000Z'), 'date')", () => {
             const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'), 'date')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDate, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTDate, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'date' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('@2024-01-15')
@@ -182,7 +184,7 @@ describe('lit()', () => {
 
         it("lit('2024-01-15', 'date')", () => {
             const e = ty.lit('2024-01-15', 'date')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDate, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTDate, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'date' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('@2024-01-15')
@@ -190,7 +192,7 @@ describe('lit()', () => {
 
         it("lit('2024-01-15T12:34:56.000Z', 'datetime')", () => {
             const e = ty.lit('2024-01-15T12:34:56.000Z', 'datetime')
-            expectTypeOf(e).toEqualTypeOf<ty.Expr<ty.dt.DTDateTime, 'scalar'>>()
+            expectTypeOf(e).toEqualTypeOf<ty.Expr<dt.DTDateTime, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'datetime' })
             expect(e.dshape()).toBe('scalar')
             expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')

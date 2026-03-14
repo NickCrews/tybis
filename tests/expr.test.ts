@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as dt from '../src/datatype.js'
+import * as ops from '../src/value/ops.js'
+import * as vals from '../src/value/index.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.Expr<any, any>) => compiler.compileOp(e.toOp() as ty.BuiltinOp)
+const compile = (e: vals.Expr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
@@ -11,7 +14,7 @@ describe('isNotNull()', () => {
         const e = table.col('name').isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
-        expectTypeOf(e.dtype()).toEqualTypeOf<ty.dt.DTBoolean>()
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
     })
 
     it('produces a boolean scalar expr from a scalar literal', () => {
@@ -120,26 +123,26 @@ describe('BooleanExpr.not()', () => {
 
 describe('sql() factory function', () => {
     it('creates a raw SQL expr with given dtype and dshape', () => {
-        const e = ty.sql('custom_function(x)', { typecode: 'float', size: 64 }, 'columnar')
+        const e = vals.sql('custom_function(x)', { typecode: 'float', size: 64 }, 'columnar')
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('columnar')
     })
 
     it('creates a scalar raw SQL expr', () => {
-        const e = ty.sql('COUNT(*)', { typecode: 'int', size: 64 }, 'scalar')
+        const e = vals.sql('COUNT(*)', { typecode: 'int', size: 64 }, 'scalar')
         expect(e.dtype()).toEqual({ typecode: 'int', size: 64 })
         expect(e.dshape()).toBe('scalar')
     })
 
     it('compiles to a PRQL s-string (raw SQL)', () => {
-        const e = ty.sql('my_udf(col)', { typecode: 'string' }, 'columnar')
+        const e = vals.sql('my_udf(col)', { typecode: 'string' }, 'columnar')
         expect(compile(e)).toBe('s"my_udf(col)"')
     })
 
     it('can be used in a derive', () => {
         const table = ty.relation('data', { x: 'float64' })
         const q = table.derive(() => ({
-            custom: ty.sql('x * 2 + 1', { typecode: 'float', size: 64 }, 'columnar')
+            custom: vals.sql('x * 2 + 1', { typecode: 'float', size: 64 }, 'columnar')
         }))
         expect(q.toPrql()).toMatchInlineSnapshot(`
           "from data
@@ -155,7 +158,7 @@ describe('count() factory function', () => {
         const e = ty.count()
         expect(e.dtype()).toEqual({ typecode: 'int', size: 64 })
         expect(e.dshape()).toBe('scalar')
-        expectTypeOf(e.dtype()).toEqualTypeOf<ty.dt.DTInt64>()
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTInt64>()
         expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 
@@ -166,29 +169,29 @@ describe('count() factory function', () => {
 
 describe('opToExpr()', () => {
     it('wraps a NullLiteralOp in a NullExpr', () => {
-        const op = new ty.ops.NullLiteralOp()
-        const expr = ty.opToExpr(op)
+        const op = new ops.NullLiteralOp()
+        const expr = vals.opToExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'null' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps an IntervalLiteralOp in an IntervalExpr', () => {
-        const op = new ty.ops.IntervalLiteralOp(5)
-        const expr = ty.opToExpr(op)
+        const op = new ops.IntervalLiteralOp(5)
+        const expr = vals.opToExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'interval' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps a UuidLiteralOp in a UUIDExpr', () => {
-        const op = new ty.ops.UuidLiteralOp('550e8400-e29b-41d4-a716-446655440000')
-        const expr = ty.opToExpr(op)
+        const op = new ops.UuidLiteralOp('550e8400-e29b-41d4-a716-446655440000')
+        const expr = vals.opToExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'uuid' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps a BooleanLiteralOp in a BooleanExpr', () => {
-        const op = new ty.ops.BooleanLiteralOp(true)
-        const expr = ty.opToExpr(op)
+        const op = new ops.BooleanLiteralOp(true)
+        const expr = vals.opToExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'boolean' })
     })
 })

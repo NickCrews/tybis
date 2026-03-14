@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
-import { AddOp, SubOp, MulOp, DivOp } from '../src/ops.js'
+import * as ops from '../src/value/ops.js'
 
 describe('Numeric Operations', () => {
     const table = ty.relation('nums', {
@@ -35,33 +35,33 @@ describe('Numeric Operations', () => {
         })
 
         it('should have columnar shape when adding columnar + scalar', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(5)
-            const op = new AddOp(col, scalar)
+            const col = new ops.ColRefOp('x', 'float64')
+            const scalar = new ops.FloatLiteralOp(5)
+            const op = new ops.AddOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have columnar shape when adding scalar + columnar', () => {
-            const scalar = new ty.ops.FloatLiteralOp(5)
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const op = new AddOp(scalar, col)
+            const scalar = new ops.FloatLiteralOp(5)
+            const col = new ops.ColRefOp('x', 'float64')
+            const op = new ops.AddOp(scalar, col)
             expect(op.dshape()).toBe('columnar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have scalar shape when adding scalar + scalar', () => {
-            const scalar1 = new ty.ops.FloatLiteralOp(5)
-            const scalar2 = new ty.ops.FloatLiteralOp(10)
-            const op = new AddOp(scalar1, scalar2)
+            const scalar1 = new ops.FloatLiteralOp(5)
+            const scalar2 = new ops.FloatLiteralOp(10)
+            const op = new ops.AddOp(scalar1, scalar2)
             expect(op.dshape()).toBe('scalar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
 
         it('should have columnar shape when adding columnar + columnar', () => {
-            const col1 = new ty.ops.ColRefOp('x', 'float64')
-            const col2 = new ty.ops.ColRefOp('y', 'float64')
-            const op = new AddOp(col1, col2)
+            const col1 = new ops.ColRefOp('x', 'float64')
+            const col2 = new ops.ColRefOp('y', 'float64')
+            const op = new ops.AddOp(col1, col2)
             expect(op.dshape()).toBe('columnar')
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -81,9 +81,9 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(5)
-            const op = new SubOp(col, scalar)
+            const col = new ops.ColRefOp('x', 'float64')
+            const scalar = new ops.FloatLiteralOp(5)
+            const op = new ops.SubOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })
@@ -102,9 +102,9 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(2)
-            const op = new MulOp(col, scalar)
+            const col = new ops.ColRefOp('x', 'float64')
+            const scalar = new ops.FloatLiteralOp(2)
+            const op = new ops.MulOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })
@@ -123,9 +123,9 @@ describe('Numeric Operations', () => {
         })
 
         it('should have correct shape for mixed shapes', () => {
-            const col = new ty.ops.ColRefOp('x', 'float64')
-            const scalar = new ty.ops.FloatLiteralOp(2)
-            const op = new DivOp(col, scalar)
+            const col = new ops.ColRefOp('x', 'float64')
+            const scalar = new ops.FloatLiteralOp(2)
+            const op = new ops.DivOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
         })
     })

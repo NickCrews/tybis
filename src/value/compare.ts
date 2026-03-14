@@ -1,7 +1,7 @@
-import * as dt from "./datatypes";
+import * as dt from "../datatype";
 import * as core from "./core";
-import { ops } from ".";
-import { InferDataShape } from "./datashape";
+import * as ops from "./ops";
+import { InferDataShape } from "../datashape";
 
 /** Given a datatype, what are the datatypes that are comparable to it eg with .eq() */
 export type DtypesComparableTo<T extends dt.DataType> =

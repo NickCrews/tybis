@@ -1,5 +1,5 @@
-import { IExpr, IOp } from "./core"
-import { InferrableJsType } from "./datatypes"
+import { IExpr, IOp } from "./value/core"
+import { InferrableJsType } from "./datatype"
 
 export type DataShape = 'scalar' | 'columnar'
 

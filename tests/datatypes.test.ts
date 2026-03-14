@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inferDtypeFromJs } from '../src/datatypes'
+import { inferDtypeFromJs } from '../src/datatype';
 
 describe('inferDtype', () => {
     it('infers strings as string type', () => {

@@ -1,6 +1,6 @@
 import { compile, CompileOptions } from 'prqlc'
 import type { Compiler } from './base.js'
-import type { BuiltinOp } from '../ops.js'
+import type { BuiltinOp } from '../value/ops.js'
 import type { IRNode } from '../ir.js'
 import { PrqlCompiler } from './prql-compiler.js'
 

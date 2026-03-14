@@ -1,14 +1,14 @@
-import { type DataType } from './datatypes.js'
+import { type DataType } from './datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
-import { type IOp, type IExpr } from './core.js'
-import { SortSpec } from './ops.js'
+import { type IOp, type IExpr } from './value/core.js'
+import { SortSpec } from './value/ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,
     col,
     Expr,
-} from './expr.js'
+} from './value/expr.js'
 import { PrqlCompiler } from './compilers/prql-compiler.js'
 import { SqlCompiler } from './compilers/sql-compiler.js'
 import { suggestColumnName } from './typo.js'
@@ -169,7 +169,7 @@ export class Relation<S extends Schema = Schema> {
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
     sort(
-        cb: (r: RowAccessor<S>) => SortExpr | BaseExpr<DataType> | (SortExpr | BaseExpr<DataType>)[]
+        cb: (r: RowAccessor<S>) => SortExpr | IExpr<any, any> | (SortExpr | IExpr<any, any>)[]
     ): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)

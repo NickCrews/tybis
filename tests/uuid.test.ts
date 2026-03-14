@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as vals from '../src/value/index.js'
+import * as dt from '../src/datatype.js'
 
 describe('UUIDExpr', () => {
     const users = ty.relation('users', {
@@ -12,7 +14,7 @@ describe('UUIDExpr', () => {
     describe('Type Safety', () => {
         it('should have uuid type', () => {
             const uuidCol = ty.col('id', "uuid")
-            expectTypeOf(uuidCol).toMatchTypeOf<ty.UUIDExpr<'columnar'>>()
+            expectTypeOf(uuidCol).toMatchTypeOf<vals.UUIDExpr<'columnar'>>()
         })
     })
 
@@ -127,7 +129,7 @@ describe('UUIDExpr', () => {
               "from users
               filter id != null"
             `)
-            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.IExpr<ty.dt.DTBoolean, 'columnar'>>()
+            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
         })
 
         it('can be used in aggregations', () => {
@@ -164,8 +166,8 @@ describe('UUIDExpr', () => {
                 }
               )"
             `)
-            expectTypeOf(q.col('min_id')).toMatchTypeOf<ty.UUIDExpr<"columnar">>()
-            expectTypeOf(q.col('max_id')).toMatchTypeOf<ty.UUIDExpr<"columnar">>()
+            expectTypeOf(q.col('min_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
+            expectTypeOf(q.col('max_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
         })
     })
 

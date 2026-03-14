@@ -1,7 +1,7 @@
-import { inferDtypeFromJs, type DataType, type InferDtype, type InferrableJsType } from './datatypes.js'
-import * as dt from './datatypes.js'
-import type { DataShape, HighestDataShape, InferDataShape } from './datashape.js'
-import { highestDataShape } from './datashape.js'
+import { inferDtypeFromJs, type DataType, type InferDtype, type InferrableJsType } from '../datatype.js'
+import * as dt from '../datatype'
+import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.js'
+import { highestDataShape } from '../datashape.js'
 import { IExpr, IOp, isExpr, isOp, IsOpSymbol } from './core.js'
 import { Expr, opToExpr } from './expr.js'
 

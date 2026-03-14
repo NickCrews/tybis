@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
+import * as dt from '../src/datatype.js'
 
 describe('Group aggregation', () => {
     const penguins = ty.relation('penguins', {
@@ -30,11 +31,11 @@ describe('Group aggregation', () => {
             }
           )"
         `)
-        expectTypeOf(q.col('species')).toEqualTypeOf<ty.Expr<ty.dt.DTString, 'columnar'>>()
-        expectTypeOf(q.col('count')).toEqualTypeOf<ty.Expr<ty.dt.DTInt64, 'columnar'>>()
-        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.Expr<ty.dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.Expr<ty.dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.Expr<ty.dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('species')).toEqualTypeOf<ty.Expr<dt.DTString, 'columnar'>>()
+        expectTypeOf(q.col('count')).toEqualTypeOf<ty.Expr<dt.DTInt64, 'columnar'>>()
+        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
     })
 
     it('should throw runtime and type error when passing columnar expression to agg()', () => {

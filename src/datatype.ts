@@ -1,4 +1,4 @@
-import { type IExpr, type IOp, isExpr, isOp } from "./core"
+import { type IExpr, type IOp, isExpr, isOp } from "./value/core"
 
 export interface DTNull { typecode: 'null' }
 export function DTNull(): DTNull { return { typecode: 'null' } }
@@ -168,7 +168,7 @@ export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferD
     throw new Error(`Cannot infer dtype for value: ${value}`)
 }
 
-export type IntoDtype = DataType | DTypeShorthands | IExpr | IOp
+export type IntoDtype = DataType | DTypeShorthands | IExpr<DataType, any> | IOp<DataType, any>
 export type InferDtype<T extends IntoDtype> =
     T extends DataType ? T :
     T extends DTypeShorthands ? InferDtypeFromShorthand<T> :

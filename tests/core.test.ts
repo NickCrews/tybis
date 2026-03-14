@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { isOp, isExpr, IsOpSymbol, IsExprSymbol } from '../src/core.js'
+import { isOp, isExpr, IsOpSymbol, IsExprSymbol } from '../src/value/core.js'
 import * as ty from '../src/index.js'
+import * as ops from '../src/value/ops.js'
 
 describe('isOp()', () => {
     describe('symbol-based detection', () => {
         it('returns true for objects with IsOpSymbol = true', () => {
-            const op = new ty.ops.FloatLiteralOp(42)
+            const op = new ops.FloatLiteralOp(42)
             expect(isOp(op)).toBe(true)
         })
 
@@ -79,15 +80,15 @@ describe('isOp()', () => {
 
     describe('with real ops', () => {
         it('recognizes ColRefOp', () => {
-            expect(isOp(new ty.ops.ColRefOp('name', 'string'))).toBe(true)
+            expect(isOp(new ops.ColRefOp('name', 'string'))).toBe(true)
         })
 
         it('recognizes IntLiteralOp', () => {
-            expect(isOp(new ty.ops.IntLiteralOp(10))).toBe(true)
+            expect(isOp(new ops.IntLiteralOp(10))).toBe(true)
         })
 
         it('recognizes StringLiteralOp', () => {
-            expect(isOp(new ty.ops.StringLiteralOp('hello'))).toBe(true)
+            expect(isOp(new ops.StringLiteralOp('hello'))).toBe(true)
         })
     })
 
@@ -127,7 +128,7 @@ describe('isExpr()', () => {
             const obj = {
                 dtype: () => ({ typecode: 'boolean' }),
                 dshape: () => 'columnar',
-                toOp: () => new ty.ops.BooleanLiteralOp(true),
+                toOp: () => new ops.BooleanLiteralOp(true),
             }
             expect(isExpr(obj)).toBe(true)
         })
@@ -172,7 +173,7 @@ describe('isExpr()', () => {
         })
 
         it('does not recognize an Op as an Expr', () => {
-            const op = new ty.ops.StringLiteralOp('hello')
+            const op = new ops.StringLiteralOp('hello')
             const result = isExpr(op)
             expect(result).toBe(false)
         })
