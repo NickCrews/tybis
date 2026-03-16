@@ -1,7 +1,7 @@
 import { compile, CompileOptions } from 'prqlc'
 import type { Compiler } from './base.js'
 import type { BuiltinOp } from '../value/ops.js'
-import type { IRNode } from '../ir.js'
+import type { ITableOp } from '../ir.js'
 import { PrqlCompiler } from './prql-compiler.js'
 
 export class SqlCompiler implements Compiler {
@@ -11,7 +11,7 @@ export class SqlCompiler implements Compiler {
         return this.prqlCompiler.compileOp(op)
     }
 
-    compileIR(node: IRNode): string {
+    compileIR(node: ITableOp): string {
         const prqlText = this.prqlCompiler.compileIR(node)
         const opts = new CompileOptions()
         opts.target = 'sql.duckdb'

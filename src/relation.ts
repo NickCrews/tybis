@@ -1,6 +1,7 @@
-import { type DataType } from './datatype.js'
+import { type DataType, inferDtypeFromJs } from './datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
-import type { IRNode } from './ir.js'
+import type { ITableOp } from './ir.js'
+import { FromOp, FilterOp, DeriveOp, GroupOp, SortOp, TakeOp } from './ir.js'
 import type { Compiler } from './compilers/base.js'
 import { type IOp, type IExpr } from './value/core.js'
 import { SortSpec } from './value/ops.js'
@@ -74,10 +75,13 @@ type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> =
 // ---------------------------------------------------------------------------
 
 export class Relation<S extends Schema = Schema> {
+    readonly schema: S
+
     constructor(
-        readonly schema: S,
-        /** @internal */ readonly _ir: IRNode
-    ) { }
+        /** @internal */ readonly _ir: ITableOp
+    ) {
+        this.schema = this._ir.schema() as S
+    }
 
     /**
      * Get a column expression by name.
@@ -94,7 +98,7 @@ export class Relation<S extends Schema = Schema> {
     filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
-        return new Relation(this.schema, { kind: 'filter', source: this._ir, condition: condition.toOp() })
+        return new Relation(new FilterOp(this._ir, condition.toOp()))
     }
 
     /**
@@ -130,12 +134,7 @@ export class Relation<S extends Schema = Schema> {
             resultSchema[k] = agg.dtype()
         }
 
-        return new Relation(resultSchema as any, {
-            kind: 'group',
-            source: this._ir,
-            keys: keyNames,
-            aggregations,
-        })
+        return new Relation(new GroupOp(this._ir, keyNames, aggregations, resultSchema))
     }
 
 
@@ -151,16 +150,7 @@ export class Relation<S extends Schema = Schema> {
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IOp])
 
-        const newSchema = { ...this.schema } as Record<string, DataType>
-        for (const [k, v] of Object.entries(derivations)) {
-            newSchema[k] = v.dtype()
-        }
-
-        return new Relation(newSchema as any, {
-            kind: 'derive',
-            source: this._ir,
-            derivations: pairs,
-        })
+        return new Relation(new DeriveOp(this._ir, pairs))
     }
 
     /**
@@ -177,7 +167,7 @@ export class Relation<S extends Schema = Schema> {
         const sortKeys = keysList.map(k =>
             k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
         )
-        return new Relation(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
+        return new Relation(new SortOp(this._ir, sortKeys))
     }
 
     /**
@@ -185,7 +175,7 @@ export class Relation<S extends Schema = Schema> {
      * @example penguins.take(10)
      */
     take(n: number): Relation<S> {
-        return new Relation(this.schema, { kind: 'take', source: this._ir, n })
+        return new Relation(new TakeOp(this._ir, n))
     }
 
     compile(compiler: Compiler<any>): string {
@@ -204,7 +194,7 @@ export class Relation<S extends Schema = Schema> {
 }
 
 // ---------------------------------------------------------------------------
-// Public factory function
+// Public factory functions
 // ---------------------------------------------------------------------------
 
 /**
@@ -217,5 +207,24 @@ export class Relation<S extends Schema = Schema> {
  * })
  */
 export function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>> {
-    return new Relation(schema(sch), { kind: 'from', name })
+    const s = schema(sch)
+    return new Relation(new FromOp(name, s))
+}
+
+// ---------------------------------------------------------------------------
+// Schema inference from records
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer a {@link Schema} from an array of JS records by inspecting the first record.
+ * Returns an empty schema for an empty array.
+ */
+export function inferSchemaFromRecords(records: Record<string, any>[]): Schema {
+    if (records.length === 0) return {}
+    const first = records[0]!
+    const result: Record<string, DataType> = {}
+    for (const [key, value] of Object.entries(first)) {
+        result[key] = inferDtypeFromJs(value)
+    }
+    return result
 }

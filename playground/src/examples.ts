@@ -169,6 +169,104 @@ const withExtract = events
 preview(withExtract)
 `,
   },
+  {
+    id: 'records-executor',
+    label: 'Records — In-Memory Backend',
+    description: 'Execute queries over plain JS arrays with the zero-dependency RecordsExecutor',
+    code: `// Zero-dependency in-memory backend — no DuckDB or SQL needed!
+import * as ty from 'tybis';
+
+// Define some data as plain JS objects
+const data = [
+  { species: 'Adelie',    island: 'Torgersen', bill_length_mm: 39.1, body_mass_g: 3750 },
+  { species: 'Adelie',    island: 'Torgersen', bill_length_mm: 39.5, body_mass_g: 3800 },
+  { species: 'Adelie',    island: 'Dream',     bill_length_mm: 40.3, body_mass_g: 3900 },
+  { species: 'Chinstrap', island: 'Dream',     bill_length_mm: 46.5, body_mass_g: 3500 },
+  { species: 'Chinstrap', island: 'Dream',     bill_length_mm: 49.0, body_mass_g: 3800 },
+  { species: 'Gentoo',    island: 'Biscoe',    bill_length_mm: 47.3, body_mass_g: 5200 },
+  { species: 'Gentoo',    island: 'Biscoe',    bill_length_mm: 46.1, body_mass_g: 5100 },
+];
+
+// Create a relation from records (schema is auto-inferred)
+const penguins = ty.fromRecords(data);
+
+// Build a pipeline — same API as the SQL backend!
+const result = penguins
+  .filter(r => r.col('bill_length_mm').gt(40))
+  .group(
+    r => [r.col('species')],
+    g => g.agg({
+      count: ty.count(),
+      avg_bill: g.col('bill_length_mm').mean(),
+      max_mass: g.col('body_mass_g').max(),
+    })
+  )
+  .sort(r => r.col('count').desc());
+
+// Execute with the RecordsExecutor — pure TypeScript, no SQL!
+const executor = new ty.RecordsExecutor();
+const rows = executor.execute(result._ir);
+previewRecords(rows);
+`,
+  },
+  {
+    id: 'custom-table-op',
+    label: 'Custom Table Op — Extensibility',
+    description: 'Implement a custom SampleOp and register it with the RecordsExecutor',
+    code: `// Custom table-valued op — demonstrates third-party extensibility
+import * as ty from 'tybis';
+
+// --- 1. Define a custom SampleOp ---
+// Anyone can implement ITableOp to create new operations.
+class SampleOp implements ty.ITableOp {
+  [ty.IsTableOpSymbol] = true;
+  readonly kind = 'sample' as const;
+  constructor(
+    readonly source: ty.ITableOp,
+    readonly n: number,
+  ) {}
+  schema() { return this.source.schema(); }
+  sources() { return [this.source]; }
+}
+
+// Helper function for clean API
+function sample(rel: ty.Relation, n: number): ty.Relation {
+  return new ty.Relation(new SampleOp(rel._ir, n));
+}
+
+// --- 2. Register the handler with RecordsExecutor ---
+const executor = new ty.RecordsExecutor();
+executor.addTableOpHandler('sample', (op, exec) => {
+  const sampleOp = op as SampleOp;
+  const source = exec.execute(sampleOp.source);
+  // Take every other row as a simple deterministic "sample"
+  return source.filter((_, i) => i % 2 === 0).slice(0, sampleOp.n);
+});
+
+// --- 3. Use it! ---
+const data = [
+  { name: 'Alice',   dept: 'Eng',   salary: 120000 },
+  { name: 'Bob',     dept: 'Eng',   salary: 110000 },
+  { name: 'Charlie', dept: 'Sales', salary: 95000 },
+  { name: 'Diana',   dept: 'Sales', salary: 105000 },
+  { name: 'Eve',     dept: 'Eng',   salary: 130000 },
+  { name: 'Frank',   dept: 'HR',    salary: 90000 },
+];
+
+const employees = ty.fromRecords(data);
+
+// sample → derive → sort
+const result = sample(employees, 4)
+  .derive(r => ({
+    monthly: r.col('salary').div(12),
+    name_upper: r.col('name').upper(),
+  }))
+  .sort(r => r.col('salary').desc());
+
+const rows = executor.execute(result._ir);
+previewRecords(rows);
+`,
+  },
 ]
 
 export const defaultExample = examples[2] // Full pipeline

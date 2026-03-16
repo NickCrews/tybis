@@ -1,5 +1,8 @@
 import type { Compiler } from './base.js'
-import type { IRNode } from '../ir.js'
+import type { ITableOp } from '../ir.js'
+import {
+    FromOp, FilterOp, DeriveOp, GroupOp, SortOp, TakeOp,
+} from '../ir.js'
 import {
     type BuiltinOp, type SortSpec,
 } from '../value/ops.js'
@@ -59,28 +62,31 @@ export class PrqlCompiler implements Compiler {
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
 
-    compileIR(node: IRNode): string {
+    compileIR(node: ITableOp): string {
         switch (node.kind) {
             case 'from':
-                return `from ${node.name}`
+                return `from ${(node as FromOp).name}`
             case 'filter':
-                return `${this.compileIR(node.source)}\nfilter ${this.compileOp(node.condition as BuiltinOp)}`
+                return `${this.compileIR((node as FilterOp).source)}\nfilter ${this.compileOp((node as FilterOp).condition as BuiltinOp)}`
             case 'derive': {
-                const dervs = node.derivations.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
-                return `${this.compileIR(node.source)}\nderive {\n${dervs}\n}`
+                const n = node as DeriveOp
+                const dervs = n.derivations.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
+                return `${this.compileIR(n.source)}\nderive {\n${dervs}\n}`
             }
             case 'group': {
-                const keys = node.keys.join(', ')
-                const aggs = node.aggregations.map(([k, v]) => `    ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
-                return `${this.compileIR(node.source)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
+                const n = node as GroupOp
+                const keys = n.keys.join(', ')
+                const aggs = n.aggregations.map(([k, v]) => `    ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
+                return `${this.compileIR(n.source)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
             }
             case 'sort': {
-                const keys = node.keys.map(k => this.compileSortKey(k)).join(', ')
-                return `${this.compileIR(node.source)}\nsort {${keys}}`
+                const n = node as SortOp
+                const keys = n.keys.map(k => this.compileSortKey(k)).join(', ')
+                return `${this.compileIR(n.source)}\nsort {${keys}}`
             }
             case 'take':
-                return `${this.compileIR(node.source)}\ntake ${node.n}`
-            default: throw new Error(`Unhandled IR node: ${(node satisfies never) as any}`)
+                return `${this.compileIR((node as TakeOp).source)}\ntake ${(node as TakeOp).n}`
+            default: throw new Error(`Unhandled table op kind: '${node.kind}'. Custom table ops are not supported by the PRQL compiler.`)
         }
     }
 }
