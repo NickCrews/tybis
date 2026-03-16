@@ -7,6 +7,7 @@ import {
 } from '../src'
 import type { Schema } from '../src'
 import { IsOpSymbol } from '../src/value/core'
+import type { IOp } from '../src/value/core'
 import { DTFloat64 } from '../src/datatype'
 import { opToExpr } from '../src/value/expr'
 import { ColRefOp } from '../src/value/ops'
@@ -233,13 +234,13 @@ describe('RecordsExecutor', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Custom ITableOp — proves third-party extensibility
+// Custom ITableOp — proves third-party extensibility via subclassing
 // ---------------------------------------------------------------------------
 
 /**
- * A custom table op that randomly samples N rows from the source.
+ * A custom table op that samples N rows from the source.
  * This is NOT a built-in op — it demonstrates that anyone can implement
- * their own ITableOp and pair it with a custom RecordsExecutor handler.
+ * their own ITableOp and pair it with a custom executor subclass.
  */
 class SampleOp implements ITableOp {
     [IsTableOpSymbol] = true as const
@@ -252,12 +253,55 @@ class SampleOp implements ITableOp {
     ) {}
 
     schema(): Schema { return this.source.schema() }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 /** Helper: create a Relation wrapping a SampleOp. */
 function sample<S extends Schema>(rel: Relation<S>, n: number, seed?: number): Relation<S> {
     return new Relation(new SampleOp(rel._ir, n, seed))
+}
+
+/**
+ * A custom executor that extends RecordsExecutor with support for SampleOp.
+ * This is the pattern for third-party extensibility: subclass and override execute().
+ */
+class SampleExecutor extends RecordsExecutor {
+    execute(op: ITableOp): Record<string, any>[] {
+        if (op.kind === 'sample') {
+            const sampleOp = op as SampleOp
+            const source = this.execute(sampleOp.source)
+            // Deterministic "sampling" using the seed for reproducibility
+            const seeded = [...source]
+            let rng = sampleOp.seed
+            for (let i = seeded.length - 1; i > 0; i--) {
+                rng = (rng * 1103515245 + 12345) & 0x7fffffff
+                const j = rng % (i + 1)
+                ;[seeded[i], seeded[j]] = [seeded[j]!, seeded[i]!]
+            }
+            return seeded.slice(0, sampleOp.n)
+        }
+        return super.execute(op)
+    }
+}
+
+/** A custom value op that doubles a numeric expression. */
+class DoubleOp {
+    [IsOpSymbol] = true;
+    readonly kind = 'double' as const
+    constructor(readonly operand: any) {}
+    dtype() { return DTFloat64() }
+    dshape() { return 'columnar' as const }
+    toExpr() { return opToExpr(this as any) }
+    getName() { return 'double' }
+}
+
+/** Executor that handles DoubleOp via evalOp override. */
+class DoubleExecutor extends RecordsExecutor {
+    evalOp(op: IOp, row: Record<string, any>): any {
+        if (op.kind === 'double') {
+            return super.evalOp((op as any).operand, row) * 2
+        }
+        return super.evalOp(op, row)
+    }
 }
 
 describe('Custom ITableOp extensibility', () => {
@@ -266,32 +310,16 @@ describe('Custom ITableOp extensibility', () => {
         expect(isTableOp(op)).toBe(true)
         expect(op.kind).toBe('sample')
         expect(Object.keys(op.schema())).toEqual(['species', 'island', 'bill_length_mm', 'body_mass_g'])
-        expect(op.sources()).toHaveLength(1)
     })
 
-    it('RecordsExecutor throws for unknown custom op', () => {
+    it('base RecordsExecutor throws for unknown custom op', () => {
         const executor = new RecordsExecutor()
         const rel = sample(fromRecords(penguins), 3)
         expect(() => executor.execute(rel._ir)).toThrow(/Unknown table op kind 'sample'/)
     })
 
-    it('RecordsExecutor executes custom op after registering handler', () => {
-        const executor = new RecordsExecutor()
-        executor.addTableOpHandler('sample', (op, exec) => {
-            const sampleOp = op as SampleOp
-            const source = exec.execute(sampleOp.source)
-            // Deterministic "sampling" using the seed for reproducibility
-            const seeded = [...source]
-            // Simple seeded shuffle (Fisher-Yates with seeded random)
-            let rng = sampleOp.seed
-            for (let i = seeded.length - 1; i > 0; i--) {
-                rng = (rng * 1103515245 + 12345) & 0x7fffffff
-                const j = rng % (i + 1)
-                ;[seeded[i], seeded[j]] = [seeded[j]!, seeded[i]!]
-            }
-            return seeded.slice(0, sampleOp.n)
-        })
-
+    it('subclassed executor handles custom op', () => {
+        const executor = new SampleExecutor()
         const rel = sample(fromRecords(penguins), 3, 42)
         const result = executor.execute(rel._ir)
         expect(result).toHaveLength(3)
@@ -302,12 +330,7 @@ describe('Custom ITableOp extensibility', () => {
     })
 
     it('custom op works with downstream pipeline ops', () => {
-        const executor = new RecordsExecutor()
-        executor.addTableOpHandler('sample', (op, exec) => {
-            const sampleOp = op as SampleOp
-            const source = exec.execute(sampleOp.source)
-            return source.slice(0, sampleOp.n) // Simple take-first-n for predictability
-        })
+        const executor = new SampleExecutor()
 
         // sample → filter → derive
         const rel = sample(fromRecords(penguins), 5)
@@ -320,25 +343,8 @@ describe('Custom ITableOp extensibility', () => {
         expect(result.every(r => typeof r.big_bird === 'boolean')).toBe(true)
     })
 
-    it('custom value op handler works', () => {
-        const executor = new RecordsExecutor()
-        // Register a custom "double" value op
-        executor.addValueOpHandler('double', (op, row, exec) => {
-            return exec.evalOp((op as any).operand, row) * 2
-        })
-
-        // We can test this by manually constructing an op that uses 'double'
-        // (In a real scenario, you'd create a proper class for this)
-        class DoubleOp {
-            [IsOpSymbol] = true;
-            readonly kind = 'double' as const
-            constructor(readonly operand: any) {}
-            dtype() { return DTFloat64() }
-            dshape() { return 'columnar' as const }
-            toExpr() { return opToExpr(this as any) }
-            getName() { return 'double' }
-        }
-
+    it('subclassed executor handles custom value op', () => {
+        const executor = new DoubleExecutor()
         const data = [{ x: 5 }, { x: 10 }]
         const doubleOp = new DoubleOp(new ColRefOp('x', 'float64'))
         const result = executor.evalOp(doubleOp as any, data[0]!)

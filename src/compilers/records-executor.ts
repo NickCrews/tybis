@@ -8,66 +8,32 @@ import type { BuiltinOp } from '../value/ops.js'
 type Row = Record<string, any>
 
 /**
- * A handler function for a custom {@link ITableOp} in the {@link RecordsExecutor}.
- * Receives the op and a reference to the executor so it can recursively execute upstream sources.
- */
-export type TableOpHandler = (op: ITableOp, executor: RecordsExecutor) => Row[]
-
-/**
- * A handler function for a custom {@link IOp} in the {@link RecordsExecutor}.
- * Receives the op, the current row, and a reference to the executor so it can recursively evaluate sub-expressions.
- */
-export type ValueOpHandler = (op: IOp, row: Row, executor: RecordsExecutor) => any
-
-/**
  * A zero-dependency execution backend that operates on arrays of JS records.
  *
- * Supports all built-in {@link ITableOp} and {@link IOp} kinds, and is extensible
- * via {@link addTableOpHandler} and {@link addValueOpHandler} for custom operations.
+ * Supports all built-in {@link ITableOp} and {@link IOp} kinds out of the box.
+ *
+ * To support custom operations, subclass `RecordsExecutor` and override
+ * {@link execute} and/or {@link evalOp}. Delegate to `super` for built-in ops.
  *
  * @example
  * ```ts
- * import { RecordsExecutor, RecordsOp } from 'tybis'
- *
- * const data = [
- *   { name: 'Alice', age: 30 },
- *   { name: 'Bob', age: 25 },
- * ]
- * const op = new RecordsOp(data, inferSchemaFromRecords(data))
- * const executor = new RecordsExecutor()
- * const result = executor.execute(op)
+ * class MyExecutor extends RecordsExecutor {
+ *     execute(op: ITableOp): Record<string, any>[] {
+ *         if (op.kind === 'sample') {
+ *             const source = this.execute((op as SampleOp).source)
+ *             return source.slice(0, (op as SampleOp).n)
+ *         }
+ *         return super.execute(op)
+ *     }
+ * }
  * ```
  */
 export class RecordsExecutor {
-    private tableOpHandlers = new Map<string, TableOpHandler>()
-    private valueOpHandlers = new Map<string, ValueOpHandler>()
-
-    /**
-     * Register a handler for a custom table op kind.
-     * The handler receives the op and this executor (for recursive source execution).
-     */
-    addTableOpHandler(kind: string, handler: TableOpHandler): this {
-        this.tableOpHandlers.set(kind, handler)
-        return this
-    }
-
-    /**
-     * Register a handler for a custom value op kind.
-     * The handler receives the op, the current row, and this executor (for recursive sub-expression evaluation).
-     */
-    addValueOpHandler(kind: string, handler: ValueOpHandler): this {
-        this.valueOpHandlers.set(kind, handler)
-        return this
-    }
-
     /**
      * Execute a table op tree and return the resulting rows.
+     * Override this method in a subclass to handle custom table ops.
      */
     execute(op: ITableOp): Row[] {
-        // Check custom handlers first
-        const handler = this.tableOpHandlers.get(op.kind)
-        if (handler) return handler(op, this)
-
         switch (op.kind) {
             case 'from':
                 throw new Error(
@@ -88,21 +54,15 @@ export class RecordsExecutor {
             case 'take':
                 return this.executeTake(op as TakeOp)
             default:
-                throw new Error(
-                    `Unknown table op kind '${op.kind}'. ` +
-                    `Register a handler with executor.addTableOpHandler('${op.kind}', ...) to support it.`
-                )
+                throw new Error(`Unknown table op kind '${op.kind}'.`)
         }
     }
 
     /**
      * Evaluate a value op against a single row, returning the JS value.
+     * Override this method in a subclass to handle custom value ops.
      */
     evalOp(op: IOp, row: Row): any {
-        // Check custom handlers first
-        const handler = this.valueOpHandlers.get(op.kind)
-        if (handler) return handler(op, row, this)
-
         const builtinOp = op as BuiltinOp
         const kind = builtinOp.kind
         switch (kind) {
@@ -154,15 +114,13 @@ export class RecordsExecutor {
                 throw new Error(`Cannot evaluate raw SQL expression in the records executor.`)
 
             default:
-                throw new Error(
-                    `Unknown value op kind '${(kind satisfies never) as string}'. ` +
-                    `Register a handler with executor.addValueOpHandler('${kind}', ...) to support it.`
-                )
+                throw new Error(`Unknown value op kind '${(kind satisfies never) as string}'.`)
         }
     }
 
     /**
      * Evaluate an aggregation op over a group of rows.
+     * Override this method in a subclass to handle custom aggregation ops.
      */
     evalAggOp(op: IOp, rows: Row[]): any {
         const builtinOp = op as BuiltinOp
@@ -204,12 +162,12 @@ export class RecordsExecutor {
         }
     }
 
-    private executeFilter(op: FilterOp): Row[] {
+    protected executeFilter(op: FilterOp): Row[] {
         const source = this.execute(op.source)
         return source.filter(row => this.evalOp(op.condition, row))
     }
 
-    private executeDerive(op: DeriveOp): Row[] {
+    protected executeDerive(op: DeriveOp): Row[] {
         const source = this.execute(op.source)
         return source.map(row => {
             const newRow = { ...row }
@@ -220,7 +178,7 @@ export class RecordsExecutor {
         })
     }
 
-    private executeGroup(op: GroupOp): Row[] {
+    protected executeGroup(op: GroupOp): Row[] {
         const source = this.execute(op.source)
 
         // Build groups using a string key
@@ -253,7 +211,7 @@ export class RecordsExecutor {
         return results
     }
 
-    private executeSort(op: SortOp): Row[] {
+    protected executeSort(op: SortOp): Row[] {
         const source = this.execute(op.source)
         const sorted = [...source]
         sorted.sort((a, b) => {
@@ -272,7 +230,7 @@ export class RecordsExecutor {
         return sorted
     }
 
-    private executeTake(op: TakeOp): Row[] {
+    protected executeTake(op: TakeOp): Row[] {
         const source = this.execute(op.source)
         return source.slice(0, op.n)
     }
@@ -313,7 +271,6 @@ export class RecordsOp implements ITableOp {
     }
 
     schema(): Schema { return this._schema }
-    sources(): ITableOp[] { return [] }
 }
 
 // ---------------------------------------------------------------------------

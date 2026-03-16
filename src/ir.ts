@@ -24,7 +24,6 @@ export const IsTableOpSymbol = Symbol('isTableOp')
  *     readonly kind = 'sample' as const
  *     constructor(readonly source: ITableOp, readonly n: number) {}
  *     schema() { return this.source.schema() }
- *     sources() { return [this.source] }
  * }
  * ```
  */
@@ -32,8 +31,6 @@ export interface ITableOp {
     readonly kind: string
     /** The output schema of this operation. */
     schema(): Schema
-    /** The upstream ITableOp dependencies of this operation. */
-    sources(): ITableOp[]
     /** Optional symbol to mark this object as an ITableOp. */
     [IsTableOpSymbol]?: boolean
 }
@@ -50,8 +47,7 @@ export function isTableOp(obj: any): obj is ITableOp {
     }
     return (
         'kind' in obj && typeof obj.kind === 'string' &&
-        'schema' in obj && typeof obj.schema === 'function' &&
-        'sources' in obj && typeof obj.sources === 'function'
+        'schema' in obj && typeof obj.schema === 'function'
     )
 }
 
@@ -64,7 +60,6 @@ export class FromOp implements ITableOp {
     readonly kind = 'from' as const
     constructor(readonly name: string, private readonly _schema: Schema) {}
     schema(): Schema { return this._schema }
-    sources(): ITableOp[] { return [] }
 }
 
 export class FilterOp implements ITableOp {
@@ -72,7 +67,6 @@ export class FilterOp implements ITableOp {
     readonly kind = 'filter' as const
     constructor(readonly source: ITableOp, readonly condition: IOp<{ typecode: 'boolean' }>) {}
     schema(): Schema { return this.source.schema() }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 export class DeriveOp implements ITableOp {
@@ -87,7 +81,6 @@ export class DeriveOp implements ITableOp {
         this._schema = s
     }
     schema(): Schema { return this._schema }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 export class GroupOp implements ITableOp {
@@ -103,7 +96,6 @@ export class GroupOp implements ITableOp {
         this._schema = resultSchema
     }
     schema(): Schema { return this._schema }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 export class SortOp implements ITableOp {
@@ -111,7 +103,6 @@ export class SortOp implements ITableOp {
     readonly kind = 'sort' as const
     constructor(readonly source: ITableOp, readonly keys: SortSpec[]) {}
     schema(): Schema { return this.source.schema() }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 export class TakeOp implements ITableOp {
@@ -119,7 +110,6 @@ export class TakeOp implements ITableOp {
     readonly kind = 'take' as const
     constructor(readonly source: ITableOp, readonly n: number) {}
     schema(): Schema { return this.source.schema() }
-    sources(): ITableOp[] { return [this.source] }
 }
 
 // ---------------------------------------------------------------------------

@@ -212,7 +212,7 @@ previewRecords(rows);
   {
     id: 'custom-table-op',
     label: 'Custom Table Op — Extensibility',
-    description: 'Implement a custom SampleOp and register it with the RecordsExecutor',
+    description: 'Implement a custom SampleOp and a subclassed executor to run it',
     code: `// Custom table-valued op — demonstrates third-party extensibility
 import * as ty from 'tybis';
 
@@ -226,7 +226,6 @@ class SampleOp implements ty.ITableOp {
     readonly n: number,
   ) {}
   schema() { return this.source.schema(); }
-  sources() { return [this.source]; }
 }
 
 // Helper function for clean API
@@ -234,14 +233,18 @@ function sample(rel: ty.Relation, n: number): ty.Relation {
   return new ty.Relation(new SampleOp(rel._ir, n));
 }
 
-// --- 2. Register the handler with RecordsExecutor ---
-const executor = new ty.RecordsExecutor();
-executor.addTableOpHandler('sample', (op, exec) => {
-  const sampleOp = op as SampleOp;
-  const source = exec.execute(sampleOp.source);
-  // Take every other row as a simple deterministic "sample"
-  return source.filter((_, i) => i % 2 === 0).slice(0, sampleOp.n);
-});
+// --- 2. Subclass RecordsExecutor to handle the custom op ---
+class SampleExecutor extends ty.RecordsExecutor {
+  execute(op: ty.ITableOp) {
+    if (op.kind === 'sample') {
+      const sampleOp = op as SampleOp;
+      const source = this.execute(sampleOp.source);
+      // Take every other row as a simple deterministic "sample"
+      return source.filter((_, i) => i % 2 === 0).slice(0, sampleOp.n);
+    }
+    return super.execute(op);
+  }
+}
 
 // --- 3. Use it! ---
 const data = [
@@ -263,6 +266,7 @@ const result = sample(employees, 4)
   }))
   .sort(r => r.col('salary').desc());
 
+const executor = new SampleExecutor();
 const rows = executor.execute(result._ir);
 previewRecords(rows);
 `,
