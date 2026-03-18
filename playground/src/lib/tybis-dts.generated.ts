@@ -6,199 +6,92 @@
  * Auto-generated from tybis package types.
  */
 
-export const TYBIS_DTS = /* ts */ `declare module "tybis" { type DataType = 'string' | 'int32' | 'int64' | 'float32' | 'float64' | 'boolean' | 'date' | 'time' | 'datetime' | 'interval' | 'uuid';
-type Schema = Record<string, DataType>;
-type JSType<T extends DataType> = T extends 'string' ? string : T extends 'int32' | 'int64' | 'float32' | 'float64' ? number : T extends 'boolean' ? boolean : T extends 'date' | 'time' | 'datetime' ? Date : T extends 'interval' | 'uuid' ? string : never;
-type SchemaToJS<S extends Schema> = {
-    [K in keyof S]: JSType<S[K]>;
-};
-type JsType = string | number | boolean | Date;
-type InferDtype<JS extends JsType> = JS extends string ? 'string' : JS extends number ? 'float64' : JS extends boolean ? 'boolean' : JS extends Date ? 'datetime' : never;
-
-type DataShape = 'scalar' | 'columnar';
+export const TYBIS_DTS = /* ts */ `declare module "tybis" { type DataShape = 'scalar' | 'columnar';
 type HighestDataShape<Shapes extends DataShape[]> = Shapes extends [] ? never : 'columnar' extends Shapes[number] ? 'columnar' : 'scalar';
+type IntoDataShape = DataShape | IExpr<any, any> | IOp<any, any> | InferrableJsType;
+type InferDataShape<T extends IntoDataShape> = T extends DataShape ? T : T extends IExpr<any, infer S> ? S : T extends IOp<any, infer S> ? S : T extends InferrableJsType ? 'scalar' : never;
 
-interface IOp<T extends DataType = DataType, S extends DataShape = DataShape> {
-    readonly kind: string;
-    readonly dtype: T;
-    readonly dshape: S;
-    toOp(): IOp<T, S>;
-    toExpr(): IExpr<T, S>;
-}
-interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape> {
-    readonly dtype: T;
-    readonly dshape: S;
-    toOp(): IOp<T, S>;
-    toExpr(): IExpr<T, S>;
-}
 declare abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
+    [IsOpSymbol]: true;
     abstract readonly kind: string;
-    readonly dtype: T;
-    readonly dshape: S;
+    private readonly _dtype;
+    private readonly _dshape;
     constructor(dtype: T, dshape: S);
-    toOp(): this;
-    toExpr(): IExpr<T, S>;
+    dtype(): T;
+    dshape(): S;
+    toExpr(): Expr<T, S>;
+    getName(): string;
 }
-declare class ColRefOp<N extends string = string, T extends DataType = DataType> extends BaseOp<T, 'columnar'> {
+declare class ColRefOp<N extends string = string, T extends IntoDtype = DataType> extends BaseOp<InferDtype<T>, 'columnar'> {
     readonly name: N;
     readonly kind: "col_ref";
     constructor(name: N, dtype: T);
+    getName(): string;
 }
-declare class NumberLiteralOp extends BaseOp<'float64', 'scalar'> {
+type IntoIntLiteralValue = number | \`\${number}\`;
+declare class IntLiteralOp<T extends DTInt = DTInt> extends BaseOp<T, 'scalar'> {
+    readonly raw: IntoIntLiteralValue;
+    readonly kind: "int_literal";
     readonly value: number;
-    readonly kind: "number_literal";
-    constructor(value: number);
+    constructor(raw: IntoIntLiteralValue, dtype?: T);
 }
-declare class StringLiteralOp extends BaseOp<'string', 'scalar'> {
-    readonly value: string;
+type IntoFloatLiteralValue = number | \`\${number}\` | 'NAN' | 'nan' | 'NaN';
+declare class FloatLiteralOp<T extends DTFloat = DTFloat> extends BaseOp<T, 'scalar'> {
+    readonly raw: IntoFloatLiteralValue;
+    readonly kind: "float_literal";
+    readonly value: number;
+    constructor(raw: IntoFloatLiteralValue, dtype?: T);
+}
+type IntoStringLiteralValue = string | boolean | number | null | Date;
+declare class StringLiteralOp extends BaseOp<DTString, 'scalar'> {
+    readonly raw: IntoStringLiteralValue;
     readonly kind: "string_literal";
-    constructor(value: string);
+    readonly value: string;
+    constructor(raw: IntoStringLiteralValue);
 }
-declare class BooleanLiteralOp extends BaseOp<'boolean', 'scalar'> {
-    readonly value: boolean;
+type IntoBooleanLiteralValue = boolean | number | null | 'true' | 'false';
+declare class BooleanLiteralOp extends BaseOp<DTBoolean, 'scalar'> {
+    readonly raw: IntoBooleanLiteralValue;
     readonly kind: "boolean_literal";
-    constructor(value: boolean);
+    readonly value: boolean;
+    constructor(raw: IntoBooleanLiteralValue);
 }
-declare class NullLiteralOp extends BaseOp<'string', 'scalar'> {
+declare class NullLiteralOp extends BaseOp<DTNull, 'scalar'> {
     readonly kind: "null_literal";
     constructor();
 }
-declare class DatetimeLiteralOp extends BaseOp<'datetime', 'scalar'> {
-    readonly value: Date;
+type IntoDatetimeLiteralValue = Date | string;
+declare class DatetimeLiteralOp extends BaseOp<DTDateTime, 'scalar'> {
+    readonly raw: IntoDatetimeLiteralValue;
     readonly kind: "datetime_literal";
-    constructor(value: Date);
-}
-declare class DateLiteralOp extends BaseOp<'date', 'scalar'> {
     readonly value: Date;
+    constructor(raw: IntoDatetimeLiteralValue);
+}
+type IntoDateLiteralValue = Date | string;
+declare class DateLiteralOp extends BaseOp<DTDate, 'scalar'> {
+    readonly raw: IntoDateLiteralValue;
     readonly kind: "date_literal";
-    constructor(value: Date);
-}
-declare class TimeLiteralOp extends BaseOp<'time', 'scalar'> {
     readonly value: Date;
+    constructor(raw: IntoDateLiteralValue);
+}
+type IntoTimeLiteralValue = Date | string;
+declare class TimeLiteralOp extends BaseOp<DTTime, 'scalar'> {
+    readonly raw: IntoTimeLiteralValue;
     readonly kind: "time_literal";
-    constructor(value: Date);
+    readonly value: Date;
+    constructor(raw: IntoTimeLiteralValue);
 }
-declare class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "eq";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "gt";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class GteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "gte";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class LtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "lt";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "lte";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<'boolean', S> {
+type IntoIntervalLiteralValue = number;
+type IntoUuidLiteralValue = string;
+type LiteralValueCoercibleTo<T extends DataType> = T extends DTInt ? IntoIntLiteralValue : T extends DTFloat ? IntoFloatLiteralValue : T extends DTString ? IntoStringLiteralValue : T extends DTBoolean ? IntoBooleanLiteralValue : T extends DTDateTime ? IntoDatetimeLiteralValue : T extends DTDate ? IntoDateLiteralValue : T extends DTTime ? IntoTimeLiteralValue : T extends DTInterval ? IntoIntervalLiteralValue : T extends DTUUID ? IntoUuidLiteralValue : never;
+type AcceptableJsVal<DT extends IntoDtype | undefined = undefined> = DT extends IntoDtype ? LiteralValueCoercibleTo<InferDtype<DT>> : InferrableJsType;
+type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends IntoDtype | undefined> = DT extends IntoDtype ? InferDtype<DT> : InferDtypeFromJs<JS>;
+declare class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<DTBoolean, S> {
     readonly operand: IOp<DataType, S>;
     readonly kind: "is_not_null";
     constructor(operand: IOp<DataType, S>);
 }
-declare class AndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<'boolean', S1>;
-    readonly right: IOp<'boolean', S2>;
-    readonly kind: "and";
-    constructor(left: IOp<'boolean', S1>, right: IOp<'boolean', S2>);
-}
-declare class OrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<'boolean', S1>;
-    readonly right: IOp<'boolean', S2>;
-    readonly kind: "or";
-    constructor(left: IOp<'boolean', S1>, right: IOp<'boolean', S2>);
-}
-declare class AddOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "add";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class SubOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "sub";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class MulOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "mul";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<'float64', HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
-    readonly kind: "div";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
-}
-declare class UpperOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
-    readonly operand: IOp<'string', S>;
-    readonly kind: "upper";
-    constructor(operand: IOp<'string', S>);
-}
-declare class LowerOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
-    readonly operand: IOp<'string', S>;
-    readonly kind: "lower";
-    constructor(operand: IOp<'string', S>);
-}
-declare class ContainsOp<S1 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, 'scalar']>> {
-    readonly operand: IOp<'string', S1>;
-    readonly pattern: StringLiteralOp;
-    readonly kind: "contains";
-    constructor(operand: IOp<'string', S1>, pattern: StringLiteralOp);
-}
-declare class StartsWithOp<S1 extends DataShape = DataShape> extends BaseOp<'boolean', HighestDataShape<[S1, 'scalar']>> {
-    readonly operand: IOp<'string', S1>;
-    readonly prefix: StringLiteralOp;
-    readonly kind: "starts_with";
-    constructor(operand: IOp<'string', S1>, prefix: StringLiteralOp);
-}
-type TemporalDataType = 'date' | 'time' | 'datetime';
-declare class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<'string', S> {
-    readonly operand: IOp<TemporalDataType, S>;
-    readonly format: string;
-    readonly kind: "temporal_to_string";
-    constructor(operand: IOp<TemporalDataType, S>, format: string);
-}
-declare class MeanOp extends BaseOp<'float64', 'scalar'> {
-    readonly operand: IOp;
-    readonly kind: "mean";
-    constructor(operand: IOp);
-}
-declare class SumOp extends BaseOp<'float64', 'scalar'> {
-    readonly operand: IOp;
-    readonly kind: "sum";
-    constructor(operand: IOp);
-}
-declare class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly operand: IOp<T>;
-    readonly kind: "min";
-    constructor(operand: IOp<T>);
-}
-declare class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly operand: IOp<T>;
-    readonly kind: "max";
-    constructor(operand: IOp<T>);
-}
-declare class CountOp extends BaseOp<'int64', 'scalar'> {
+declare class CountOp extends BaseOp<DTInt<64>, 'scalar'> {
     readonly kind: "count";
     constructor();
 }
@@ -207,177 +100,540 @@ declare class RawSqlOp<T extends DataType = DataType, S extends DataShape = Data
     readonly kind: "raw_sql";
     constructor(rawSql: string, dtype: T, dshape: S);
 }
-declare class SortSpec {
-    readonly op: IOp;
-    readonly direction: 'asc' | 'desc';
-    constructor(op: IOp, direction: 'asc' | 'desc');
+declare class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DataType, S1>;
+    readonly right: IOp<DataType, S2>;
+    readonly kind: "eq";
+    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
 }
-type BuiltinOp = ColRefOp | NumberLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | EqOp | GtOp | GteOp | LtOp | LteOp | IsNotNullOp | AndOp | OrOp | AddOp | SubOp | MulOp | DivOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp | MeanOp | SumOp | MinOp | MaxOp | CountOp | RawSqlOp;
-
-type IRNode = {
-    kind: 'from';
-    name: string;
+declare class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DataType, S1>;
+    readonly right: IOp<DataType, S2>;
+    readonly kind: "gt";
+    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+}
+declare class GteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DataType, S1>;
+    readonly right: IOp<DataType, S2>;
+    readonly kind: "gte";
+    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+}
+declare class LtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DataType, S1>;
+    readonly right: IOp<DataType, S2>;
+    readonly kind: "lt";
+    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+}
+declare class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DataType, S1>;
+    readonly right: IOp<DataType, S2>;
+    readonly kind: "lte";
+    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+}
+declare class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
+    readonly operand: IOp<T, any>;
+    readonly kind: "min";
+    constructor(operand: IOp<T, any>);
+}
+declare class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
+    readonly operand: IOp<T, any>;
+    readonly kind: "max";
+    constructor(operand: IOp<T, any>);
+}
+declare class LogicalNotOp<S extends DataShape = DataShape> extends BaseOp<DTBoolean, S> {
+    readonly operand: IOp<DTBoolean, S>;
+    readonly kind: "not";
+    constructor(operand: IOp<DTBoolean, S>);
+}
+declare class LogicalAndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DTBoolean, S1>;
+    readonly right: IOp<DTBoolean, S2>;
+    readonly kind: "and";
+    constructor(left: IOp<DTBoolean, S1>, right: IOp<DTBoolean, S2>);
+}
+declare class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<DTBoolean, S1>;
+    readonly right: IOp<DTBoolean, S2>;
+    readonly kind: "or";
+    constructor(left: IOp<DTBoolean, S1>, right: IOp<DTBoolean, S2>);
+}
+declare class AddOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<D1, S1>;
+    readonly right: IOp<D2, S2>;
+    readonly kind: "add";
+    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+}
+declare class SubOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<D1, S1>;
+    readonly right: IOp<D2, S2>;
+    readonly kind: "sub";
+    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+}
+declare class MulOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<D1, S1>;
+    readonly right: IOp<D2, S2>;
+    readonly kind: "mul";
+    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+}
+declare class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
+    readonly left: IOp<D1, S1>;
+    readonly right: IOp<D2, S2>;
+    readonly kind: "div";
+    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+}
+declare class SumOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
+    readonly operand: IOp<T, any>;
+    readonly kind: "sum";
+    constructor(operand: IOp<T, any>);
+}
+declare class MeanOp extends BaseOp<DTFloat64, 'scalar'> {
+    readonly operand: IOp<any, any>;
+    readonly kind: "mean";
+    constructor(operand: IOp<any, any>);
+}
+declare class UpperOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
+    readonly operand: IOp<{
+        typecode: 'string';
+    }, S>;
+    readonly kind: "upper";
+    constructor(operand: IOp<{
+        typecode: 'string';
+    }, S>);
+}
+declare class LowerOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
+    readonly operand: IOp<{
+        typecode: 'string';
+    }, S>;
+    readonly kind: "lower";
+    constructor(operand: IOp<{
+        typecode: 'string';
+    }, S>);
+}
+declare class ContainsOp<S1 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, 'scalar']>> {
+    readonly operand: IOp<{
+        typecode: 'string';
+    }, S1>;
+    readonly pattern: StringLiteralOp;
+    readonly kind: "contains";
+    constructor(operand: IOp<{
+        typecode: 'string';
+    }, S1>, pattern: StringLiteralOp);
+}
+declare class StartsWithOp<S1 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, 'scalar']>> {
+    readonly operand: IOp<{
+        typecode: 'string';
+    }, S1>;
+    readonly prefix: StringLiteralOp;
+    readonly kind: "starts_with";
+    constructor(operand: IOp<{
+        typecode: 'string';
+    }, S1>, prefix: StringLiteralOp);
+}
+type TemporalDataType = {
+    typecode: 'date';
 } | {
-    kind: 'filter';
-    source: IRNode;
-    condition: IOp<'boolean'>;
+    typecode: 'time';
 } | {
-    kind: 'derive';
-    source: IRNode;
-    derivations: [string, IOp][];
-} | {
-    kind: 'group';
-    source: IRNode;
-    keys: string[];
-    aggregations: [string, IOp][];
-} | {
-    kind: 'sort';
-    source: IRNode;
-    keys: SortSpec[];
-} | {
-    kind: 'take';
-    source: IRNode;
-    n: number;
+    typecode: 'datetime';
 };
-
-interface Compiler<O extends IOp = BuiltinOp> {
-    compileOp(op: O): string;
-    compileIR(node: IRNode): string;
+declare class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
+    readonly operand: IOp<TemporalDataType, S>;
+    readonly format: string;
+    readonly kind: "temporal_to_string";
+    constructor(operand: IOp<TemporalDataType, S>, format: string);
 }
+declare class SortSpec {
+    readonly op: IOp<any, any>;
+    readonly direction: 'asc' | 'desc';
+    constructor(op: IOp<any, any>, direction: 'asc' | 'desc');
+}
+type BuiltinOp = ColRefOp | IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IsNotNullOp | CountOp | RawSqlOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
 
-type NumericDataType = 'int32' | 'int64' | 'float32' | 'float64';
-declare function opToExpr<S extends DataShape>(op: IOp<'string', S>): StringExpr<S>;
-declare function opToExpr<S extends DataShape>(op: IOp<'boolean', S>): BooleanExpr<S>;
-declare function opToExpr<T extends NumericDataType, S extends DataShape>(op: IOp<T, S>): NumericExpr<T, S>;
-declare function opToExpr<S extends DataShape>(op: IOp<'date', S>): DateExpr<S>;
-declare function opToExpr<S extends DataShape>(op: IOp<'time', S>): TimeExpr<S>;
-declare function opToExpr<S extends DataShape>(op: IOp<'uuid', S>): UUIDExpr<S>;
-declare function opToExpr<T extends DataType, S extends DataShape>(op: IOp<T, S>): BaseExpr<T, S>;
+/** Given a datatype, what are the datatypes that are comparable to it eg with .eq() */
+type DtypesComparableTo<T extends DataType> = T extends {
+    typecode: 'string';
+} ? {
+    typecode: 'string';
+} : T extends NumericDataType ? NumericDataType : T extends {
+    typecode: 'boolean';
+} ? {
+    typecode: 'boolean';
+} : T extends {
+    typecode: 'date';
+} ? {
+    typecode: 'date';
+} : T extends {
+    typecode: 'time';
+} ? {
+    typecode: 'time';
+} : T extends {
+    typecode: 'datetime';
+} ? {
+    typecode: 'datetime';
+} : T extends {
+    typecode: 'uuid';
+} ? {
+    typecode: 'uuid';
+} : T extends {
+    typecode: 'interval';
+} ? {
+    typecode: 'interval';
+} : never;
+type IntoValueComparableTo<Target extends DataType> = LiteralValueCoercibleTo<Target> | IExpr<DtypesComparableTo<Target>, any> | IOp<DtypesComparableTo<Target>, any>;
+
+type Expr<T extends DataType = DataType, S extends DataShape = DataShape> = T extends {
+    typecode: 'null';
+} ? NullExpr<S> : T extends {
+    typecode: 'string';
+} ? StringExpr<S> : T extends NumericDataType ? NumericExpr<T, S> : T extends {
+    typecode: 'boolean';
+} ? BooleanExpr<S> : T extends {
+    typecode: 'date';
+} ? DateExpr<S> : T extends {
+    typecode: 'time';
+} ? TimeExpr<S> : T extends {
+    typecode: 'datetime';
+} ? DateTimeExpr<S> : T extends {
+    typecode: 'uuid';
+} ? UUIDExpr<S> : T extends {
+    typecode: 'interval';
+} ? IntervalExpr<S> : never;
 declare abstract class BaseExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IExpr<T, S> {
-    abstract readonly dtype: T;
-    abstract readonly dshape: S;
-    abstract toOp(): IOp<T, S>;
-    toExpr(): this;
-    eq(value: string | number | boolean | IExpr<DataType>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    isNotNull(): BooleanExpr<S>;
-    mean(): BaseExpr<'float64', 'scalar'>;
-    sum(): BaseExpr<'float64', 'scalar'>;
-    min(): BaseExpr<T, 'scalar'>;
-    max(): BaseExpr<T, 'scalar'>;
+    private readonly _op;
+    constructor(_op: IOp<T, S>);
+    [IsExprSymbol]: true;
+    dtype(): T;
+    dshape(): S;
+    toOp(): IOp<T, S>;
+}
+declare class GenericExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
+    isNotNull(): Expr<DTBoolean, S>;
+    eq<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
+    gt<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
+    gte<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
+    lt<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
+    lte<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
+    min(): Expr<T, 'scalar'>;
+    max(): Expr<T, 'scalar'>;
     desc(): SortExpr;
     asc(): SortExpr;
 }
-declare abstract class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
-    gt(value: number | IExpr<NumericDataType>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    gte(value: number | IExpr<NumericDataType>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    lt(value: number | IExpr<NumericDataType>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    lte(value: number | IExpr<NumericDataType>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    add(value: number | IExpr<NumericDataType>): NumericExpr<"float64", "columnar" extends DataShape | S ? "columnar" : "scalar">;
-    sub(value: number | IExpr<NumericDataType>): NumericExpr<"float64", "columnar" extends DataShape | S ? "columnar" : "scalar">;
-    mul(value: number | IExpr<NumericDataType>): NumericExpr<"float64", "columnar" extends DataShape | S ? "columnar" : "scalar">;
-    div(value: number | IExpr<NumericDataType>): NumericExpr<"float64", "columnar" extends DataShape | S ? "columnar" : "scalar">;
+declare class NullExpr<S extends DataShape = DataShape> extends GenericExpr<{
+    typecode: 'null';
+}, S> {
 }
-declare abstract class StringExpr<S extends DataShape = DataShape> extends BaseExpr<'string', S> {
-    readonly dtype: "string";
+declare class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends GenericExpr<T, S> {
+    add<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    sub<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    mul<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    div<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    sum(): NumericExpr<DTFloat64, 'scalar'>;
+    mean(): NumericExpr<DTFloat64, 'scalar'>;
+}
+declare class StringExpr<S extends DataShape = DataShape> extends GenericExpr<DTString, S> {
     upper(): StringExpr<S>;
     lower(): StringExpr<S>;
     contains(pattern: string): BooleanExpr<"columnar" extends "scalar" | S ? S & "columnar" : "scalar">;
     startsWith(prefix: string): BooleanExpr<"columnar" extends "scalar" | S ? S & "columnar" : "scalar">;
 }
-declare abstract class BooleanExpr<S extends DataShape = DataShape> extends BaseExpr<'boolean', S> {
-    readonly dtype: "boolean";
-    and(other: IExpr<'boolean'>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
-    or(other: IExpr<'boolean'>): BooleanExpr<"columnar" extends DataShape | S ? "columnar" : "scalar">;
+declare class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<DTBoolean, S> {
+    and(other: boolean | IExpr<DTBoolean, any>): BooleanExpr<"columnar">;
+    or(other: boolean | IExpr<DTBoolean, any>): BooleanExpr<"columnar">;
+    not(): BooleanExpr<S>;
 }
-declare abstract class DateExpr<S extends DataShape = DataShape> extends BaseExpr<'date', S> {
-    readonly dtype: "date";
+declare class DateExpr<S extends DataShape = DataShape> extends GenericExpr<DTDate, S> {
     toString(format: string): StringExpr<S>;
 }
-declare abstract class TimeExpr<S extends DataShape = DataShape> extends BaseExpr<'time', S> {
-    readonly dtype: "time";
+declare class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<DTTime, S> {
     toString(format: string): StringExpr<S>;
 }
-declare abstract class DateTimeExpr<S extends DataShape = DataShape> extends BaseExpr<'datetime', S> {
-    readonly dtype: "datetime";
+declare class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<DTDateTime, S> {
     toString(format: string): StringExpr<S>;
 }
-declare abstract class UUIDExpr<S extends DataShape = DataShape> extends BaseExpr<'uuid', S> {
-    readonly dtype: "uuid";
+declare class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<DTInterval, S> {
 }
-type Col<N extends string = string, T extends DataType = DataType, S extends Schema = Schema> = T extends 'string' ? StringCol<N> : T extends NumericDataType ? NumericCol<N, T> : T extends 'boolean' ? BooleanCol<N> : T extends 'date' ? DateCol<N> : T extends 'time' ? TimeCol<N> : T extends 'datetime' ? DateTimeCol<N> : T extends 'uuid' ? UUIDCol<N> : ColRef<N, T>;
-declare class StringCol<N extends string = string> extends StringExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'string'>;
+declare class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<DTUUID, S> {
 }
-declare class NumericCol<N extends string = string, T extends NumericDataType = NumericDataType> extends NumericExpr<T, 'columnar'> {
-    readonly dtype: T;
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N, dtype: T);
-    toOp(): ColRefOp<N, T>;
-}
-declare class BooleanCol<N extends string = string> extends BooleanExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'boolean'>;
-}
-declare class DateCol<N extends string = string> extends DateExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'date'>;
-}
-declare class TimeCol<N extends string = string> extends TimeExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'time'>;
-}
-declare class DateTimeCol<N extends string = string> extends DateTimeExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'datetime'>;
-}
-declare class UUIDCol<N extends string = string> extends UUIDExpr<'columnar'> {
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N);
-    toOp(): ColRefOp<N, 'uuid'>;
-}
-declare class ColRef<N extends string = string, T extends DataType = DataType> extends BaseExpr<T, 'columnar'> {
-    readonly dtype: T;
-    readonly dshape: "columnar";
-    readonly name: N;
-    private readonly _op;
-    constructor(name: N, dtype: T);
-    toOp(): ColRefOp<N, T>;
-}
-declare function col<N extends string, T extends DataType>(name: N, dtype: T): Col<N, T>;
+declare function col<N extends string, T extends IntoDtype>(name: N, dtype: T): Expr<InferDtype<T>, "columnar">;
 declare class SortExpr {
     readonly expr: BaseExpr;
     readonly direction: 'asc' | 'desc';
     constructor(expr: BaseExpr, direction: 'asc' | 'desc');
     toSortSpec(): SortSpec;
 }
-declare function count(): BaseExpr<'int64', 'scalar'>;
-declare function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S): BaseExpr<T, S>;
-declare function lit<JS extends JsType>(value: JS): IExpr<InferDtype<JS>, 'scalar'>;
+declare function count(): NumericExpr<DTInt64, 'scalar'>;
+declare function lit<JS extends AcceptableJsVal<DT>, DT extends IntoDtype | undefined = undefined>(value: JS, dtype?: DT): Expr<ExplicitOrInferredDtype<JS, DT>, 'scalar'>;
 
+declare const IsOpSymbol: unique symbol;
+declare const IsExprSymbol: unique symbol;
+/**
+ * An IOp is the **internal** representation of an operation. It does not have the pleasant
+ * user-facing API of an IExpr. For example, you might have
+ *
+ * \`\`\`ts
+ * class StringUpperOp<S extends DataShape> implements IOp<{ typecode: 'string' }, S> {
+ *     readonly kind = 'upper' as const
+ *     constructor(readonly operand: IOp<{ typecode: 'string' }, S>) {}
+ *     dtype() { return DT.string }
+ *     dshape() { return this.operand.dshape() }
+ *     toExpr() { return new StringExpr(this) }
+ * }
+ * \`\`\`
+ *
+ * Note that this doesn't have the nice API of an IExpr, such as the \`.trim()\` or \`.length()\` methods.
+ */
+interface IOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
+    readonly kind: K;
+    /** The {@link DataType} of this expression. */
+    dtype(): T;
+    /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
+    dshape(): S;
+    toExpr(): Expr<T, S>;
+    getName(): string;
+    /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
+    [IsOpSymbol]?: boolean;
+}
+interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
+    /** The {@link DataType} of this expression. */
+    dtype(): T;
+    /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
+    dshape(): S;
+    /** Convert this expression to its internal operation representation. */
+    toOp(): IOp<T, S>;
+    /** Optional symbol to mark this object as an Expr. If not present, the object will be checked for the presence of 'dtype' and 'dshape' properties. */
+    [IsExprSymbol]?: boolean;
+}
+
+interface DTNull {
+    typecode: 'null';
+}
+declare function DTNull(): DTNull;
+interface DTString {
+    typecode: 'string';
+}
+declare function DTString(): DTString;
+interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> {
+    typecode: 'int';
+    size: S;
+}
+declare function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTInt<S>;
+interface DTInt8 {
+    typecode: 'int';
+    size: 8;
+}
+declare function DTInt8(): DTInt8;
+interface DTInt16 {
+    typecode: 'int';
+    size: 16;
+}
+declare function DTInt16(): DTInt16;
+interface DTInt32 {
+    typecode: 'int';
+    size: 32;
+}
+declare function DTInt32(): DTInt32;
+interface DTInt64 {
+    typecode: 'int';
+    size: 64;
+}
+declare function DTInt64(): DTInt64;
+interface DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> {
+    typecode: 'float';
+    size: S;
+}
+declare function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTFloat<S>;
+interface DTFloat8 {
+    typecode: 'float';
+    size: 8;
+}
+declare function DTFloat8(): DTFloat8;
+interface DTFloat16 {
+    typecode: 'float';
+    size: 16;
+}
+declare function DTFloat16(): DTFloat16;
+interface DTFloat32 {
+    typecode: 'float';
+    size: 32;
+}
+declare function DTFloat32(): DTFloat32;
+interface DTFloat64 {
+    typecode: 'float';
+    size: 64;
+}
+declare function DTFloat64(): DTFloat64;
+interface DTBoolean {
+    typecode: 'boolean';
+}
+declare function DTBoolean(): DTBoolean;
+interface DTDate {
+    typecode: 'date';
+}
+declare function DTDate(): DTDate;
+interface DTTime {
+    typecode: 'time';
+}
+declare function DTTime(): DTTime;
+interface DTDateTime {
+    typecode: 'datetime';
+}
+declare function DTDateTime(): DTDateTime;
+interface DTInterval {
+    typecode: 'interval';
+}
+declare function DTInterval(): DTInterval;
+interface DTUUID {
+    typecode: 'uuid';
+}
+declare function DTUUID(): DTUUID;
+type NumericDataType = DTInt | DTFloat;
+type DataType = DTNull | DTString | DTInt | DTFloat | DTBoolean | DTDate | DTTime | DTDateTime | DTInterval | DTUUID;
+type DTypeShorthands = DataType['typecode'] | 'int8' | 'int16' | 'int32' | 'int64' | 'float8' | 'float16' | 'float32' | 'float64';
+type InferDtypeFromShorthand<S extends DTypeShorthands> = S extends 'null' ? DTNull : S extends 'string' ? DTString : S extends 'int' ? {
+    typecode: 'int';
+    size: 64;
+} : S extends 'int8' ? {
+    typecode: 'int';
+    size: 8;
+} : S extends 'int16' ? {
+    typecode: 'int';
+    size: 16;
+} : S extends 'int32' ? {
+    typecode: 'int';
+    size: 32;
+} : S extends 'int64' ? {
+    typecode: 'int';
+    size: 64;
+} : S extends 'float' ? {
+    typecode: 'float';
+    size: 64;
+} : S extends 'float8' ? {
+    typecode: 'float';
+    size: 8;
+} : S extends 'float16' ? {
+    typecode: 'float';
+    size: 16;
+} : S extends 'float32' ? {
+    typecode: 'float';
+    size: 32;
+} : S extends 'float64' ? {
+    typecode: 'float';
+    size: 64;
+} : S extends 'boolean' ? DTBoolean : S extends 'date' ? DTDate : S extends 'time' ? DTTime : S extends 'datetime' ? DTDateTime : S extends 'interval' ? DTInterval : S extends 'uuid' ? DTUUID : never;
+type InferrableJsType = string | number | boolean | Date | null;
+/** Given a JS type, what DataType will be inferred? */
+type InferDtypeFromJs<JS extends InferrableJsType> = JS extends string ? DTString : JS extends number ? DTFloat<64> : JS extends boolean ? DTBoolean : JS extends Date ? DTDateTime : JS extends null ? DTNull : never;
+type IntoDtype = DataType | DTypeShorthands | IExpr<DataType, any> | IOp<DataType, any>;
+type InferDtype<T extends IntoDtype> = T extends DataType ? T : T extends DTypeShorthands ? InferDtypeFromShorthand<T> : T extends IExpr<infer D, any> ? D : T extends IOp<infer D, any> ? D : never;
+type HighestDataType<Types extends DataType[]> = Types extends [] ? never : Types[number] extends DTFloat64 ? DTFloat64 : Types[number] extends DTFloat32 ? DTFloat32 : Types[number] extends DTFloat16 ? DTFloat16 : Types[number] extends DTFloat8 ? DTFloat8 : Types[number] extends DTInt64 ? DTInt64 : Types[number] extends DTInt32 ? DTInt32 : Types[number] extends DTInt16 ? DTInt16 : Types[number] extends DTInt8 ? DTInt8 : never;
+
+type Schema = Record<string, DataType>;
+type IntoSchema = Schema | Record<string, IntoDtype>;
+type InferSchema<T extends IntoSchema> = T extends Schema ? T : T extends Record<string, IntoDtype> ? {
+    [K in keyof T]: InferDtype<T[K]>;
+} : never;
+
+declare const IsTableOpSymbol: unique symbol;
+/**
+ * An ITableOp is the **internal** representation of a table-valued operation.
+ * It forms a tree of operations that can be compiled or executed by a backend.
+ *
+ * Similar to how {@link IOp} is the interface for value operations, ITableOp
+ * is the interface for table operations. Anyone can implement this interface
+ * to create custom table-valued operations and pair them with a backend that
+ * knows how to compile or execute them.
+ *
+ * @example
+ * \`\`\`ts
+ * class SampleOp implements ITableOp {
+ *     readonly kind = 'sample' as const
+ *     constructor(readonly source: ITableOp, readonly n: number) {}
+ *     schema() { return this.source.schema() }
+ * }
+ * \`\`\`
+ */
+interface ITableOp {
+    readonly kind: string;
+    /** The output schema of this operation. */
+    schema(): Schema;
+    /** Optional symbol to mark this object as an ITableOp. */
+    [IsTableOpSymbol]?: boolean;
+}
+/**
+ * Check if the given object is an ITableOp.
+ */
+declare function isTableOp(obj: any): obj is ITableOp;
+declare class FromOp implements ITableOp {
+    readonly name: string;
+    private readonly _schema;
+    [IsTableOpSymbol]: true;
+    readonly kind: "from";
+    constructor(name: string, _schema: Schema);
+    schema(): Schema;
+}
+declare class FilterOp implements ITableOp {
+    readonly source: ITableOp;
+    readonly condition: IOp<{
+        typecode: 'boolean';
+    }>;
+    [IsTableOpSymbol]: true;
+    readonly kind: "filter";
+    constructor(source: ITableOp, condition: IOp<{
+        typecode: 'boolean';
+    }>);
+    schema(): Schema;
+}
+declare class DeriveOp implements ITableOp {
+    readonly source: ITableOp;
+    readonly derivations: [string, IOp][];
+    [IsTableOpSymbol]: true;
+    readonly kind: "derive";
+    private readonly _schema;
+    constructor(source: ITableOp, derivations: [string, IOp][]);
+    schema(): Schema;
+}
+declare class GroupOp implements ITableOp {
+    readonly source: ITableOp;
+    readonly keys: string[];
+    readonly aggregations: [string, IOp][];
+    [IsTableOpSymbol]: true;
+    readonly kind: "group";
+    private readonly _schema;
+    constructor(source: ITableOp, keys: string[], aggregations: [string, IOp][], resultSchema: Schema);
+    schema(): Schema;
+}
+declare class SortOp implements ITableOp {
+    readonly source: ITableOp;
+    readonly keys: SortSpec[];
+    [IsTableOpSymbol]: true;
+    readonly kind: "sort";
+    constructor(source: ITableOp, keys: SortSpec[]);
+    schema(): Schema;
+}
+declare class TakeOp implements ITableOp {
+    readonly source: ITableOp;
+    readonly n: number;
+    [IsTableOpSymbol]: true;
+    readonly kind: "take";
+    constructor(source: ITableOp, n: number);
+    schema(): Schema;
+}
+type BuiltinTableOp = FromOp | FilterOp | DeriveOp | GroupOp | SortOp | TakeOp;
+/**
+ * @deprecated Use {@link ITableOp} instead.
+ */
+type IRNode = ITableOp;
+
+interface Compiler<O extends IOp<any, any, any> = BuiltinOp> {
+    compileOp(op: O): string;
+    compileIR(node: ITableOp): string;
+}
+
+type Col<K extends string = string, T extends DataType = DataType> = Expr<T, 'columnar'>;
 declare class RowAccessor<S extends Schema> {
     private readonly _schema;
     constructor(_schema: S);
-    col<K extends keyof S & string>(name: K): Col<K, S[K], S>;
+    col<K extends keyof S & string>(name: K): Col<K, S[K]>;
 }
 /** Result of calling g.agg({...}) inside a group() callback. */
 declare class GroupResult<A extends Record<string, BaseExpr<DataType, 'scalar'>>> {
@@ -387,21 +643,24 @@ declare class GroupResult<A extends Record<string, BaseExpr<DataType, 'scalar'>>
 declare class GroupAccessor<S extends Schema> extends RowAccessor<S> {
     agg<A extends Record<string, BaseExpr<DataType, 'scalar'>>>(aggregations: A): GroupResult<A>;
 }
-type ColName<C> = C extends StringCol<infer N> ? N : C extends NumericCol<infer N, NumericDataType> ? N : C extends BooleanCol<infer N> ? N : C extends ColRef<infer N, DataType> ? N : never;
+type ColName<C> = C extends Col<infer N, DataType> ? N : never;
 type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never;
 type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
     [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never;
 };
+type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> = Omit<S, keyof D> & {
+    [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never;
+};
 declare class Relation<S extends Schema = Schema> {
+    /** @internal */ readonly _ir: ITableOp;
     readonly schema: S;
-    /** @internal */ readonly _ir: IRNode;
-    constructor(schema: S, 
-    /** @internal */ _ir: IRNode);
+    constructor(
+    /** @internal */ _ir: ITableOp);
     /**
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
      */
-    col<K extends keyof S & string>(name: K): Col<K, S[K], S>;
+    col<K extends keyof S & string>(name: K): Col<K, S[K]>;
     /**
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
@@ -415,20 +674,18 @@ declare class Relation<S extends Schema = Schema> {
      *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
      * )
      */
-    group<KC extends Col<any, any, S>[], A extends Record<string, BaseExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => KC, transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>;
+    group<KC extends Col[], A extends Record<string, BaseExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => KC, transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>;
     /**
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, BaseExpr<DataType>>>(cb: (r: RowAccessor<S>) => D): Relation<S & {
-        [K in keyof D]: D[K] extends BaseExpr<infer T> ? T : never;
-    }>;
+    derive<D extends Record<string, IExpr<any, any>>>(cb: (r: RowAccessor<S>) => D): Relation<DeriveSchema<S, D>>;
     /**
      * Sort rows by one or more keys.
      * @example penguins.sort(r => r.col("count").desc())
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
-    sort(cb: (r: RowAccessor<S>) => SortExpr | BaseExpr<DataType> | (SortExpr | BaseExpr<DataType>)[]): Relation<S>;
+    sort(cb: (r: RowAccessor<S>) => SortExpr | IExpr<any, any> | (SortExpr | IExpr<any, any>)[]): Relation<S>;
     /**
      * Take the first n rows.
      * @example penguins.take(10)
@@ -444,24 +701,117 @@ declare class Relation<S extends Schema = Schema> {
  * Define a relation with an explicit name and schema.
  * @example
  * const penguins = relation('penguins', {
- *   species: 'string',
- *   year: 'int32',
- *   bill_length_mm: 'float64',
+ *   species: DT.string,
+ *   year: DT.int32,
+ *   bill_length_mm: DT.float64,
  * })
  */
-declare function relation<S extends Schema>(name: string, schema: S): Relation<S>;
+declare function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>>;
+/**
+ * Infer a {@link Schema} from an array of JS records by inspecting the first record.
+ * Returns an empty schema for an empty array.
+ */
+declare function inferSchemaFromRecords(records: Record<string, any>[]): Schema;
 
 declare class PrqlCompiler implements Compiler {
     compileOp(op: BuiltinOp): string;
     compileSortKey(spec: SortSpec): string;
-    compileIR(node: IRNode): string;
+    compileIR(node: ITableOp): string;
 }
 
 declare class SqlCompiler implements Compiler {
     private readonly prqlCompiler;
     compileOp(op: BuiltinOp): string;
-    compileIR(node: IRNode): string;
+    compileIR(node: ITableOp): string;
 }
 
-export { AndOp, BaseOp, BooleanCol, BooleanExpr, BooleanLiteralOp, type BuiltinOp, type Col, ColRef, ColRefOp, type Compiler, ContainsOp, CountOp, type DataShape, type DataType, DateExpr, DateTimeExpr, DatetimeLiteralOp, DivOp, EqOp, BaseExpr as Expr, GtOp, GteOp, type IExpr, type IOp, type IRNode, IsNotNullOp, type JSType, LowerOp, LtOp, LteOp, MaxOp, MeanOp, MinOp, NullLiteralOp, NumberLiteralOp, NumericCol, type NumericDataType, NumericExpr, OrOp, PrqlCompiler, RawSqlOp, Relation, type Schema, type SchemaToJS, SortExpr, SortSpec, SqlCompiler, StartsWithOp, StringCol, StringExpr, StringLiteralOp, SumOp, TimeExpr, UUIDExpr, UpperOp, col, count, lit, opToExpr, relation, sql };
+type Row = Record<string, any>;
+/**
+ * A zero-dependency execution backend that operates on arrays of JS records.
+ *
+ * Supports all built-in {@link ITableOp} and {@link IOp} kinds out of the box.
+ *
+ * To support custom operations, subclass \`RecordsExecutor\` and override
+ * {@link execute} and/or {@link evalOp}. Delegate to \`super\` for built-in ops.
+ *
+ * @example
+ * \`\`\`ts
+ * class MyExecutor extends RecordsExecutor {
+ *     execute(op: ITableOp): Record<string, any>[] {
+ *         if (op.kind === 'sample') {
+ *             const source = this.execute((op as SampleOp).source)
+ *             return source.slice(0, (op as SampleOp).n)
+ *         }
+ *         return super.execute(op)
+ *     }
+ * }
+ * \`\`\`
+ */
+declare class RecordsExecutor {
+    /**
+     * Execute a table op tree and return the resulting rows.
+     * Override this method in a subclass to handle custom table ops.
+     */
+    execute(op: ITableOp): Row[];
+    /**
+     * Evaluate a value op against a single row, returning the JS value.
+     * Override this method in a subclass to handle custom value ops.
+     */
+    evalOp(op: IOp, row: Row): any;
+    /**
+     * Evaluate an aggregation op over a group of rows.
+     * Override this method in a subclass to handle custom aggregation ops.
+     */
+    evalAggOp(op: IOp, rows: Row[]): any;
+    protected executeFilter(op: FilterOp): Row[];
+    protected executeDerive(op: DeriveOp): Row[];
+    protected executeGroup(op: GroupOp): Row[];
+    protected executeSort(op: SortOp): Row[];
+    protected executeTake(op: TakeOp): Row[];
+}
+
+/**
+ * A table op backed by an in-memory array of JS records.
+ * Use this as the root data source for the {@link RecordsExecutor}.
+ *
+ * @example
+ * \`\`\`ts
+ * const data = [
+ *   { name: 'Alice', age: 30 },
+ *   { name: 'Bob', age: 25 },
+ * ]
+ * const op = new RecordsOp(data, inferSchemaFromRecords(data))
+ * const rel = new Relation(op)
+ * \`\`\`
+ */
+declare class RecordsOp implements ITableOp {
+    readonly records: Row[];
+    [IsTableOpSymbol]: true;
+    readonly kind: "records";
+    private readonly _schema;
+    constructor(records: Row[], schema?: Schema);
+    schema(): Schema;
+}
+
+/**
+ * Create a {@link Relation} backed by an in-memory array of JS records.
+ *
+ * If a schema is provided, it will be used for type-level column tracking.
+ * Otherwise, the schema is inferred from the first record at runtime.
+ *
+ * @example
+ * \`\`\`ts
+ * const penguins = fromRecords([
+ *   { species: 'Adelie', bill_length_mm: 39.1 },
+ *   { species: 'Chinstrap', bill_length_mm: 48.5 },
+ * ], { species: 'string', bill_length_mm: 'float64' })
+ *
+ * const executor = new RecordsExecutor()
+ * const result = executor.execute(penguins._ir)
+ * \`\`\`
+ */
+declare function fromRecords<S extends IntoSchema>(records: Row[], sch: S): Relation<InferSchema<S>>;
+declare function fromRecords(records: Row[]): Relation<Schema>;
+
+export { type BuiltinTableOp, type Compiler, DeriveOp, type Expr, FilterOp, FromOp, GroupOp, type IExpr, type IRNode, type ITableOp, type InferSchema, IsTableOpSymbol, PrqlCompiler, RecordsExecutor, RecordsOp, Relation, type Schema, SortOp, SqlCompiler, TakeOp, col, count, fromRecords, inferSchemaFromRecords, isTableOp, lit, relation };
  }`

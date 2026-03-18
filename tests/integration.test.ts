@@ -154,7 +154,7 @@ describe('Tybis Integration Tests', () => {
             const ir = q._ir
             expect(ir.kind).toBe('filter')
             if (ir.kind === 'filter') {
-                expect(ir.condition.kind).toBe('gt')
+                expect((ir as any).condition.kind).toBe('gt')
             }
         })
     })

@@ -1,8 +1,10 @@
 import * as Babel from '@babel/standalone'
 import * as ty from 'tybis'
 
+type Row = Record<string, any>
+
 export type PreviewResult =
-  | { kind: 'ok'; prql: string; sql: string | null; sqlError: string | null }
+  | { kind: 'ok'; prql: string; sql: string | null; sqlError: string | null; records: Row[] | null }
   | { kind: 'error'; message: string }
 
 /**
@@ -27,6 +29,7 @@ function transpile(tsCode: string): string {
  *
  * The sandbox injects:
  *   - `preview`  – a function the user calls to push output to the panel
+ *   - `previewRecords` – a function to display an array of records as a table
  *
  * Returns the result captured by `preview()`, or an error.
  */
@@ -45,24 +48,34 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
   )
 
   let captured: ty.Relation | null = null
+  let capturedRecords: Row[] | null = null
 
   function preview(relation: ty.Relation) {
     captured = relation
   }
 
+  function previewRecords(rows: Row[]) {
+    capturedRecords = rows
+  }
+
   try {
     // eslint-disable-next-line no-new-func
-    const fn = new Function('__ty', 'preview', jsCode)
-    await fn(ty, preview)
+    const fn = new Function('__ty', 'preview', 'previewRecords', jsCode)
+    await fn(ty, preview, previewRecords)
   } catch (err) {
     return { kind: 'error', message: String(err) }
   }
 
-  if (captured === null) {
+  if (captured === null && capturedRecords === null) {
     return {
       kind: 'error',
-      message: 'No output — call preview(relation) to see results.',
+      message: 'No output — call preview(relation) or previewRecords(rows) to see results.',
     }
+  }
+
+  // If only records were captured (no relation), return them directly
+  if (captured === null && capturedRecords !== null) {
+    return { kind: 'ok', prql: '', sql: null, sqlError: null, records: capturedRecords }
   }
 
   const rel = captured as ty.Relation
@@ -71,7 +84,8 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
   try {
     prql = rel.toPrql()
   } catch (err) {
-    return { kind: 'error', message: `toPrql() failed: ${err}` }
+    // For RecordsOp-based relations, toPrql() will fail — that's fine
+    return { kind: 'ok', prql: '', sql: null, sqlError: null, records: capturedRecords }
   }
 
   let sql: string | null = null
@@ -82,5 +96,5 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
     sqlError = String(err)
   }
 
-  return { kind: 'ok', prql, sql, sqlError }
+  return { kind: 'ok', prql, sql, sqlError, records: capturedRecords }
 }
