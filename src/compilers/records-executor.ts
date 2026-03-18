@@ -242,7 +242,7 @@ export class RecordsExecutor {
 
 import { IsTableOpSymbol } from '../ir.js'
 import type { Schema } from '../schema.js'
-import { inferSchemaFromRecords } from '../relation.js'
+import { InferSchemaFromRecords, inferSchemaFromRecords } from '../relation.js'
 
 /**
  * A table op backed by an in-memory array of JS records.
@@ -299,7 +299,7 @@ import { schema as makeSchema } from '../schema.js'
  * ```
  */
 export function fromRecords<S extends IntoSchema>(records: Row[], sch: S): Relation<InferSchema<S>>
-export function fromRecords(records: Row[]): Relation<Schema>
+export function fromRecords<R extends Row>(records: R[]): Relation<InferSchemaFromRecords<R[]>>
 export function fromRecords(records: Row[], sch?: IntoSchema): Relation<Schema> {
     const finalSchema = sch ? makeSchema(sch) : inferSchemaFromRecords(records)
     return new Relation(new RecordsOp(records, finalSchema))

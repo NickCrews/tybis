@@ -1,4 +1,4 @@
-import { type DataType, inferDtypeFromJs } from './datatype.js'
+import { type DataType, inferDtypeFromJs, type InferDtypeFromJs, type InferrableJsType } from './datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { ITableOp } from './ir.js'
 import { FromOp, FilterOp, DeriveOp, GroupOp, SortOp, TakeOp } from './ir.js'
@@ -219,12 +219,17 @@ export function relation<S extends IntoSchema>(name: string, sch: S): Relation<I
  * Infer a {@link Schema} from an array of JS records by inspecting the first record.
  * Returns an empty schema for an empty array.
  */
-export function inferSchemaFromRecords(records: Record<string, any>[]): Schema {
-    if (records.length === 0) return {}
+export type InferSchemaFromRecords<Records extends readonly Record<string, InferrableJsType>[]> =
+    Records extends readonly []
+    ? {}
+    : { -readonly [K in keyof Records[0]]: InferDtypeFromJs<Records[0][K]> }
+
+export function inferSchemaFromRecords<const Records extends readonly Record<string, InferrableJsType>[]>(records: Records): InferSchemaFromRecords<Records> {
+    if (records.length === 0) return {} as InferSchemaFromRecords<Records>
     const first = records[0]!
     const result: Record<string, DataType> = {}
     for (const [key, value] of Object.entries(first)) {
         result[key] = inferDtypeFromJs(value)
     }
-    return result
+    return result as InferSchemaFromRecords<Records>
 }

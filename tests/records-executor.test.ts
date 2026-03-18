@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, expectTypeOf } from 'vitest'
 import {
     Relation, relation, count,
     RecordsExecutor, RecordsOp, fromRecords,
@@ -32,26 +32,62 @@ const penguins = [
 
 describe('inferSchemaFromRecords', () => {
     it('infers schema from records', () => {
-        const schema = inferSchemaFromRecords(penguins)
-        expect(schema).toEqual({
+        const actual = inferSchemaFromRecords(penguins)
+        const expected = {
             species: { typecode: 'string' },
             island: { typecode: 'string' },
             bill_length_mm: { typecode: 'float', size: 64 },
             body_mass_g: { typecode: 'float', size: 64 },
-        })
+        }
+        expect(actual).toEqual(expected)
+        expectTypeOf(actual).toMatchTypeOf(expected)
     })
 
     it('returns empty schema for empty array', () => {
-        expect(inferSchemaFromRecords([])).toEqual({})
+        const actual = inferSchemaFromRecords([])
+        expect(actual).toEqual({})
+        expectTypeOf(actual).toEqualTypeOf<{}>()
     })
 
     it('handles booleans and nulls', () => {
         const data = [{ active: true, deleted_at: null }]
-        const schema = inferSchemaFromRecords(data)
-        expect(schema).toEqual({
+        const actual = inferSchemaFromRecords(data)
+        const expected = {
             active: { typecode: 'boolean' },
             deleted_at: { typecode: 'null' },
-        })
+        }
+        expect(actual).toEqual(expected)
+        expectTypeOf(actual).toMatchTypeOf(expected)
+    })
+
+    it('infers precise types for typed arrays', () => {
+        const rows: Array<{ name: string, bill_length_mm: number, active: boolean }> = [
+            { name: 'Adelie', bill_length_mm: 39.1, active: true },
+        ]
+        const actual = inferSchemaFromRecords(rows)
+        const expectedType = {
+            name: { typecode: 'string' },
+            bill_length_mm: { typecode: 'float', size: 64 },
+            active: { typecode: 'boolean' },
+        }
+        expect(actual).toEqual(expectedType)
+        expectTypeOf(actual).toMatchTypeOf(expectedType)
+    })
+
+    it('infers schema from the first record type', () => {
+        const rows = [
+            { species: 'Adelie', bill_length_mm: 39.1, observed_at: new Date('2024-01-01') },
+            { species: 'Chinstrap', bill_length_mm: 46.5, observed_at: new Date('2024-01-02'), extra: true },
+        ] as const
+
+        const actual = inferSchemaFromRecords(rows)
+        const expectedType = {
+            species: { typecode: 'string' },
+            bill_length_mm: { typecode: 'float', size: 64 },
+            observed_at: { typecode: 'datetime' },
+        }
+        expect(actual).toEqual(expectedType)
+        expectTypeOf(actual).toMatchTypeOf(expectedType)
     })
 })
 
@@ -61,10 +97,16 @@ describe('inferSchemaFromRecords', () => {
 
 describe('fromRecords', () => {
     it('creates a relation with inferred schema', () => {
-        const rel = fromRecords(penguins)
-        expect(rel.schema).toHaveProperty('species')
-        expect(rel.schema).toHaveProperty('bill_length_mm')
-        expect(rel._ir.kind).toBe('records')
+        const actual = fromRecords(penguins)
+        const expectedSchema = {
+            species: { typecode: 'string' },
+            island: { typecode: 'string' },
+            bill_length_mm: { typecode: 'float', size: 64 },
+            body_mass_g: { typecode: 'float', size: 64 },
+        }
+        expect(actual.schema).toEqual(expectedSchema)
+        expectTypeOf(actual.schema).toMatchTypeOf(expectedSchema)
+        expect(actual._ir.kind).toBe('records')
     })
 
     it('creates a relation with explicit schema', () => {
@@ -74,8 +116,14 @@ describe('fromRecords', () => {
             bill_length_mm: 'float64',
             body_mass_g: 'float64',
         })
-        expect(rel.schema.species).toEqual({ typecode: 'string' })
-        expect(rel.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64 })
+        const expectedSchema = {
+            species: { typecode: 'string' },
+            island: { typecode: 'string' },
+            bill_length_mm: { typecode: 'float', size: 64 },
+            body_mass_g: { typecode: 'float', size: 64 },
+        }
+        expect(rel.schema).toEqual(expectedSchema)
+        expectTypeOf(rel.schema).toMatchTypeOf(expectedSchema)
     })
 })
 
@@ -85,17 +133,27 @@ describe('fromRecords', () => {
 
 describe('RecordsExecutor', () => {
     const executor = new RecordsExecutor()
+    const penguinsSchema = {
+        species: { typecode: 'string' },
+        island: { typecode: 'string' },
+        bill_length_mm: { typecode: 'float', size: 64 },
+        body_mass_g: { typecode: 'float', size: 64 },
+    }
 
     it('executes a RecordsOp', () => {
-        const rel = fromRecords(penguins)
-        const result = executor.execute(rel._ir)
+        const actual = fromRecords(penguins)
+        expect(actual.schema).toEqual(penguinsSchema)
+        expectTypeOf(actual.schema).toMatchTypeOf(penguinsSchema)
+        const result = executor.execute(actual._ir)
         expect(result).toEqual(penguins)
     })
 
     it('executes filter', () => {
-        const rel = fromRecords(penguins)
+        const actual = fromRecords(penguins)
             .filter(r => r.col('bill_length_mm').gt(45))
-        const result = executor.execute(rel._ir)
+        expect(actual.schema).toEqual(penguinsSchema)
+        expectTypeOf(actual.schema).toMatchTypeOf(penguinsSchema)
+        const result = executor.execute(actual._ir)
         expect(result).toHaveLength(4)
         expect(result.every(r => r.bill_length_mm > 45)).toBe(true)
     })
@@ -105,6 +163,12 @@ describe('RecordsExecutor', () => {
             .derive(r => ({
                 bill_cm: r.col('bill_length_mm').div(10),
             }))
+        const expectedSchema = {
+            ...penguinsSchema,
+            bill_cm: { typecode: 'float', size: 64 },
+        }
+        expect(rel.schema).toEqual(expectedSchema)
+        expectTypeOf(rel.schema).toMatchTypeOf(expectedSchema)
         const result = executor.execute(rel._ir)
         expect(result[0]!.bill_cm).toBeCloseTo(3.91)
         expect(result[0]!.species).toBe('Adelie')
@@ -250,7 +314,7 @@ class SampleOp implements ITableOp {
         readonly source: ITableOp,
         readonly n: number,
         readonly seed: number = 42,
-    ) {}
+    ) { }
 
     schema(): Schema { return this.source.schema() }
 }
@@ -275,7 +339,7 @@ class SampleExecutor extends RecordsExecutor {
             for (let i = seeded.length - 1; i > 0; i--) {
                 rng = (rng * 1103515245 + 12345) & 0x7fffffff
                 const j = rng % (i + 1)
-                ;[seeded[i], seeded[j]] = [seeded[j]!, seeded[i]!]
+                    ;[seeded[i], seeded[j]] = [seeded[j]!, seeded[i]!]
             }
             return seeded.slice(0, sampleOp.n)
         }
@@ -287,7 +351,7 @@ class SampleExecutor extends RecordsExecutor {
 class DoubleOp {
     [IsOpSymbol] = true;
     readonly kind = 'double' as const
-    constructor(readonly operand: any) {}
+    constructor(readonly operand: any) { }
     dtype() { return DTFloat64() }
     dshape() { return 'columnar' as const }
     toExpr() { return opToExpr(this as any) }
