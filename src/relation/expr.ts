@@ -1,16 +1,16 @@
-import { type DataType } from './datatype.js'
-import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
+import { type DataType } from '../datatype.js'
+import { schema, type Schema, type InferSchema, type IntoSchema } from '../schema.js'
 import type { IRNode } from './ir.js'
-import type { Compiler } from './compilers/base.js'
-import { type IOp, type IExpr } from './value/core.js'
-import { SortSpec } from './value/ops.js'
+import type { Compiler } from '../compilers/base.js'
+import { type IOp, type IExpr } from '../value/core.js'
+import { SortSpec } from '../value/ops.js'
 import {
     BaseExpr, BooleanExpr, SortExpr,
     col,
     Expr,
-} from './value/expr.js'
-import { PrqlCompiler } from './compilers/prql-compiler.js'
-import { SqlCompiler } from './compilers/sql-compiler.js'
+} from '../value/expr.js'
+import { PrqlCompiler } from '../compilers/prql-compiler.js'
+import { SqlCompiler } from '../compilers/sql-compiler.js'
 import { suggestColumnName } from './typo.js'
 
 // ---------------------------------------------------------------------------

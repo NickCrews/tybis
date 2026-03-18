@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestColumnName } from '../src/typo.js'
+import { suggestColumnName } from '../src/relation/typo.js'
 
 describe('suggestColumnName', () => {
     const columns = ['species', 'bill_length_mm', 'bill_depth_mm', 'island']
