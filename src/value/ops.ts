@@ -315,6 +315,11 @@ export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<dt.DTBo
     constructor(readonly operand: IVOp<DataType, S>) { super(dt.DTBoolean(), operand.dshape()) }
 }
 
+export class IsNullOp<S extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, S> {
+    readonly kind = 'is_null' as const
+    constructor(readonly operand: IVOp<DataType, S>) { super(dt.DTBoolean(), operand.dshape()) }
+}
+
 export class CountOp extends BaseOp<dt.DTInt<64>, 'scalar'> {
     readonly kind = 'count' as const
     constructor() { super(dt.DTInt64(), 'scalar') }
@@ -517,6 +522,7 @@ export type BuiltinVOp =
     | TimeLiteralOp
     // generic
     | IsNotNullOp
+    | IsNullOp
     | CountOp
     | RawSqlOp
     // comparison ops

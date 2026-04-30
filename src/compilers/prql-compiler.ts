@@ -24,6 +24,7 @@ export class PrqlCompiler implements Compiler {
             case 'lt': return `${this.compileOp(op.left as BuiltinVOp)} < ${this.compileOp(op.right as BuiltinVOp)}`
             case 'lte': return `${this.compileOp(op.left as BuiltinVOp)} <= ${this.compileOp(op.right as BuiltinVOp)}`
             case 'is_not_null': return `${this.compileOp(op.operand as BuiltinVOp)} != null`
+            case 'is_null': return `${this.compileOp(op.operand as BuiltinVOp)} == null`
 
             case 'not': return `!(${this.compileOp(op.operand as BuiltinVOp)})`
             case 'and': return `(${this.compileOp(op.left as BuiltinVOp)}) && (${this.compileOp(op.right as BuiltinVOp)})`

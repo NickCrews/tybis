@@ -33,6 +33,25 @@ describe('isNotNull()', () => {
     })
 })
 
+describe('isNull()', () => {
+    it('produces a boolean columnar expr from a columnar column', () => {
+        const table = ty.table('data', { name: 'string', x: 'float64' })
+        const e = table.col('name').isNull()
+        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dshape()).toBe('columnar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+    })
+
+    it('compiles to is_null in a filter', () => {
+        const table = ty.table('data', { name: 'string' })
+        const q = table.filter(r => r.col('name').isNull())
+        expect(q.toPrql()).toMatchInlineSnapshot(`
+          "from data
+          filter name == null"
+        `)
+    })
+})
+
 describe('min() and max()', () => {
     it('min() returns a scalar expr with same dtype', () => {
         const table = ty.table('data', { score: 'float64' })

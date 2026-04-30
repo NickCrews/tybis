@@ -56,6 +56,10 @@ export class GenericVExpr<T extends DataType = DataType, S extends DataShape = D
         return vOpToVExpr(new ops.IsNotNullOp(this.toOp()))
     }
 
+    isNull(): VExpr<dt.DTBoolean, S> {
+        return vOpToVExpr(new ops.IsNullOp(this.toOp()))
+    }
+
     eq<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.EqOp(this.toOp(), other))
