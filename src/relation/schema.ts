@@ -1,4 +1,4 @@
-import { DataType, dtype, InferDtype, IntoDtype, JSTypeFromDtype } from "./datatype"
+import { DataType, dtype, InferDtype, IntoDtype, JSTypeFromDtype } from "../datatype.js"
 
 export type Schema = Record<string, DataType>
 export type SchemaToJS<S extends Schema> = {

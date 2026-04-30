@@ -1,19 +1,19 @@
-import { type DataType } from './datatype.js'
+import { type DataType } from '../datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IROp } from './irop.js'
-import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, type BuiltinROp } from './rop.js'
-import type { Compiler } from './compilers/base.js'
-import { type IVOp, type IVExpr } from './value/core.js'
-import { SortSpec } from './value/ops.js'
+import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, type BuiltinROp } from './rops.js'
+import type { Compiler } from '../compilers/base.js'
+import { type IVOp, type IVExpr } from '../value/core.js'
+import { SortSpec } from '../value/ops.js'
 import {
     BooleanExpr,
     SortExpr,
     col,
     VExpr,
-} from './value/expr.js'
-import { PrqlCompiler } from './compilers/prql-compiler.js'
-import { SqlCompiler } from './compilers/sql-compiler.js'
-import { suggestColumnName } from './typo.js'
+} from '../value/expr.js'
+import { PrqlCompiler } from '../compilers/prql-compiler.js'
+import { SqlCompiler } from '../compilers/sql-compiler.js'
+import { suggestColumnName } from '../typo.js'
 
 // ---------------------------------------------------------------------------
 // Row and group accessors

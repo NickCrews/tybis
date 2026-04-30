@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import { schema } from '../src/schema'
+import { schema } from '../src/relation/index.js'
 
 describe('schema()', () => {
     it('converts a schema with shorthand string types', () => {

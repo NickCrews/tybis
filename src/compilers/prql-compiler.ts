@@ -1,5 +1,5 @@
 import type { Compiler } from './base.js'
-import type { BuiltinROp } from '../rop.js'
+import type { BuiltinROp } from '../relation/index.js'
 import {
     type BuiltinOp, type SortSpec,
 } from '../value/ops.js'

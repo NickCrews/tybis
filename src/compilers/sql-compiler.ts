@@ -1,7 +1,7 @@
 import { compile, CompileOptions } from 'prqlc'
 import type { Compiler } from './base.js'
 import type { BuiltinOp } from '../value/ops.js'
-import type { BuiltinROp } from '../rop.js'
+import type { BuiltinROp } from '../relation/index.js'
 import { PrqlCompiler } from './prql-compiler.js'
 
 export class SqlCompiler implements Compiler {
