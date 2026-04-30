@@ -1,12 +1,12 @@
 import { type DataType, IntoDtype } from '../datatype.js'
 import * as dt from '../datatype.js'
-import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.js'
+import type { DataShape } from '../datashape.js'
 import * as ops from './ops.js'
 import { IVOp, IVExpr, IsVExprSymbol } from './core.js'
 import * as cmp from './compare.js'
 import * as litOps from './lit.js'
 import { registerVOpToVExpr } from './base-op.js'
-import { AcceptableJsVal, ExplicitOrInferredDtype, litOp } from './lit.js'
+import { AcceptableJsVal, litOp } from './lit.js'
 
 // ---------------------------------------------------------------------------
 // opToExpr — wraps an IVOp in the appropriate Expr subclass
@@ -64,23 +64,23 @@ export class GenericVExpr<T extends DataType = DataType, S extends DataShape = D
         return vOpToVExpr(new ops.IsNullOp(this.toOp()))
     }
 
-    eq<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+    eq<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.EqOp(this.toOp(), other))
     }
-    gt<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+    gt<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.GtOp(this.toOp(), other))
     }
-    gte<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+    gte<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.GteOp(this.toOp(), other))
     }
-    lt<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+    lt<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.LtOp(this.toOp(), other))
     }
-    lte<Value extends cmp.IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>> {
+    lte<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
         const other = cmp.coerceToComparable(this.dtype(), value)
         return vOpToVExpr(new ops.LteOp(this.toOp(), other))
     }
@@ -107,23 +107,23 @@ export class NullExpr<S extends DataShape = DataShape> extends GenericVExpr<{ ty
 // ---------------------------------------------------------------------------
 
 export class NumericExpr<T extends dt.NumericDataType = dt.NumericDataType, S extends DataShape = DataShape> extends GenericVExpr<T, S> {
-    add<T extends number | IVExpr<dt.NumericDataType, any>>(value: T): NumericExpr<dt.DTFloat64, HighestDataShape<[InferDataShape<T>, S]>> {
-        return vOpToVExpr(new ops.AddOp(this.toOp(), ops.toOpValue(value as any))) as any
+    add<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
+        return vOpToVExpr(new ops.AddOp(this.toOp(), ops.toOpValue(value)))
     }
-    sub<T extends number | IVExpr<dt.NumericDataType, any>>(value: T): NumericExpr<dt.DTFloat64, HighestDataShape<[InferDataShape<T>, S]>> {
-        return vOpToVExpr(new ops.SubOp(this.toOp(), ops.toOpValue(value as any))) as any
+    sub<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
+        return vOpToVExpr(new ops.SubOp(this.toOp(), ops.toOpValue(value)))
     }
-    mul<T extends number | IVExpr<dt.NumericDataType, any>>(value: T): NumericExpr<dt.DTFloat64, HighestDataShape<[InferDataShape<T>, S]>> {
-        return vOpToVExpr(new ops.MulOp(this.toOp(), ops.toOpValue(value as any))) as any
+    mul<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
+        return vOpToVExpr(new ops.MulOp(this.toOp(), ops.toOpValue(value)))
     }
-    div<T extends number | IVExpr<dt.NumericDataType, any>>(value: T): NumericExpr<dt.DTFloat64, HighestDataShape<[InferDataShape<T>, S]>> {
-        return vOpToVExpr(new ops.DivOp(this.toOp(), ops.toOpValue(value as any))) as any
+    div<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
+        return vOpToVExpr(new ops.DivOp(this.toOp(), ops.toOpValue(value)))
     }
-    sum(): NumericExpr<dt.DTFloat64, 'scalar'> {
-        return vOpToVExpr(new ops.SumOp(this.toOp())) as any
+    sum() {
+        return vOpToVExpr(new ops.SumOp(this.toOp()))
     }
-    mean(): NumericExpr<dt.DTFloat64, 'scalar'> {
-        return vOpToVExpr(new ops.MeanOp(this.toOp())) as any
+    mean() {
+        return vOpToVExpr(new ops.MeanOp(this.toOp()))
     }
 }
 
@@ -167,7 +167,7 @@ export class BooleanExpr<S extends DataShape = DataShape> extends GenericVExpr<d
 // ---------------------------------------------------------------------------
 
 export class DateExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTDate, S> {
-    toString(format: string): StringExpr<S> {
+    toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
@@ -177,13 +177,13 @@ export class DateExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.D
 // ---------------------------------------------------------------------------
 
 export class TimeExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTTime, S> {
-    toString(format: string): StringExpr<S> {
+    toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
 export class DateTimeExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTDateTime, S> {
-    toString(format: string): StringExpr<S> {
+    toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
@@ -214,7 +214,7 @@ export class SortExpr {
         readonly expr: BaseVExpr,
         readonly direction: 'asc' | 'desc',
     ) { }
-    toSortSpec(): ops.SortSpec {
+    toSortSpec() {
         return new ops.SortSpec(this.expr.toOp(), this.direction)
     }
 }
@@ -226,7 +226,7 @@ export class SortExpr {
 /**
  * Counts the number of rows. Analogous to SQL's COUNT(*). Returns a NumericExpr with dtype=int64 and dshape='scalar'.
  */
-export function count(): NumericExpr<dt.DTInt64, 'scalar'> {
+export function count() {
     return vOpToVExpr(new ops.CountOp())
 }
 
@@ -244,7 +244,7 @@ export function count(): NumericExpr<dt.DTInt64, 'scalar'> {
  * @param dshape The expected data shape of the result.
  * @returns A VExpr representing the raw SQL expression.
  */
-export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S): VExpr<T, S> {
+export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S) {
     return vOpToVExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
 }
 
@@ -259,7 +259,7 @@ export function sql<T extends DataType, S extends DataShape>(rawSql: string, dty
  * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
  * @returns A VExpr representing the literal value.
  */
-export function lit<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
+export function lit<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT) {
     const op = litOp(value, dtype)
     return vOpToVExpr(op)
 }

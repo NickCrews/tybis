@@ -189,14 +189,14 @@ export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
 
 export type HighestDataType<Types extends DataType[]> =
     Types extends [] ? never :
-    Types[number] extends DTFloat64 ? DTFloat64 :
-    Types[number] extends DTFloat32 ? DTFloat32 :
-    Types[number] extends DTFloat16 ? DTFloat16 :
-    Types[number] extends DTFloat8 ? DTFloat8 :
-    Types[number] extends DTInt64 ? DTInt64 :
-    Types[number] extends DTInt32 ? DTInt32 :
-    Types[number] extends DTInt16 ? DTInt16 :
-    Types[number] extends DTInt8 ? DTInt8 :
+    DTFloat64 extends Types[number] ? DTFloat64 :
+    DTFloat32 extends Types[number] ? DTFloat32 :
+    DTFloat16 extends Types[number] ? DTFloat16 :
+    DTFloat8 extends Types[number] ? DTFloat8 :
+    DTInt64 extends Types[number] ? DTInt64 :
+    DTInt32 extends Types[number] ? DTInt32 :
+    DTInt16 extends Types[number] ? DTInt16 :
+    DTInt8 extends Types[number] ? DTInt8 :
     never
 
 export function highestDataType<First extends DataType, Rest extends DataType[]>(dtype1: First, ...rest: Rest): HighestDataType<[First, ...Rest]> {

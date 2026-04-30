@@ -41,6 +41,37 @@ describe('Numeric Operations', () => {
             expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
+
+        it('should result in the correct dtype based on highest precedence', () => {
+            const colInt8 = new ops.ColRefOp('i', 'int8')
+            const colInt16 = new ops.ColRefOp('j', 'int16')
+            const colFloat32 = new ops.ColRefOp('f', 'float32')
+            const scalarFloat64 = new FloatLiteralOp(3.14)
+
+            const op1 = new ops.AddOp(colInt8, colInt16)
+            expect(op1.dtype()).toEqual({ typecode: 'int', size: 16 })
+            expectTypeOf(op1.dtype()).toEqualTypeOf<{ typecode: 'int', size: 16 }>()
+
+            const op2 = new ops.AddOp(colInt16, colFloat32)
+            expect(op2.dtype()).toEqual({ typecode: 'float', size: 32 })
+            expectTypeOf(op2.dtype()).toEqualTypeOf<{ typecode: 'float', size: 32 }>()
+
+            const op3 = new ops.AddOp(colFloat32, scalarFloat64)
+            expect(op3.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(op3.dtype()).toEqualTypeOf<{ typecode: 'float', size: 64 }>()
+        })
+
+        it('should work with expressions', () => {
+            const table = ty.table('data', {
+                a: 'float16',
+                b: 'float64',
+            })
+            const e = table.col('a').add(ty.lit(5, 'int32'))
+            expect(e.dshape()).toBe('columnar')
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 16 })
+            expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'float', size: 16 }>()
+        })
     })
 
     describe('subtraction', () => {
