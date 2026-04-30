@@ -42,24 +42,24 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * and then the backend could deserialize it and compile it to SQL or PRQL or whatever,
  * then execute on the actual database, and the semantics of the operation would be preserved across all those steps.
  */
-export interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends string = string> {
+export interface IVOp<DT extends DataType = DataType, DS extends DataShape = DataShape, K extends string = string> {
     readonly kind: K
     /** The {@link DataType} of this expression. */
-    dtype(): T
+    dtype(): DT
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
-    dshape(): S
+    dshape(): DS
     getName(): string
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
     [IsVOpSymbol]?: boolean
 }
 
-export interface IVExpr<T extends DataType = DataType, S extends DataShape = DataShape> {
+export interface IVExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> {
     /** The {@link DataType} of this expression. */
-    dtype(): T
+    dtype(): DT
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
-    dshape(): S
+    dshape(): DS
     /** Convert this expression to its internal operation representation. */
-    toOp(): IVOp<T, S>
+    toOp(): IVOp<DT, DS>
     /** Optional symbol to mark this object as an Expr. If not present, the object will be checked for the presence of 'dtype' and 'dshape' properties. */
     [IsVExprSymbol]?: boolean
 }

@@ -98,7 +98,7 @@ export class GenericVExpr<DT extends DataType = DataType, DS extends DataShape =
     }
 }
 
-export class NullExpr<S extends DataShape = DataShape> extends GenericVExpr<{ typecode: 'null' }, S> {
+export class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<{ typecode: 'null' }, DS> {
     // no methods yet, but could add null-specific things here if desired
 }
 
@@ -200,7 +200,7 @@ export class UUIDExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.
     // no methods yet, but could add things like uuidv4(), etc.
 }
 
-export function col<N extends string, T extends IntoDtype>(name: N, dtype: T) {
+export function col<N extends string, DT extends IntoDtype>(name: N, dtype: DT) {
     const op = new ops.ColRefOp(name, dtype)
     return vOpToVExpr(op)
 }
@@ -244,7 +244,7 @@ export function count() {
  * @param dshape The expected data shape of the result.
  * @returns A VExpr representing the raw SQL expression.
  */
-export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S) {
+export function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS) {
     return vOpToVExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
 }
 

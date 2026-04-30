@@ -32,7 +32,7 @@ export type IntoDataShape = DataShape | IVExpr<any, any> | IVOp<any, any> | Infe
 
 export type InferDataShape<T extends IntoDataShape> =
     T extends DataShape ? T :
-    T extends IVExpr<any, infer S> ? S :
-    T extends IVOp<any, infer S> ? S :
+    T extends IVExpr<any, infer DS> ? DS :
+    T extends IVOp<any, infer DS> ? DS :
     T extends InferrableJsType ? 'scalar' :
     never

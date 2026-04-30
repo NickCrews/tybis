@@ -134,17 +134,17 @@ function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): InferDtypeF
     }
 }
 
-export type JSTypeFromDtype<T extends DataType> =
-    T extends DTString ? string
-    : T extends DTInt ? number
-    : T extends DTFloat ? number
-    : T extends DTBoolean ? boolean
-    : T extends DTDate ? Date
-    : T extends DTTime ? Date
-    : T extends DTDateTime ? Date
-    : T extends DTInterval ? string
-    : T extends DTUUID ? string
-    : T extends DTNull ? null
+export type JSTypeFromDtype<DT extends DataType> =
+    DT extends DTString ? string
+    : DT extends DTInt ? number
+    : DT extends DTFloat ? number
+    : DT extends DTBoolean ? boolean
+    : DT extends DTDate ? Date
+    : DT extends DTTime ? Date
+    : DT extends DTDateTime ? Date
+    : DT extends DTInterval ? string
+    : DT extends DTUUID ? string
+    : DT extends DTNull ? null
     : never
 
 export type InferrableJsType = string | number | boolean | Date | null
@@ -169,11 +169,11 @@ export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferD
 }
 
 export type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any, any>
-export type InferDtype<T extends IntoDtype> =
-    T extends DataType ? T :
-    T extends DTypeShorthands ? InferDtypeFromShorthand<T> :
-    T extends IVExpr<infer D, any> ? D :
-    T extends IVOp<infer D, any, any> ? D :
+export type InferDtype<DT extends IntoDtype> =
+    DT extends DataType ? DT :
+    DT extends DTypeShorthands ? InferDtypeFromShorthand<DT> :
+    DT extends IVExpr<infer D, any> ? D :
+    DT extends IVOp<infer D, any, any> ? D :
     never
 
 export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
@@ -187,16 +187,16 @@ export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
 }
 
 
-export type HighestDataType<Types extends DataType[]> =
-    Types extends [] ? never :
-    DTFloat64 extends Types[number] ? DTFloat64 :
-    DTFloat32 extends Types[number] ? DTFloat32 :
-    DTFloat16 extends Types[number] ? DTFloat16 :
-    DTFloat8 extends Types[number] ? DTFloat8 :
-    DTInt64 extends Types[number] ? DTInt64 :
-    DTInt32 extends Types[number] ? DTInt32 :
-    DTInt16 extends Types[number] ? DTInt16 :
-    DTInt8 extends Types[number] ? DTInt8 :
+export type HighestDataType<DTs extends DataType[]> =
+    DTs extends [] ? never :
+    DTFloat64 extends DTs[number] ? DTFloat64 :
+    DTFloat32 extends DTs[number] ? DTFloat32 :
+    DTFloat16 extends DTs[number] ? DTFloat16 :
+    DTFloat8 extends DTs[number] ? DTFloat8 :
+    DTInt64 extends DTs[number] ? DTInt64 :
+    DTInt32 extends DTs[number] ? DTInt32 :
+    DTInt16 extends DTs[number] ? DTInt16 :
+    DTInt8 extends DTs[number] ? DTInt8 :
     never
 
 export function highestDataType<First extends DataType, Rest extends DataType[]>(dtype1: First, ...rest: Rest): HighestDataType<[First, ...Rest]> {

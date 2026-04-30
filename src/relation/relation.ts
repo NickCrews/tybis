@@ -19,7 +19,7 @@ import { suggestColumnName } from '../utils/typo.js'
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
-type Col<T extends DataType = DataType> = VExpr<T, 'columnar'>
+type Col<DT extends DataType = DataType> = VExpr<DT, 'columnar'>
 
 function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<S[K]> {
     if (!(name in schema)) {

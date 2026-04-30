@@ -10,16 +10,16 @@ export function registerVOpToVExpr(fn: any) {
     _vOpToVExpr = fn
 }
 
-export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IVOp<T, S> {
+export abstract class BaseOp<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVOp<DT, DS> {
     [IsVOpSymbol] = true as const
     abstract readonly kind: string
-    private readonly _dtype: T
-    private readonly _dshape: S
-    constructor(dtype: T, dshape: S) {
+    private readonly _dtype: DT
+    private readonly _dshape: DS
+    constructor(dtype: DT, dshape: DS) {
         this._dtype = dtype
         this._dshape = dshape
     }
-    dtype(): T { return this._dtype }
-    dshape(): S { return this._dshape }
-    getName(): string { return this.kind }
+    dtype() { return this._dtype }
+    dshape() { return this._dshape }
+    getName() { return this.kind }
 }

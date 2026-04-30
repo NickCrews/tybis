@@ -20,10 +20,10 @@ function ensureIntLiteralValue(value: IntoIntLiteralValue): number {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to int literal`)
 }
-export class IntLiteralOp<T extends dt.DTInt = dt.DTInt> extends BaseOp<T, 'scalar'> {
+export class IntLiteralOp<DT extends dt.DTInt = dt.DTInt> extends BaseOp<DT, 'scalar'> {
     readonly kind = 'int_literal' as const
     readonly value: number
-    constructor(readonly raw: IntoIntLiteralValue, dtype: T = dt.DTInt(64) as T) {
+    constructor(readonly raw: IntoIntLiteralValue, dtype: DT = dt.DTInt(64) as DT) {
         super(dtype, 'scalar')
         this.value = ensureIntLiteralValue(raw)
     }
@@ -46,10 +46,10 @@ function ensureFloatLiteralValue(value: IntoFloatLiteralValue): number {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to float literal`)
 }
-export class FloatLiteralOp<T extends dt.DTFloat = dt.DTFloat> extends BaseOp<T, 'scalar'> {
+export class FloatLiteralOp<DT extends dt.DTFloat = dt.DTFloat> extends BaseOp<DT, 'scalar'> {
     readonly kind = 'float_literal' as const
     readonly value: number
-    constructor(readonly raw: IntoFloatLiteralValue, dtype: T = dt.DTFloat(64) as T) {
+    constructor(readonly raw: IntoFloatLiteralValue, dtype: DT = dt.DTFloat(64) as DT) {
         super(dtype, 'scalar')
         this.value = ensureFloatLiteralValue(raw)
     }
@@ -215,16 +215,16 @@ export class UuidLiteralOp extends BaseOp<dt.DTUUID, 'scalar'> {
     }
 }
 
-export type LiteralValueCoercibleTo<T extends DataType> =
-    T extends dt.DTInt ? IntoIntLiteralValue :
-    T extends dt.DTFloat ? IntoFloatLiteralValue :
-    T extends dt.DTString ? IntoStringLiteralValue :
-    T extends dt.DTBoolean ? IntoBooleanLiteralValue :
-    T extends dt.DTDateTime ? IntoDatetimeLiteralValue :
-    T extends dt.DTDate ? IntoDateLiteralValue :
-    T extends dt.DTTime ? IntoTimeLiteralValue :
-    T extends dt.DTInterval ? IntoIntervalLiteralValue :
-    T extends dt.DTUUID ? IntoUuidLiteralValue :
+export type LiteralValueCoercibleTo<DT extends DataType> =
+    DT extends dt.DTInt ? IntoIntLiteralValue :
+    DT extends dt.DTFloat ? IntoFloatLiteralValue :
+    DT extends dt.DTString ? IntoStringLiteralValue :
+    DT extends dt.DTBoolean ? IntoBooleanLiteralValue :
+    DT extends dt.DTDateTime ? IntoDatetimeLiteralValue :
+    DT extends dt.DTDate ? IntoDateLiteralValue :
+    DT extends dt.DTTime ? IntoTimeLiteralValue :
+    DT extends dt.DTInterval ? IntoIntervalLiteralValue :
+    DT extends dt.DTUUID ? IntoUuidLiteralValue :
     never
 
 export type AcceptableJsVal<DT extends dt.IntoDtype | undefined = undefined> = DT extends dt.IntoDtype ? LiteralValueCoercibleTo<dt.InferDtype<DT>> : InferrableJsType
