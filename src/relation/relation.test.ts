@@ -156,6 +156,12 @@ describe('Relation.select()', () => {
     })
 })
 
+describe('Relation.take()', () => {
+    it('throws for negative n', () => {
+        expect(() => penguins.take(-1)).toThrow('TakeOp requires a non-negative integer for n, got -1')
+    })
+})
+
 describe('Relation.derive()', () => {
     it('adds multiple derived columns at once', () => {
         const q = penguins.derive(r => ({

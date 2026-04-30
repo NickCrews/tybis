@@ -97,6 +97,9 @@ export class SortOp<S extends Schema> extends BaseROp<S, 'sort'> {
 export class TakeOp<S extends Schema> extends BaseROp<S, 'take'> {
     readonly kind = 'take' as const
     constructor(readonly source: IROp<S>, readonly n: number) {
+        if (n < 0) {
+            throw new Error('TakeOp requires a non-negative integer for n, got ' + n)
+        }
         super()
     }
     protected computeSchema(): S {
