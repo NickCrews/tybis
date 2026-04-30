@@ -227,14 +227,3 @@ export function highestDataType<First extends DataType, Rest extends DataType[]>
 
     throw new Error(`Cannot determine highest type for non-numeric types`)
 }
-
-export type ComparableTo<T extends DataType> =
-    T extends DTInt ? string | number | boolean
-    : T extends DTFloat ? string | number | boolean
-    : T extends DTString ? string
-    : T extends DTBoolean ? boolean
-    : T extends DTDate ? Date
-    : T extends DTTime ? Date
-    : T extends DTDateTime ? Date
-    : T extends DTUUID ? string
-    : never
