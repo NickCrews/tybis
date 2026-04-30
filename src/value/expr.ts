@@ -12,30 +12,30 @@ import { AcceptableJsVal, litOp } from './lit.js'
 // opToExpr — wraps an IVOp in the appropriate Expr subclass
 // ---------------------------------------------------------------------------
 
-export type VExpr<T extends DataType = DataType, S extends DataShape = DataShape> =
-    T extends { typecode: 'null' } ? NullExpr<S> :
-    T extends { typecode: 'string' } ? StringExpr<S> :
-    T extends dt.NumericDataType ? NumericExpr<T, S> :
-    T extends { typecode: 'boolean' } ? BooleanExpr<S> :
-    T extends { typecode: 'date' } ? DateExpr<S> :
-    T extends { typecode: 'time' } ? TimeExpr<S> :
-    T extends { typecode: 'datetime' } ? DateTimeExpr<S> :
-    T extends { typecode: 'uuid' } ? UUIDExpr<S> :
-    T extends { typecode: 'interval' } ? IntervalExpr<S> :
+export type VExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> =
+    DT extends { typecode: 'null' } ? NullExpr<DS> :
+    DT extends { typecode: 'string' } ? StringExpr<DS> :
+    DT extends dt.NumericDataType ? NumericExpr<DT, DS> :
+    DT extends { typecode: 'boolean' } ? BooleanExpr<DS> :
+    DT extends { typecode: 'date' } ? DateExpr<DS> :
+    DT extends { typecode: 'time' } ? TimeExpr<DS> :
+    DT extends { typecode: 'datetime' } ? DateTimeExpr<DS> :
+    DT extends { typecode: 'uuid' } ? UUIDExpr<DS> :
+    DT extends { typecode: 'interval' } ? IntervalExpr<DS> :
     never
 
-export function vOpToVExpr<T extends DataType, S extends DataShape>(op: IVOp<T, S>): VExpr<T, S> {
+export function vOpToVExpr<DT extends DataType, DS extends DataShape>(op: IVOp<DT, DS>): VExpr<DT, DS> {
     const d = op.dtype()
-    if (d.typecode === 'null') return new NullExpr(op as IVOp<{ typecode: 'null' }, S>) as VExpr<T, S>
-    if (d.typecode === 'string') return new StringExpr(op as IVOp<{ typecode: 'string' }, S>) as VExpr<T, S>
-    if (d.typecode === 'int') return new NumericExpr(op as IVOp<dt.NumericDataType, S>) as VExpr<T, S>
-    if (d.typecode === 'float') return new NumericExpr(op as IVOp<dt.NumericDataType, S>) as VExpr<T, S>
-    if (d.typecode === 'boolean') return new BooleanExpr(op as IVOp<{ typecode: 'boolean' }, S>) as VExpr<T, S>
-    if (d.typecode === 'date') return new DateExpr(op as IVOp<{ typecode: 'date' }, S>) as VExpr<T, S>
-    if (d.typecode === 'time') return new TimeExpr(op as IVOp<{ typecode: 'time' }, S>) as VExpr<T, S>
-    if (d.typecode === 'datetime') return new DateTimeExpr(op as IVOp<{ typecode: 'datetime' }, S>) as VExpr<T, S>
-    if (d.typecode === 'uuid') return new UUIDExpr(op as IVOp<{ typecode: 'uuid' }, S>) as VExpr<T, S>
-    if (d.typecode === 'interval') return new IntervalExpr(op as IVOp<{ typecode: 'interval' }, S>) as VExpr<T, S>
+    if (d.typecode === 'null') return new NullExpr(op as IVOp<{ typecode: 'null' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'string') return new StringExpr(op as IVOp<{ typecode: 'string' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'int') return new NumericExpr(op as IVOp<dt.NumericDataType, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'float') return new NumericExpr(op as IVOp<dt.NumericDataType, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'boolean') return new BooleanExpr(op as IVOp<{ typecode: 'boolean' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'date') return new DateExpr(op as IVOp<{ typecode: 'date' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'time') return new TimeExpr(op as IVOp<{ typecode: 'time' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'datetime') return new DateTimeExpr(op as IVOp<{ typecode: 'datetime' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'uuid') return new UUIDExpr(op as IVOp<{ typecode: 'uuid' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'interval') return new IntervalExpr(op as IVOp<{ typecode: 'interval' }, DS>) as VExpr<DT, DS>
     throw new Error(`Unsupported dtype in opToExpr: ${(d satisfies never)}`)
 }
 registerVOpToVExpr(vOpToVExpr)
@@ -46,48 +46,48 @@ registerVOpToVExpr(vOpToVExpr)
 // Abstract Expression classes (public-facing API)
 // ---------------------------------------------------------------------------
 
-export abstract class BaseVExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IVExpr<T, S> {
-    constructor(private readonly _op: IVOp<T, S>) { }
+export abstract class BaseVExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVExpr<DT, DS> {
+    constructor(private readonly _op: IVOp<DT, DS>) { }
     [IsVExprSymbol] = true as const
-    dtype(): T { return this._op.dtype() }
-    dshape(): S { return this._op.dshape() }
-    toOp(): IVOp<T, S> { return this._op }
+    dtype() { return this._op.dtype() }
+    dshape() { return this._op.dshape() }
+    toOp() { return this._op }
 }
 
-export class GenericVExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseVExpr<T, S> {
+export class GenericVExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseVExpr<DT, DS> {
 
-    isNotNull(): VExpr<dt.DTBoolean, S> {
+    isNotNull() {
         return vOpToVExpr(new ops.IsNotNullOp(this.toOp()))
     }
 
-    isNull(): VExpr<dt.DTBoolean, S> {
+    isNull() {
         return vOpToVExpr(new ops.IsNullOp(this.toOp()))
     }
 
-    eq<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
-        const other = cmp.coerceToComparable(this.dtype(), value)
-        return vOpToVExpr(new ops.EqOp(this.toOp(), other))
+    eq<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+        const op = cmp.coerceToComparable(this.dtype(), other)
+        return vOpToVExpr(new ops.EqOp(this.toOp(), op))
     }
-    gt<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
-        const other = cmp.coerceToComparable(this.dtype(), value)
-        return vOpToVExpr(new ops.GtOp(this.toOp(), other))
+    gt<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+        const op = cmp.coerceToComparable(this.dtype(), other)
+        return vOpToVExpr(new ops.GtOp(this.toOp(), op))
     }
-    gte<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
-        const other = cmp.coerceToComparable(this.dtype(), value)
-        return vOpToVExpr(new ops.GteOp(this.toOp(), other))
+    gte<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+        const op = cmp.coerceToComparable(this.dtype(), other)
+        return vOpToVExpr(new ops.GteOp(this.toOp(), op))
     }
-    lt<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
-        const other = cmp.coerceToComparable(this.dtype(), value)
-        return vOpToVExpr(new ops.LtOp(this.toOp(), other))
+    lt<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+        const op = cmp.coerceToComparable(this.dtype(), other)
+        return vOpToVExpr(new ops.LtOp(this.toOp(), op))
     }
-    lte<Value extends cmp.IntoValueComparableTo<T>>(value: Value) {
-        const other = cmp.coerceToComparable(this.dtype(), value)
-        return vOpToVExpr(new ops.LteOp(this.toOp(), other))
+    lte<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+        const op = cmp.coerceToComparable(this.dtype(), other)
+        return vOpToVExpr(new ops.LteOp(this.toOp(), op))
     }
-    min(): VExpr<T, 'scalar'> {
+    min() {
         return vOpToVExpr(new ops.MinOp(this.toOp()))
     }
-    max(): VExpr<T, 'scalar'> {
+    max() {
         return vOpToVExpr(new ops.MaxOp(this.toOp()))
     }
     desc() {
@@ -106,18 +106,18 @@ export class NullExpr<S extends DataShape = DataShape> extends GenericVExpr<{ ty
 // Numeric expressions (int32, int64, float32, float64)
 // ---------------------------------------------------------------------------
 
-export class NumericExpr<T extends dt.NumericDataType = dt.NumericDataType, S extends DataShape = DataShape> extends GenericVExpr<T, S> {
-    add<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
-        return vOpToVExpr(new ops.AddOp(this.toOp(), ops.toOpValue(value)))
+export class NumericExpr<DT extends dt.NumericDataType = dt.NumericDataType, DS extends DataShape = DataShape> extends GenericVExpr<DT, DS> {
+    add<O extends number | IVExpr<dt.NumericDataType, any>>(other: O) {
+        return vOpToVExpr(new ops.AddOp(this.toOp(), ops.toOpValue(other)))
     }
-    sub<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
-        return vOpToVExpr(new ops.SubOp(this.toOp(), ops.toOpValue(value)))
+    sub<O extends number | IVExpr<dt.NumericDataType, any>>(other: O) {
+        return vOpToVExpr(new ops.SubOp(this.toOp(), ops.toOpValue(other)))
     }
-    mul<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
-        return vOpToVExpr(new ops.MulOp(this.toOp(), ops.toOpValue(value)))
+    mul<O extends number | IVExpr<dt.NumericDataType, any>>(other: O) {
+        return vOpToVExpr(new ops.MulOp(this.toOp(), ops.toOpValue(other)))
     }
-    div<T extends number | IVExpr<dt.NumericDataType, any>>(value: T) {
-        return vOpToVExpr(new ops.DivOp(this.toOp(), ops.toOpValue(value)))
+    div<O extends number | IVExpr<dt.NumericDataType, any>>(other: O) {
+        return vOpToVExpr(new ops.DivOp(this.toOp(), ops.toOpValue(other)))
     }
     sum() {
         return vOpToVExpr(new ops.SumOp(this.toOp()))
@@ -131,7 +131,7 @@ export class NumericExpr<T extends dt.NumericDataType = dt.NumericDataType, S ex
 // String expressions
 // ---------------------------------------------------------------------------
 
-export class StringExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTString, S> {
+export class StringExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTString, DS> {
     upper() {
         return vOpToVExpr(new ops.UpperOp(this.toOp()))
     }
@@ -150,11 +150,11 @@ export class StringExpr<S extends DataShape = DataShape> extends GenericVExpr<dt
 // Boolean expressions
 // ---------------------------------------------------------------------------
 
-export class BooleanExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTBoolean, S> {
-    and(other: boolean | IVExpr<dt.DTBoolean, any>) {
+export class BooleanExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTBoolean, DS> {
+    and<O extends boolean | IVExpr<dt.DTBoolean, any>>(other: O) {
         return vOpToVExpr(new ops.LogicalAndOp(this.toOp(), ops.toOpValue(other)))
     }
-    or(other: boolean | IVExpr<dt.DTBoolean, any>) {
+    or<O extends boolean | IVExpr<dt.DTBoolean, any>>(other: O) {
         return vOpToVExpr(new ops.LogicalOrOp(this.toOp(), ops.toOpValue(other)))
     }
     not() {
@@ -166,7 +166,7 @@ export class BooleanExpr<S extends DataShape = DataShape> extends GenericVExpr<d
 // Date expressions
 // ---------------------------------------------------------------------------
 
-export class DateExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTDate, S> {
+export class DateExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTDate, DS> {
     toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
@@ -176,19 +176,19 @@ export class DateExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.D
 // Time expressions
 // ---------------------------------------------------------------------------
 
-export class TimeExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTTime, S> {
+export class TimeExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTTime, DS> {
     toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class DateTimeExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTDateTime, S> {
+export class DateTimeExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTDateTime, DS> {
     toString(format: string) {
         return vOpToVExpr(new ops.TemporalToStringOp(this.toOp(), format))
     }
 }
 
-export class IntervalExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTInterval, S> {
+export class IntervalExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTInterval, DS> {
     // could add interval-specific methods here, e.g. to extract components like years, months, etc.
 }
 
@@ -196,7 +196,7 @@ export class IntervalExpr<S extends DataShape = DataShape> extends GenericVExpr<
 // UUID expressions
 // ---------------------------------------------------------------------------
 
-export class UUIDExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.DTUUID, S> {
+export class UUIDExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTUUID, DS> {
     // no methods yet, but could add things like uuidv4(), etc.
 }
 
