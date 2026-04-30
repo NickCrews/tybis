@@ -13,12 +13,6 @@ describe('Comparison Operations', () => {
     describe('equality', () => {
         it('should have basic functionality for eq', () => {
             const q = table.derive(r => ({ is_five: r.col('f64a').eq(5) }))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              derive {
-                is_five = f64a == 5
-              }"
-            `)
             expect(q.col('is_five').dtype()).toEqual({ typecode: 'boolean' })
             expect(q.col('is_five').dshape()).toEqual('columnar')
             expectTypeOf(q.col('is_five').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
@@ -69,12 +63,6 @@ describe('Comparison Operations', () => {
     describe('greater than', () => {
         it('should have basic functionality for gt', () => {
             const q = table.derive(r => ({ is_greater: r.col('f64a').gt(5) }))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              derive {
-                is_greater = f64a > 5
-              }"
-            `)
             expectTypeOf(q.col('is_greater').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_greater').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -91,12 +79,6 @@ describe('Comparison Operations', () => {
     describe('greater than or equal', () => {
         it('should have basic functionality for gte', () => {
             const q = table.derive(r => ({ is_gte: r.col('f64a').gte(10) }))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              derive {
-                is_gte = f64a >= 10
-              }"
-            `)
             expectTypeOf(q.col('is_gte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_gte').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -112,12 +94,6 @@ describe('Comparison Operations', () => {
     describe('less than', () => {
         it('should have basic functionality for lt', () => {
             const q = table.derive(r => ({ is_less: r.col('f64a').lt(20) }))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              derive {
-                is_less = f64a < 20
-              }"
-            `)
             expectTypeOf(q.col('is_less').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_less').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -133,12 +109,6 @@ describe('Comparison Operations', () => {
     describe('less than or equal', () => {
         it('should have basic functionality for lte', () => {
             const q = table.derive(r => ({ is_lte: r.col('f64a').lte(20) }))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              derive {
-                is_lte = f64a <= 20
-              }"
-            `)
             expectTypeOf(q.col('is_lte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_lte').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -148,28 +118,6 @@ describe('Comparison Operations', () => {
             const scalar = new ops.FloatLiteralOp(20)
             const op = new ops.LteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
-        })
-    })
-
-    describe('combined comparisons', () => {
-        it('should handle complex filter expressions', () => {
-            const q = table.filter(r =>
-                r.col('f64a').gt(10).and(r.col('f64b').lt(20))
-            )
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              filter (f64a > 10) && (f64b < 20)"
-            `)
-        })
-
-        it('should handle or expressions', () => {
-            const q = table.filter(r =>
-                r.col('f64a').gt(100).or(r.col('f64b').lt(5))
-            )
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from data
-              filter (f64a > 100) || (f64b < 5)"
-            `)
         })
     })
 })

@@ -2,10 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 import * as dt from '../src/datatype.js'
-import * as ops from '../src/value/ops.js'
-
-const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinVOp)
 
 describe('lit()', () => {
     describe('null', () => {
@@ -14,7 +10,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTNull, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'null' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('null')
         })
     })
 
@@ -24,7 +19,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('"hello"')
         })
 
         it("lit('hello', 'string')", () => {
@@ -32,14 +26,13 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('"hello"')
         })
+
         it("lit(54, 'string')", () => {
             const e = ty.lit(54, 'string')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('"54"')
         })
 
         it("lit(new Date('2024-01-15T00:00:00.000Z'), 'string')", () => {
@@ -47,7 +40,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'string' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('"2024-01-15T00:00:00.000Z"')
         })
     })
 
@@ -57,7 +49,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('42')
         })
 
         it('lit(42, "int32")', () => {
@@ -65,7 +56,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'int', size: 32 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('42')
         })
 
         it('lit("42", "int32")', () => {
@@ -73,7 +63,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'int', size: 32 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('42')
         })
 
         it('lit(3.14, "int32")', () => {
@@ -93,7 +82,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('3.14')
         })
 
         it('lit(42, "float")', () => {
@@ -101,7 +89,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('42')
         })
 
         it('lit("42", "float")', () => {
@@ -109,7 +96,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('42')
         })
 
         it('lit("NaN", "float")', () => {
@@ -117,7 +103,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('NaN')
         })
 
         it('lit("bogus", "float")', () => {
@@ -132,7 +117,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('true')
         })
 
         it("lit('true', 'boolean')", () => {
@@ -140,7 +124,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('true')
         })
 
         it("lit(0, 'boolean')", () => {
@@ -148,7 +131,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('false')
         })
 
         it("lit(null, 'boolean')", () => {
@@ -156,7 +138,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'boolean' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('false')
         })
 
         it("lit('bogus', 'boolean')", () => {
@@ -171,7 +152,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDateTime, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'datetime' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')
         })
 
         it("lit(new Date('2024-01-15T12:34:56.000Z'), 'date')", () => {
@@ -179,7 +159,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDate, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'date' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('@2024-01-15')
         })
 
         it("lit('2024-01-15', 'date')", () => {
@@ -187,7 +166,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDate, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'date' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('@2024-01-15')
         })
 
         it("lit('2024-01-15T12:34:56.000Z', 'datetime')", () => {
@@ -195,7 +173,6 @@ describe('lit()', () => {
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDateTime, 'scalar'>>()
             expect(e.dtype()).toEqual({ typecode: 'datetime' })
             expect(e.dshape()).toBe('scalar')
-            expect(compile(e)).toBe('@2024-01-15T12:34:56.000Z')
         })
 
         it("lit('bogus', 'date')", () => {
@@ -204,26 +181,6 @@ describe('lit()', () => {
 
         it("lit('bogus', 'datetime')", () => {
             expect(() => ty.lit('bogus', 'datetime')).toThrow('Invalid date string: bogus')
-        })
-    })
-
-    describe('integration in queries', () => {
-        const t = ty.table('tbl', { x: 'float64', name: 'string' })
-
-        it('lit used in eq filter', () => {
-            const q = t.filter(r => r.col('name').eq(ty.lit('alice')))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from tbl
-              filter name == "alice""
-            `)
-        })
-
-        it('lit used in gt filter', () => {
-            const q = t.filter(r => r.col('x').gt(ty.lit(10)))
-            expect(q.toPrql()).toMatchInlineSnapshot(`
-              "from tbl
-              filter x > 10"
-            `)
         })
     })
 

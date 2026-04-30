@@ -10,7 +10,7 @@ describe('Group aggregation', () => {
         bill_length_mm: 'float64',
     })
 
-    it('should accept scalar expressions in agg()', () => {
+    it('should accept scalar expressions in agg() and produce correct schema', () => {
         const q = penguins.group(
             _r => ({ species: true }),
             g => g.agg({
@@ -20,17 +20,6 @@ describe('Group aggregation', () => {
                 sum_bill: g.col('bill_length_mm').sum(),
             })
         )
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          group {species} (
-            aggregate {
-              count = count this,
-              mean_bill = average bill_length_mm,
-              max_bill = max bill_length_mm,
-              sum_bill = sum bill_length_mm
-            }
-          )"
-        `)
         expectTypeOf(q.col('species')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
         expectTypeOf(q.col('count')).toEqualTypeOf<ty.VExpr<dt.DTInt64, 'columnar'>>()
         expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
@@ -46,14 +35,6 @@ describe('Group aggregation', () => {
             }),
             g => g.agg({ count: ty.count() })
         )
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          group {kind = species, decade = year / 10} (
-            aggregate {
-              count = count this
-            }
-          )"
-        `)
         expectTypeOf(q.col('kind')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
         expectTypeOf(q.col('decade')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
     })

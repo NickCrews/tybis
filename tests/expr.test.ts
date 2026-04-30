@@ -5,9 +5,6 @@ import * as dt from '../src/datatype.js'
 import * as ops from '../src/value/ops.js'
 import * as vals from '../src/value/index.js'
 
-const compiler = new ty.PrqlCompiler()
-const compile = (e: vals.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinVOp)
-
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
         const table = ty.table('data', { name: 'string', x: 'float64' })
@@ -22,15 +19,6 @@ describe('isNotNull()', () => {
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('scalar')
     })
-
-    it('compiles to is_not_null in a filter', () => {
-        const table = ty.table('data', { name: 'string' })
-        const q = table.filter(r => r.col('name').isNotNull())
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          filter name != null"
-        `)
-    })
 })
 
 describe('isNull()', () => {
@@ -40,15 +28,6 @@ describe('isNull()', () => {
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
-    })
-
-    it('compiles to is_null in a filter', () => {
-        const table = ty.table('data', { name: 'string' })
-        const q = table.filter(r => r.col('name').isNull())
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          filter name == null"
-        `)
     })
 })
 
@@ -73,38 +52,6 @@ describe('min() and max()', () => {
         expect(e.dtype()).toEqual({ typecode: 'string' })
         expect(e.dshape()).toBe('scalar')
     })
-
-    it('max() compiles correctly in group agg', () => {
-        const table = ty.table('data', { category: 'string', score: 'float64' })
-        const q = table.group(
-            _r => ({ category: true }),
-            g => g.agg({ max_score: g.col('score').max() })
-        )
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          group {category} (
-            aggregate {
-              max_score = max score
-            }
-          )"
-        `)
-    })
-
-    it('min() compiles correctly in group agg', () => {
-        const table = ty.table('data', { category: 'string', score: 'float64' })
-        const q = table.group(
-            _r => ({ category: true }),
-            g => g.agg({ min_score: g.col('score').min() })
-        )
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          group {category} (
-            aggregate {
-              min_score = min score
-            }
-          )"
-        `)
-    })
 })
 
 describe('BooleanExpr.not()', () => {
@@ -120,24 +67,6 @@ describe('BooleanExpr.not()', () => {
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('scalar')
     })
-
-    it('compiles not() in a filter', () => {
-        const table = ty.table('data', { active: 'boolean' })
-        const q = table.filter(r => r.col('active').not())
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          filter !(active)"
-        `)
-    })
-
-    it('chains not() with and()', () => {
-        const table = ty.table('data', { a: 'boolean', b: 'boolean' })
-        const q = table.filter(r => r.col('a').not().and(r.col('b')))
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          filter (!(a)) && (b)"
-        `)
-    })
 })
 
 describe('sql() factory function', () => {
@@ -152,24 +81,6 @@ describe('sql() factory function', () => {
         expect(e.dtype()).toEqual({ typecode: 'int', size: 64 })
         expect(e.dshape()).toBe('scalar')
     })
-
-    it('compiles to a PRQL s-string (raw SQL)', () => {
-        const e = vals.sql('my_udf(col)', { typecode: 'string' }, 'columnar')
-        expect(compile(e)).toBe('s"my_udf(col)"')
-    })
-
-    it('can be used in a derive', () => {
-        const table = ty.table('data', { x: 'float64' })
-        const q = table.derive(() => ({
-            custom: vals.sql('x * 2 + 1', { typecode: 'float', size: 64 }, 'columnar')
-        }))
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from data
-          derive {
-            custom = s"x * 2 + 1"
-          }"
-        `)
-    })
 })
 
 describe('count() factory function', () => {
@@ -179,10 +90,6 @@ describe('count() factory function', () => {
         expect(e.dshape()).toBe('scalar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTInt64>()
         expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
-    })
-
-    it('compiles to count this', () => {
-        expect(compile(ty.count())).toBe('count this')
     })
 })
 

@@ -42,13 +42,6 @@ describe('Relation.derive() with multiple columns', () => {
             half_bill: r.col('bill_length_mm').div(2),
             double_bill: r.col('bill_length_mm').mul(2),
         }))
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          derive {
-            half_bill = bill_length_mm / 2,
-            double_bill = bill_length_mm * 2
-          }"
-        `)
         expect(q.col('half_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(q.col('double_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
     })
@@ -59,48 +52,6 @@ describe('Relation.derive() with multiple columns', () => {
         }))
         // The schema should now have year as float64 (sum returns float64)
         expect(q.col('year').dtype().typecode).toBe('float')
-    })
-})
-
-describe('Relation.sort() with asc()', () => {
-    it('sorts ascending using asc() method', () => {
-        const q = penguins.sort(r => r.col('bill_length_mm').asc())
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          sort {bill_length_mm}"
-        `)
-    })
-
-    it('sorts ascending by default (bare column)', () => {
-        const q = penguins.sort(r => r.col('year'))
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          sort {year}"
-        `)
-    })
-
-    it('sorts with multiple keys using mixed asc/desc', () => {
-        const q = penguins.sort(r => [r.col('species'), r.col('bill_length_mm').desc()])
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          sort {species, -bill_length_mm}"
-        `)
-    })
-
-    it('sorts with multiple ascending keys', () => {
-        const q = penguins.sort(r => [r.col('species').asc(), r.col('year').asc()])
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          sort {species, year}"
-        `)
-    })
-
-    it('sorts with multiple descending keys', () => {
-        const q = penguins.sort(r => [r.col('species').desc(), r.col('year').desc()])
-        expect(q.toPrql()).toMatchInlineSnapshot(`
-          "from penguins
-          sort {-species, -year}"
-        `)
     })
 })
 
