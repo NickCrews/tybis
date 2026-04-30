@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - &setup_checkout
@@ -33,6 +33,17 @@ jobs:
       - &setup_install_deps
         name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - *setup_checkout
+      - *setup_install_pnpm
+      - *setup_node
+      - *setup_install_deps
 
       - name: Run tests
         run: pnpm test run
