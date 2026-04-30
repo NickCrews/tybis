@@ -505,7 +505,7 @@ export class SortSpec {
 // BuiltinOp — discriminated union for exhaustive compiler type-checking
 // ---------------------------------------------------------------------------
 
-export type BuiltinOp =
+export type BuiltinVOp =
     | ColRefOp
     | IntLiteralOp
     | FloatLiteralOp

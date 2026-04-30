@@ -6,7 +6,7 @@ import * as ops from '../src/value/ops.js'
 import * as vals from '../src/value/index.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: vals.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
+const compile = (e: vals.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinVOp)
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {

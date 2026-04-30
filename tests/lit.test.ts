@@ -5,7 +5,7 @@ import * as dt from '../src/datatype.js'
 import * as ops from '../src/value/ops.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: ty.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
+const compile = (e: ty.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinVOp)
 
 describe('lit()', () => {
     describe('null', () => {

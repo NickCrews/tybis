@@ -1,4 +1,4 @@
-export type { BuiltinOp } from './ops.js'
+export type { BuiltinVOp } from './ops.js'
 export { IsVOpSymbol, IsVExprSymbol, isVOp, isVExpr, type IVExpr, type IVOp } from './core.js'
 export {
     type VExpr,
