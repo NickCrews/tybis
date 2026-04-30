@@ -13,7 +13,7 @@ export const examples: Example[] = [
     code: `// Filter the penguins dataset for large bills
 import * as ty from 'tybis';
 
-const penguins = ty.relation('penguins', {
+const penguins = ty.table('penguins', {
   species: 'string',
   island: 'string',
   year: 'int32',
@@ -35,7 +35,7 @@ preview(bigBills)
     code: `// Aggregate penguin measurements by species
 import * as ty from 'tybis';
 
-const penguins = ty.relation('penguins', {
+const penguins = ty.table('penguins', {
   species: 'string',
   year: 'int32',
   bill_length_mm: 'float64',
@@ -64,7 +64,7 @@ preview(bySpecies)
     code: `// Full pipeline: filter, group, sort, take
 import * as ty from 'tybis';
 
-const penguins = ty.relation('penguins', {
+const penguins = ty.table('penguins', {
   species: 'string',
   year: 'int32',
   bill_length_mm: 'float64',
@@ -98,7 +98,7 @@ preview(result)
     code: `// E-commerce orders analysis
 import * as ty from 'tybis';
 
-const orders = ty.relation('orders', {
+const orders = ty.table('orders', {
   order_id: 'int64',
   customer_id: 'int64',
   amount: 'float64',
@@ -131,7 +131,7 @@ preview(topCustomers)
     code: `// Add computed/derived columns
 import * as ty from 'tybis';
 
-const products = ty.relation('products', {
+const products = ty.table('products', {
   name: 'string',
   price_cents: 'int64',
   quantity: 'int32',
@@ -154,7 +154,7 @@ preview(enriched)
     code: `// Escape hatch: embed raw SQL expressions
 import * as ty from 'tybis';
 
-const events = ty.relation('events', {
+const events = ty.table('events', {
   id: 'int64',
   user_id: 'int64',
   event_name: 'string',

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as ty from '../src/index.js'
 
 describe('Tybis Integration Tests', () => {
-    const penguins = ty.relation('penguins', {
+    const penguins = ty.table('penguins', {
         species: 'string',
         year: 'int32',
         bill_length_mm: 'float64',

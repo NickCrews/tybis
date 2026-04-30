@@ -5,7 +5,7 @@ import * as vals from '../src/value/index.js'
 import * as dt from '../src/datatype.js'
 
 describe('UUIDExpr', () => {
-    const users = ty.relation('users', {
+    const users = ty.table('users', {
         id: "uuid",
         name: "string",
         email: "string",
@@ -109,7 +109,7 @@ describe('UUIDExpr', () => {
 
     describe('Common operations', () => {
         it('supports eq() comparison', () => {
-            const anotherTable = ty.relation('orders', {
+            const anotherTable = ty.table('orders', {
                 order_id: "uuid",
                 user_id: "uuid",
             })
@@ -172,7 +172,7 @@ describe('UUIDExpr', () => {
     })
 
     describe('Multiple UUID columns', () => {
-        const relationships = ty.relation('relationships', {
+        const relationships = ty.table('relationships', {
             follower_id: "uuid",
             following_id: "uuid",
             created_at: "date",

@@ -4,7 +4,7 @@ import * as ty from '../src/index.js'
 import * as ops from '../src/value/ops.js'
 
 describe('String Operations', () => {
-    const table = ty.relation('users', {
+    const table = ty.table('users', {
         name: 'string',
         email: 'string',
     })

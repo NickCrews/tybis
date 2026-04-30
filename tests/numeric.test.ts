@@ -4,7 +4,7 @@ import * as ty from '../src/index.js'
 import * as ops from '../src/value/ops.js'
 
 describe('Numeric Operations', () => {
-    const table = ty.relation('nums', {
+    const table = ty.table('nums', {
         x: 'float64',
         y: 'float64',
     })

@@ -3,7 +3,7 @@ import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 
 describe('TimeExpr', () => {
-    const logs = ty.relation('logs', {
+    const logs = ty.table('logs', {
         id: 'int32',
         mytime: 'time',
         mytime2: 'time',

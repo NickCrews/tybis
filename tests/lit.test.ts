@@ -208,7 +208,7 @@ describe('lit()', () => {
     })
 
     describe('integration in queries', () => {
-        const t = ty.relation('tbl', { x: 'float64', name: 'string' })
+        const t = ty.table('tbl', { x: 'float64', name: 'string' })
 
         it('lit used in eq filter', () => {
             const q = t.filter(r => r.col('name').eq(ty.lit('alice')))

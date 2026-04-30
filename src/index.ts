@@ -1,4 +1,4 @@
-export { Relation, relation } from './relation.js'
+export { Relation, table } from './relation.js'
 export type { Compiler } from './compilers/base.js'
 export { type BuiltinROp } from './rop.js'
 export type { IROp } from './irop.js'

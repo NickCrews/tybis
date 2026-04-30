@@ -65,12 +65,12 @@ Tybis does NOT:
 
 ## API
 
-### `relation(name, schema)`
+### `table(name, schema)`
 
-Define a relation with an explicit name and schema. The schema maps column names to PRQL data types.
+Define a relation backed by a database table or view. The schema maps column names to tybis data types (see below).
 
 ```typescript
-const orders = ty.relation('orders', {
+const orders = ty.table('orders', {
     order_id: 'int64',
     customer_id: 'int64',
     amount: 'float64',

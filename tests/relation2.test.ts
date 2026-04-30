@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 
-const penguins = ty.relation('penguins', {
+const penguins = ty.table('penguins', {
     species: 'string',
     year: 'int32',
     bill_length_mm: 'float64',

@@ -4,7 +4,7 @@ import * as ty from '../src/index.js'
 import * as dt from '../src/datatype.js'
 
 describe('Group aggregation', () => {
-    const penguins = ty.relation('penguins', {
+    const penguins = ty.table('penguins', {
         species: 'string',
         year: 'int32',
         bill_length_mm: 'float64',

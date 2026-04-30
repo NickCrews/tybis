@@ -249,14 +249,16 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 // ---------------------------------------------------------------------------
 
 /**
- * Define a relation with an explicit name and schema.
+ * Define a relation backed by a database table or view.
+ * @param name The name of the table or view.
+ * @param sch An object describing the schema, where keys are column names and values are data types.
  * @example
- * const penguins = relation('penguins', {
+ * const penguins = table('penguins', {
  *   species: DT.string,
  *   year: DT.int32,
  *   bill_length_mm: DT.float64,
  * })
  */
-export function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>> {
+export function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>> {
     return new FromOp(name, schema(sch)).toRelation()
 }

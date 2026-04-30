@@ -4,7 +4,7 @@ import * as ty from '../src/index.js'
 import * as ops from '../src/value/ops.js'
 
 describe('Comparison Operations', () => {
-    const table = ty.relation('data', {
+    const table = ty.table('data', {
         f64a: 'float64',
         f64b: 'float64',
         name: 'string',

@@ -10,7 +10,7 @@ const compile = (e: vals.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
-        const table = ty.relation('data', { name: 'string', x: 'float64' })
+        const table = ty.table('data', { name: 'string', x: 'float64' })
         const e = table.col('name').isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
@@ -24,7 +24,7 @@ describe('isNotNull()', () => {
     })
 
     it('compiles to is_not_null in a filter', () => {
-        const table = ty.relation('data', { name: 'string' })
+        const table = ty.table('data', { name: 'string' })
         const q = table.filter(r => r.col('name').isNotNull())
         expect(q.toPrql()).toMatchInlineSnapshot(`
           "from data
@@ -35,28 +35,28 @@ describe('isNotNull()', () => {
 
 describe('min() and max()', () => {
     it('min() returns a scalar expr with same dtype', () => {
-        const table = ty.relation('data', { score: 'float64' })
+        const table = ty.table('data', { score: 'float64' })
         const e = table.col('score').min()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('scalar')
     })
 
     it('max() returns a scalar expr with same dtype', () => {
-        const table = ty.relation('data', { score: 'float64' })
+        const table = ty.table('data', { score: 'float64' })
         const e = table.col('score').max()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('scalar')
     })
 
     it('min() on a string column preserves string dtype', () => {
-        const table = ty.relation('data', { name: 'string' })
+        const table = ty.table('data', { name: 'string' })
         const e = table.col('name').min()
         expect(e.dtype()).toEqual({ typecode: 'string' })
         expect(e.dshape()).toBe('scalar')
     })
 
     it('max() compiles correctly in group agg', () => {
-        const table = ty.relation('data', { category: 'string', score: 'float64' })
+        const table = ty.table('data', { category: 'string', score: 'float64' })
         const q = table.group(
             r => [r.col('category')],
             g => g.agg({ max_score: g.col('score').max() })
@@ -72,7 +72,7 @@ describe('min() and max()', () => {
     })
 
     it('min() compiles correctly in group agg', () => {
-        const table = ty.relation('data', { category: 'string', score: 'float64' })
+        const table = ty.table('data', { category: 'string', score: 'float64' })
         const q = table.group(
             r => [r.col('category')],
             g => g.agg({ min_score: g.col('score').min() })
@@ -90,7 +90,7 @@ describe('min() and max()', () => {
 
 describe('BooleanExpr.not()', () => {
     it('produces a boolean expr with same shape', () => {
-        const table = ty.relation('data', { active: 'boolean' })
+        const table = ty.table('data', { active: 'boolean' })
         const e = table.col('active').not()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
@@ -103,7 +103,7 @@ describe('BooleanExpr.not()', () => {
     })
 
     it('compiles not() in a filter', () => {
-        const table = ty.relation('data', { active: 'boolean' })
+        const table = ty.table('data', { active: 'boolean' })
         const q = table.filter(r => r.col('active').not())
         expect(q.toPrql()).toMatchInlineSnapshot(`
           "from data
@@ -112,7 +112,7 @@ describe('BooleanExpr.not()', () => {
     })
 
     it('chains not() with and()', () => {
-        const table = ty.relation('data', { a: 'boolean', b: 'boolean' })
+        const table = ty.table('data', { a: 'boolean', b: 'boolean' })
         const q = table.filter(r => r.col('a').not().and(r.col('b')))
         expect(q.toPrql()).toMatchInlineSnapshot(`
           "from data
@@ -140,7 +140,7 @@ describe('sql() factory function', () => {
     })
 
     it('can be used in a derive', () => {
-        const table = ty.relation('data', { x: 'float64' })
+        const table = ty.table('data', { x: 'float64' })
         const q = table.derive(() => ({
             custom: vals.sql('x * 2 + 1', { typecode: 'float', size: 64 }, 'columnar')
         }))

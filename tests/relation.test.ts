@@ -5,7 +5,7 @@ import * as dt from '../src/datatype.js'
 
 describe('Type Safety', () => {
     it('should accept an explicit schema', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             year: 'int32',
             bill_length_mm: 'float64',
@@ -19,7 +19,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through group and agg', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             year: 'int32',
             bill_length_mm: 'float64',
@@ -42,7 +42,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through derive', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             bill_length_mm: 'float64',
         })
@@ -59,7 +59,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through select', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             year: 'int32',
             bill_length_mm: 'float64',
@@ -81,7 +81,7 @@ describe('Type Safety', () => {
     })
 
     it('should track schema through select shorthand', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             year: 'int32',
             bill_length_mm: 'float64',
@@ -103,7 +103,7 @@ describe('Type Safety', () => {
     })
 
     it('should drop column when false is provided', () => {
-        const penguins = ty.relation('penguins', {
+        const penguins = ty.table('penguins', {
             species: 'string',
             year: 'int32',
             bill_length_mm: 'float64',
@@ -124,7 +124,7 @@ describe('Type Safety', () => {
     })
 
     it('string columns should have string methods', () => {
-        const r = ty.relation('t', { name: 'string' })
+        const r = ty.table('t', { name: 'string' })
         const nameCol = r.col('name')
         expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
         expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
