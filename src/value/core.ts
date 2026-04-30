@@ -1,7 +1,6 @@
 import { isValidDataType, type DataType } from '../datatype.js'
 import { isValidDataShape, type DataShape } from '../datashape.js'
 import { VExpr } from './expr.js'
-import { type Compiler } from '../compilers/base.js'
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -38,7 +37,7 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * 
  * Note that this also does NOT implement the actual compilation logic,
  * eg there is nothing in there that says how to convert this to SQL or PRQL.
- * It is the responsibility of a {@link Compiler} to define this for a given computation backend.
+ * It is the responsibility of a Compiler to define this for a given computation backend.
  * This separation means that a `StringUpperOp` has shared semantics across all backends,
  * eg you could build it on the frontend and show a preview of the resulting data
  * with an in-memory compiler,
@@ -46,7 +45,7 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * and then the backend could deserialize it and compile it to SQL or PRQL or whatever,
  * then execute on the actual database, and the semantics of the operation would be preserved across all those steps.
  */
-export interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
+export interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends string = string> {
     readonly kind: K
     /** The {@link DataType} of this expression. */
     dtype(): T
@@ -59,7 +58,7 @@ export interface IVOp<T extends DataType = DataType, S extends DataShape = DataS
     [IsVOpSymbol]?: boolean
 }
 
-export interface IVExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
+export interface IVExpr<T extends DataType = DataType, S extends DataShape = DataShape> {
     /** The {@link DataType} of this expression. */
     dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */

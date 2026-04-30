@@ -1,4 +1,5 @@
 import { type IVExpr, type IVOp, isVExpr, isVOp } from "./value/core"
+import { type DataShape } from "./datashape"
 
 export interface DTNull { typecode: 'null' }
 export function DTNull(): DTNull { return { typecode: 'null' } }
@@ -60,11 +61,10 @@ type DTypeShorthands =
  * Check if a value is a valid DataType, eg {typecode: 'string'}, {typecode: 'int', size: 32}, etc.
  */
 export function isValidDataType(datatype: any): datatype is DataType {
-    let typecode: DataType['typecode']
     if (!datatype || typeof datatype !== 'object' || typeof datatype.typecode !== 'string') {
         return false
     }
-    typecode = datatype.typecode as DataType['typecode']
+    const typecode = datatype.typecode as DataType['typecode']
     switch (typecode) {
         case 'null':
         case 'string':
@@ -79,9 +79,10 @@ export function isValidDataType(datatype: any): datatype is DataType {
             return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
         case 'float':
             return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
-        default:
+        default: {
             const _exhaustiveCheck = typecode satisfies never
             return false
+        }
     }
 }
 
@@ -168,12 +169,12 @@ export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferD
     throw new Error(`Cannot infer dtype for value: ${value}`)
 }
 
-export type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any>
+export type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, DataShape> | IVOp<DataType, DataShape>
 export type InferDtype<T extends IntoDtype> =
     T extends DataType ? T :
     T extends DTypeShorthands ? InferDtypeFromShorthand<T> :
-    T extends IVExpr<infer D, any> ? D :
-    T extends IVOp<infer D, any> ? D :
+    T extends IVExpr<infer D, DataShape> ? D :
+    T extends IVOp<infer D, DataShape> ? D :
     never
 
 export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {

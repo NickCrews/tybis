@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { expectTypeOf } from 'expect-type'
 import { isComparable, coerceToComparable } from '../src/value/compare.js'
 import * as ty from '../src/index.js'
 

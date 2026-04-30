@@ -3,7 +3,6 @@ import { Relation } from './relation.js'
 import { IROp, IsROpSymbol } from './irop.js'
 import { IVOp } from './value/core.js'
 import type { SortSpec } from './value/ops.js'
-import { type DataType } from './datatype.js'
 
 export abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
     [IsROpSymbol] = true as const

@@ -51,7 +51,6 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
   }
 
   try {
-    // eslint-disable-next-line no-new-func
     const fn = new Function('__ty', 'preview', jsCode)
     await fn(ty, preview)
   } catch (err) {
