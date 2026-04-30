@@ -58,6 +58,71 @@ describe('Type Safety', () => {
         }>>()
     })
 
+    it('should track schema through select', () => {
+        const penguins = ty.relation('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+
+        const result = penguins.select(r => ({
+            species_alias: r.col('species'),
+            is_recent: r.col('year').gt(2000),
+        }))
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species_alias: { typecode: 'string' }
+            is_recent: { typecode: 'boolean' }
+        }>>()
+
+        // Assert old columns are no longer in schema at compile time
+        type ExpectedSchema = typeof result['schema']
+        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
+    })
+
+    it('should track schema through select shorthand', () => {
+        const penguins = ty.relation('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+
+        const result = penguins.select(r => ({
+            species: true,
+            is_recent: r.col('year').gt(2000),
+        }))
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species: { typecode: 'string' }
+            is_recent: { typecode: 'boolean' }
+        }>>()
+
+        type ExpectedSchema = typeof result['schema']
+        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
+        expectTypeOf<ExpectedSchema>().not.toHaveProperty('year')
+    })
+
+    it('should drop column when false is provided', () => {
+        const penguins = ty.relation('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+
+        const result = penguins.select(r => ({
+            species: true,
+            year: false as const,
+        }))
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species: { typecode: 'string' }
+        }>>()
+
+        type ExpectedSchema = typeof result['schema']
+        expectTypeOf<ExpectedSchema>().not.toHaveProperty('year')
+        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
+    })
+
     it('string columns should have string methods', () => {
         const r = ty.relation('t', { name: 'string' })
         const nameCol = r.col('name')

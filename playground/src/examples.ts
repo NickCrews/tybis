@@ -79,6 +79,12 @@ const result = penguins
       mean_bill: g.col('bill_length_mm').mean(),
     })
   )
+  .select(r => ({
+    species: true,
+    year: false, // Drop year
+    count: true,
+    mean_bill_cm: r.col('mean_bill').div(10), // Rename and transform
+  }))
   .sort(r => r.col('count').desc())
   .take(10)
 

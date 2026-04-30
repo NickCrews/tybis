@@ -69,6 +69,10 @@ export class PrqlCompiler implements Compiler {
                 const dervs = node.derivations.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
                 return `${this.compileIR(node.source)}\nderive {\n${dervs}\n}`
             }
+            case 'select': {
+                const sels = node.selections.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
+                return `${this.compileIR(node.source)}\nselect {\n${sels}\n}`
+            }
             case 'group': {
                 const keys = node.keys.join(', ')
                 const aggs = node.aggregations.map(([k, v]) => `    ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')

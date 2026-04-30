@@ -56,6 +56,35 @@ describe('Tybis Integration Tests', () => {
             `)
         })
 
+        it('select', () => {
+            const q = penguins.select(r => ({
+                species: r.col('species'),
+                half_bill: r.col('bill_length_mm').div(2),
+                one: ty.lit(1),
+            }))
+            // Expected PRQL format
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from penguins
+              select {
+                species = species,
+                half_bill = bill_length_mm / 2,
+                one = 1
+              }"
+            `)
+        })
+
+        it('select shorthand', () => {
+            const q = penguins.select(r => ({
+                species: true,
+            }))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from penguins
+              select {
+                species = species
+              }"
+            `)
+        })
+
         it('chained operations', () => {
             const q = penguins
                 .filter(r => r.col('bill_length_mm').gt(40))
@@ -114,6 +143,30 @@ describe('Tybis Integration Tests', () => {
             const sql = penguins.take(10).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT * FROM penguins LIMIT 10"`)
         })
+
+        it('select', () => {
+            const sql = penguins.select(r => ({
+                species: r.col('species'),
+                half_bill: r.col('bill_length_mm').div(2),
+                one: ty.lit(1),
+            })).toSql()
+            expect(sql).toMatchInlineSnapshot(`"SELECT species, (bill_length_mm / 2) AS half_bill, 1 AS one FROM penguins"`)
+        })
+
+        it('select shorthand', () => {
+            const sql = penguins.select(r => ({
+                species: true,
+            })).toSql()
+            expect(sql).toMatchInlineSnapshot(`"SELECT species FROM penguins"`)
+        })
+
+        it('select explicitly dropping column with false', () => {
+            const sql = penguins.select(r => ({
+                species: true,
+                year: false,
+            })).toSql()
+            expect(sql).toMatchInlineSnapshot(`"SELECT species FROM penguins"`)
+        })
     })
 
     describe('derive()', () => {
@@ -125,6 +178,41 @@ describe('Tybis Integration Tests', () => {
               "from penguins
               derive {
                 ratio = bill_length_mm / 40
+              }"
+            `)
+        })
+    })
+
+    describe('select()', () => {
+        it('throws an error if no arguments are provided', () => {
+            // @ts-expect-error
+            expect(() => penguins.select()).toThrowError(
+                "select() requires a callback returning an object map of columns"
+            )
+        })
+
+        it('throws an error if the selection is empty', () => {
+            expect(() => penguins.select(() => ({}))).toThrowError(
+                "select() requires at least one expression"
+            )
+        })
+
+        it('throws an error if shorthand is used for a missing column', () => {
+            expect(() => penguins.select(r => ({
+                // @ts-expect-error
+                missing: true
+            }))).toThrowError("Cannot select 'missing': column does not exist.")
+        })
+
+        it('allows false to explicitly drop a column', () => {
+            const q = penguins.select(r => ({
+                species: true,
+                year: false,
+            }))
+            expect(q.toPrql()).toMatchInlineSnapshot(`
+              "from penguins
+              select {
+                species = species
               }"
             `)
         })

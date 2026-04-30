@@ -69,6 +69,19 @@ type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> =
         [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never
     }
 
+type SelectInput<S extends Schema, D> = {
+    [K in keyof D]: K extends keyof S
+    ? (IExpr<any, any> | boolean)
+    : IExpr<any, any>
+}
+
+type SelectSchema<S extends Schema, D> = {
+    [K in keyof D as D[K] extends false ? never : K]:
+    D[K] extends IExpr<infer T, any> ? T :
+    D[K] extends boolean ? (K extends keyof S ? S[K] : never) :
+    never
+}
+
 // ---------------------------------------------------------------------------
 // Relation class
 // ---------------------------------------------------------------------------
@@ -160,6 +173,53 @@ export class Relation<S extends Schema = Schema> {
             kind: 'derive',
             source: this._ir,
             derivations: pairs,
+        })
+    }
+
+    /**
+     * Replace existing columns with a new set of expressions.
+     * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
+     * @example penguins.select(r => ({ species: true })) // Keep existing column
+     */
+    select<D extends SelectInput<S, D>>(
+        cb: (r: RowAccessor<S>) => D
+    ): Relation<SelectSchema<S, D>> {
+        if (!cb) {
+            throw new Error("select() requires a callback returning an object map of columns. For example: .select(r => ({ species: true }))")
+        }
+
+        const accessor = new RowAccessor(this.schema)
+        const selections = cb(accessor)
+
+        const pairs: [string, IOp][] = []
+        const newSchema: Record<string, DataType> = {}
+
+        for (const [k, v] of Object.entries(selections) as [string, IExpr<any, any> | boolean][]) {
+            if (typeof v === 'boolean') {
+                if (v === true) {
+                    if (!(k in this.schema)) {
+                        const suggestion = suggestColumnName(k, Object.keys(this.schema))
+                        throw new Error(`Cannot select '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+                    }
+                    newSchema[k] = this.schema[k]!
+                    pairs.push([k, accessor.col(k).toOp() as unknown as IOp])
+                } else {
+                    continue
+                }
+            } else {
+                newSchema[k] = v.dtype()
+                pairs.push([k, v.toOp() as unknown as IOp])
+            }
+        }
+
+        if (pairs.length === 0) {
+            throw new Error("select() requires at least one expression")
+        }
+
+        return new Relation(newSchema as SelectSchema<S, D>, {
+            kind: 'select',
+            source: this._ir,
+            selections: pairs,
         })
     }
 
