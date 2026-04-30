@@ -16,5 +16,5 @@ export {
     count,
     sql,
     vOpToVExpr,
+    lit,
 } from './expr.js'
-export { lit } from './lit.js'

@@ -2,8 +2,7 @@
 import { inferDtypeFromJs, type DataType, type InferrableJsType } from '../datatype.js'
 import * as dt from '../datatype.js'
 import { type IVOp } from './core.js'
-import { BaseOp } from './ops.js'
-import { VExpr } from './expr.js'
+import { BaseOp } from './base-op.js'
 
 // ---------------------------------------------------------------------------
 // Literals
@@ -260,19 +259,4 @@ export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | 
         default:
             throw new Error(`Unsupported JS value type: ${tc satisfies never}`)
     }
-}
-
-/**
- * Create a scalar value expression that represents a single literal value, eg `ty.lit(42)` or `ty.lit("hello")`.
- * 
- * The dtype can be inferred from the value, or explicitly provided if needed.
- * 
- * Note how `ty.lit("name")` represents a string literal value, which is different from `myrelation.col("name")`, which represents a reference to a column named "name".
- * 
- * @param value The literal value to use.
- * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
- * @returns A VExpr representing the literal value.
- */
-export function lit<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
-    return litOp(value, dtype).toExpr()
 }

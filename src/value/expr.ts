@@ -5,6 +5,8 @@ import * as ops from './ops.js'
 import { IVOp, IVExpr, IsVExprSymbol } from './core.js'
 import * as cmp from './compare.js'
 import * as litOps from './lit.js'
+import { registerVOpToVExpr } from './base-op.js'
+import { AcceptableJsVal, ExplicitOrInferredDtype, litOp } from './lit.js'
 
 // ---------------------------------------------------------------------------
 // opToExpr — wraps an IVOp in the appropriate Expr subclass
@@ -36,6 +38,7 @@ export function vOpToVExpr<T extends DataType, S extends DataShape>(op: IVOp<T, 
     if (d.typecode === 'interval') return new IntervalExpr(op as IVOp<{ typecode: 'interval' }, S>) as VExpr<T, S>
     throw new Error(`Unsupported dtype in opToExpr: ${(d satisfies never)}`)
 }
+registerVOpToVExpr(vOpToVExpr)
 
 
 
@@ -197,9 +200,9 @@ export class UUIDExpr<S extends DataShape = DataShape> extends GenericVExpr<dt.D
     // no methods yet, but could add things like uuidv4(), etc.
 }
 
-export function col<N extends string, T extends IntoDtype>(name: N, dtype: T): VExpr<dt.InferDtype<T>, "columnar"> {
+export function col<N extends string, T extends IntoDtype>(name: N, dtype: T) {
     const op = new ops.ColRefOp(name, dtype)
-    return op.toExpr()
+    return vOpToVExpr(op)
 }
 
 // ---------------------------------------------------------------------------
@@ -243,4 +246,20 @@ export function count(): NumericExpr<dt.DTInt64, 'scalar'> {
  */
 export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S): VExpr<T, S> {
     return vOpToVExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
+}
+
+/**
+ * Create a scalar value expression that represents a single literal value, eg `ty.lit(42)` or `ty.lit("hello")`.
+ * 
+ * The dtype can be inferred from the value, or explicitly provided if needed.
+ * 
+ * Note how `ty.lit("name")` represents a string literal value, which is different from `myrelation.col("name")`, which represents a reference to a column named "name".
+ * 
+ * @param value The literal value to use.
+ * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
+ * @returns A VExpr representing the literal value.
+ */
+export function lit<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
+    const op = litOp(value, dtype)
+    return vOpToVExpr(op)
 }

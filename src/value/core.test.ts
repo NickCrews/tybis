@@ -18,23 +18,13 @@ describe('isOp()', () => {
     })
 
     describe('fallback duck-type detection', () => {
-        it('returns true for objects with kind, valid dtype(), valid dshape(), and toExpr()', () => {
+        it('returns true for objects with kind, valid dtype(), valid dshape()', () => {
             const obj = {
                 kind: 'fake_op',
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'scalar',
-                toExpr: () => ty.lit('test'),
             }
             expect(isVOp(obj)).toBe(true)
-        })
-
-        it('returns false for objects missing toExpr()', () => {
-            const obj = {
-                kind: 'fake_op',
-                dtype: () => ({ typecode: 'string' }),
-                dshape: () => 'scalar',
-            }
-            expect(isVOp(obj)).toBe(false)
         })
 
         it('returns false when kind is missing', () => {

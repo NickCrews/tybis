@@ -140,10 +140,10 @@ describe('dtype()', () => {
     })
 
     it('accepts an Op and returns its dtype', () => {
-        const result = dtype(ty.lit(42).toOp())
-        expect(result).toEqual({ typecode: 'int', size: 64 })
+        const result = dtype(ty.lit('hello').toOp())
+        expect(result).toEqual({ typecode: 'string' })
         // @ts-expect-error TODO: make this work
-        expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'int', readonly size: 64 }>()
+        expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'string' }>()
     })
 
     it('converts all int shorthands', () => {

@@ -2,28 +2,12 @@ import { type DataType, type InferDtype, type InferrableJsType } from '../dataty
 import * as dt from '../datatype'
 import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.js'
 import { highestDataShape } from '../datashape.js'
-import { IVExpr, IVOp, isVExpr, isVOp, IsVOpSymbol } from './core.js'
-import { VExpr, vOpToVExpr } from './expr.js'
+import { IVExpr, IVOp, isVExpr, isVOp } from './core.js'
+
 import * as litOps from './lit.js'
+import { BaseOp } from './base-op.js'
 
-// ---------------------------------------------------------------------------
-// Base Op class
-// ---------------------------------------------------------------------------
 
-export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IVOp<T, S> {
-    [IsVOpSymbol] = true as const
-    abstract readonly kind: string
-    private readonly _dtype: T
-    private readonly _dshape: S
-    constructor(dtype: T, dshape: S) {
-        this._dtype = dtype
-        this._dshape = dshape
-    }
-    dtype(): T { return this._dtype }
-    dshape(): S { return this._dshape }
-    toExpr(): VExpr<T, S> { return vOpToVExpr(this) }
-    getName(): string { return this.kind }
-}
 
 type DT<T extends InferrableJsType | dt.IntoDtype> = T extends InferrableJsType ? dt.InferDtypeFromJs<T> : T extends dt.IntoDtype ? InferDtype<T> : never
 /** Convert an expression, op, or JS value to an Op. */

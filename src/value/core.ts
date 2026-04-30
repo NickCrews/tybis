@@ -1,6 +1,5 @@
 import { isValidDataType, type DataType } from '../datatype.js'
 import { isValidDataShape, type DataShape } from '../datashape.js'
-import { VExpr } from './expr.js'
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -18,7 +17,6 @@ export const DependsOnSymbol = Symbol('dependsOn')
  * - has a `dtype()` method that returns a DataType
  * - has a `dshape()` method that returns a DataShape ('scalar' or 'columnar')
  * - has a `getName()` method that returns a string, often used to generate the column name.
- * - has a `toExpr()` method that converts it to an Expr, which is the public-facing API for expressions in Tybis.
  * 
  * For example, you might have an operation that converts a string column to uppercase. You could implement this as an IVOp like this:
  * 
@@ -28,7 +26,6 @@ export const DependsOnSymbol = Symbol('dependsOn')
  *     constructor(readonly operand: IVOp<{ typecode: 'string' }, S>) {}
  *     dtype() { return DT.string }
  *     dshape() { return this.operand.dshape() }
- *     toExpr() { return new StringExpr(this) }
  *     getName() { return `${this.operand.getName()}_upper` }
  * }
  * ```
@@ -51,8 +48,6 @@ export interface IVOp<T extends DataType = DataType, S extends DataShape = DataS
     dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     dshape(): S
-    /** Convert this operation to its public-facing {@link VExpr}. */
-    toExpr(): VExpr<T, S>
     getName(): string
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
     [IsVOpSymbol]?: boolean
@@ -74,7 +69,6 @@ export interface IVExpr<T extends DataType = DataType, S extends DataShape = Dat
  * 
  * First checks for the presence of the IsVOpSymbol, then falls back to checking for all of the following properties:
  * - kind exists
- * - toExpr() exists
  * - dtype() returns a valid DataType
  * - dshape() returns a valid DataShape
  */
@@ -90,8 +84,7 @@ export function isVOp(obj: any): obj is IVOp {
     const hasKind = 'kind' in obj
     const hasProperDtype = 'dtype' in obj && typeof obj.dtype === 'function' && isValidDataType(obj.dtype())
     const hasProperDshape = 'dshape' in obj && typeof obj.dshape === 'function' && isValidDataShape(obj.dshape())
-    const hasToExpr = 'toExpr' in obj && typeof obj.toExpr === 'function'
-    return hasKind && hasProperDtype && hasProperDshape && hasToExpr
+    return hasKind && hasProperDtype && hasProperDshape
 }
 
 /**
