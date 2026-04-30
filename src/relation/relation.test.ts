@@ -160,6 +160,12 @@ describe('Relation.take()', () => {
     it('throws for negative n', () => {
         expect(() => penguins.take(-1)).toThrow('TakeOp requires a non-negative integer for n, got -1')
     })
+
+    it('preserves schema through take', () => {
+        const q = penguins.take(5)
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
+    })
 })
 
 describe('Relation.derive()', () => {
@@ -240,23 +246,19 @@ describe('GroupAccessor.agg() validation', () => {
     })
 })
 
-describe('Relation schema is preserved through operations', () => {
+describe('Relation.filter()', () => {
     it('schema is preserved through filter', () => {
         const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
         expect(q.schema).toEqual(penguins.schema)
         expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
 
+})
+
+describe('Relation.sort()', () => {
     it('schema is preserved through sort', () => {
         const q = penguins.sort(r => r.col('year'))
         expect(q.schema).toEqual(penguins.schema)
         expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
-
-    it('schema is preserved through take', () => {
-        const q = penguins.take(5)
-        expect(q.schema).toEqual(penguins.schema)
-        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
-    })
-
 })
