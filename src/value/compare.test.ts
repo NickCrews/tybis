@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { isComparable, coerceToComparable } from '../src/value/compare.js'
-import * as ty from '../src/index.js'
+import { isComparable, coerceToComparable } from './compare.js'
+import * as ty from '../index.js'
 
 describe('isComparable()', () => {
     it('returns true for same typecodes', () => {
