@@ -1,6 +1,7 @@
 import { type DataType } from './datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
-import type { IRNode } from './ir.js'
+import type { IROp } from './irop.js'
+import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, type BuiltinROp } from './rop.js'
 import type { Compiler } from './compilers/base.js'
 import { type IVOp, type IVExpr } from './value/core.js'
 import { SortSpec } from './value/ops.js'
@@ -86,11 +87,14 @@ type SelectSchema<S extends Schema, D> = {
 // Relation class
 // ---------------------------------------------------------------------------
 
-export class Relation<S extends Schema = Schema> {
+export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     constructor(
-        readonly schema: S,
-        /** @internal */ readonly _ir: IRNode
+        /** @internal */ readonly _op: O
     ) { }
+
+    get schema(): S {
+        return this._op.schema()
+    }
 
     /**
      * Get a column expression by name.
@@ -104,10 +108,10 @@ export class Relation<S extends Schema = Schema> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S> {
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
-        return new Relation(this.schema, { kind: 'filter', source: this._ir, condition: condition.toOp() })
+        return new FilterOp(this._op, condition.toOp()).toRelation()
     }
 
     /**
@@ -124,7 +128,10 @@ export class Relation<S extends Schema = Schema> {
     >(
         keys: (r: RowAccessor<S>) => KC,
         transform: (g: GroupAccessor<S>) => GroupResult<A>
-    ): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>> {
+    ): Relation<
+        Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>,
+        GroupOp<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>
+    > {
         const accessor = new RowAccessor(this.schema)
         const keyCols = keys(accessor)
         const groupAccessor = new GroupAccessor(this.schema)
@@ -135,20 +142,7 @@ export class Relation<S extends Schema = Schema> {
             ([k, v]) => [k, v.toOp()] as [string, IVOp]
         )
 
-        const resultSchema: Record<string, DataType> = {}
-        for (const c of keyCols) {
-            resultSchema[c.toOp().getName()] = c.dtype()
-        }
-        for (const [k, agg] of Object.entries(result.aggregations)) {
-            resultSchema[k] = agg.dtype()
-        }
-
-        return new Relation(resultSchema as any, {
-            kind: 'group',
-            source: this._ir,
-            keys: keyNames,
-            aggregations,
-        })
+        return new GroupOp(this._op, keyNames, aggregations).toRelation() as any
     }
 
 
@@ -159,21 +153,12 @@ export class Relation<S extends Schema = Schema> {
      */
     derive<D extends Record<string, IVExpr<any, any>>>(
         cb: (r: RowAccessor<S>) => D
-    ): Relation<DeriveSchema<S, D>> {
+    ): Relation<DeriveSchema<S, D>, DeriveOp<DeriveSchema<S, D>, Record<string, IVOp>>> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])
 
-        const newSchema = { ...this.schema } as Record<string, DataType>
-        for (const [k, v] of Object.entries(derivations)) {
-            newSchema[k] = v.dtype()
-        }
-
-        return new Relation(newSchema as any, {
-            kind: 'derive',
-            source: this._ir,
-            derivations: pairs,
-        })
+        return new DeriveOp(this._op, pairs).toRelation() as any
     }
 
     /**
@@ -183,7 +168,7 @@ export class Relation<S extends Schema = Schema> {
      */
     select<D extends SelectInput<S, D>>(
         cb: (r: RowAccessor<S>) => D
-    ): Relation<SelectSchema<S, D>> {
+    ): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>> {
         if (!cb) {
             throw new Error("select() requires a callback returning an object map of columns. For example: .select(r => ({ species: true }))")
         }
@@ -216,11 +201,7 @@ export class Relation<S extends Schema = Schema> {
             throw new Error("select() requires at least one expression")
         }
 
-        return new Relation(newSchema as SelectSchema<S, D>, {
-            kind: 'select',
-            source: this._ir,
-            selections: pairs,
-        })
+        return new SelectOp(this._op, pairs).toRelation() as any
     }
 
     /**
@@ -230,26 +211,26 @@ export class Relation<S extends Schema = Schema> {
      */
     sort(
         cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
-    ): Relation<S> {
+    ): Relation<S, SortOp<S>> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
         const sortKeys = keysList.map(k =>
             k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
         )
-        return new Relation(this.schema, { kind: 'sort', source: this._ir, keys: sortKeys })
+        return new SortOp(this._op, sortKeys).toRelation()
     }
 
     /**
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number): Relation<S> {
-        return new Relation(this.schema, { kind: 'take', source: this._ir, n })
+    take(n: number): Relation<S, TakeOp<S>> {
+        return new TakeOp(this._op, n).toRelation()
     }
 
     compile(compiler: Compiler<any>): string {
-        return compiler.compileIR(this._ir)
+        return compiler.compileROp(this._op as unknown as BuiltinROp)
     }
 
     /** Compile to a PRQL query string. */
@@ -276,6 +257,6 @@ export class Relation<S extends Schema = Schema> {
  *   bill_length_mm: DT.float64,
  * })
  */
-export function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>> {
-    return new Relation(schema(sch), { kind: 'from', name })
+export function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>> {
+    return new FromOp(name, schema(sch)).toRelation()
 }

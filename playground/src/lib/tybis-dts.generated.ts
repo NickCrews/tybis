@@ -8,18 +8,18 @@
 
 export const TYBIS_DTS = /* ts */ `declare module "tybis" { type DataShape = 'scalar' | 'columnar';
 type HighestDataShape<Shapes extends DataShape[]> = Shapes extends [] ? never : 'columnar' extends Shapes[number] ? 'columnar' : 'scalar';
-type IntoDataShape = DataShape | IExpr<any, any> | IOp<any, any> | InferrableJsType;
-type InferDataShape<T extends IntoDataShape> = T extends DataShape ? T : T extends IExpr<any, infer S> ? S : T extends IOp<any, infer S> ? S : T extends InferrableJsType ? 'scalar' : never;
+type IntoDataShape = DataShape | IVExpr<any, any> | IVOp<any, any> | InferrableJsType;
+type InferDataShape<T extends IntoDataShape> = T extends DataShape ? T : T extends IVExpr<any, infer S> ? S : T extends IVOp<any, infer S> ? S : T extends InferrableJsType ? 'scalar' : never;
 
-declare abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
-    [IsOpSymbol]: true;
+declare abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IVOp<T, S> {
+    [IsVOpSymbol]: true;
     abstract readonly kind: string;
     private readonly _dtype;
     private readonly _dshape;
     constructor(dtype: T, dshape: S);
     dtype(): T;
     dshape(): S;
-    toExpr(): Expr<T, S>;
+    toExpr(): VExpr<T, S>;
     getName(): string;
 }
 declare class ColRefOp<N extends string = string, T extends IntoDtype = DataType> extends BaseOp<InferDtype<T>, 'columnar'> {
@@ -87,9 +87,9 @@ type LiteralValueCoercibleTo<T extends DataType> = T extends DTInt ? IntoIntLite
 type AcceptableJsVal<DT extends IntoDtype | undefined = undefined> = DT extends IntoDtype ? LiteralValueCoercibleTo<InferDtype<DT>> : InferrableJsType;
 type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends IntoDtype | undefined> = DT extends IntoDtype ? InferDtype<DT> : InferDtypeFromJs<JS>;
 declare class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<DTBoolean, S> {
-    readonly operand: IOp<DataType, S>;
+    readonly operand: IVOp<DataType, S>;
     readonly kind: "is_not_null";
-    constructor(operand: IOp<DataType, S>);
+    constructor(operand: IVOp<DataType, S>);
 }
 declare class CountOp extends BaseOp<DTInt<64>, 'scalar'> {
     readonly kind: "count";
@@ -101,131 +101,131 @@ declare class RawSqlOp<T extends DataType = DataType, S extends DataShape = Data
     constructor(rawSql: string, dtype: T, dshape: S);
 }
 declare class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
+    readonly left: IVOp<DataType, S1>;
+    readonly right: IVOp<DataType, S2>;
     readonly kind: "eq";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+    constructor(left: IVOp<DataType, S1>, right: IVOp<DataType, S2>);
 }
 declare class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
+    readonly left: IVOp<DataType, S1>;
+    readonly right: IVOp<DataType, S2>;
     readonly kind: "gt";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+    constructor(left: IVOp<DataType, S1>, right: IVOp<DataType, S2>);
 }
 declare class GteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
+    readonly left: IVOp<DataType, S1>;
+    readonly right: IVOp<DataType, S2>;
     readonly kind: "gte";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+    constructor(left: IVOp<DataType, S1>, right: IVOp<DataType, S2>);
 }
 declare class LtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
+    readonly left: IVOp<DataType, S1>;
+    readonly right: IVOp<DataType, S2>;
     readonly kind: "lt";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+    constructor(left: IVOp<DataType, S1>, right: IVOp<DataType, S2>);
 }
 declare class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DataType, S1>;
-    readonly right: IOp<DataType, S2>;
+    readonly left: IVOp<DataType, S1>;
+    readonly right: IVOp<DataType, S2>;
     readonly kind: "lte";
-    constructor(left: IOp<DataType, S1>, right: IOp<DataType, S2>);
+    constructor(left: IVOp<DataType, S1>, right: IVOp<DataType, S2>);
 }
 declare class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly operand: IOp<T, any>;
+    readonly operand: IVOp<T, any>;
     readonly kind: "min";
-    constructor(operand: IOp<T, any>);
+    constructor(operand: IVOp<T, any>);
 }
 declare class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly operand: IOp<T, any>;
+    readonly operand: IVOp<T, any>;
     readonly kind: "max";
-    constructor(operand: IOp<T, any>);
+    constructor(operand: IVOp<T, any>);
 }
 declare class LogicalNotOp<S extends DataShape = DataShape> extends BaseOp<DTBoolean, S> {
-    readonly operand: IOp<DTBoolean, S>;
+    readonly operand: IVOp<DTBoolean, S>;
     readonly kind: "not";
-    constructor(operand: IOp<DTBoolean, S>);
+    constructor(operand: IVOp<DTBoolean, S>);
 }
 declare class LogicalAndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DTBoolean, S1>;
-    readonly right: IOp<DTBoolean, S2>;
+    readonly left: IVOp<DTBoolean, S1>;
+    readonly right: IVOp<DTBoolean, S2>;
     readonly kind: "and";
-    constructor(left: IOp<DTBoolean, S1>, right: IOp<DTBoolean, S2>);
+    constructor(left: IVOp<DTBoolean, S1>, right: IVOp<DTBoolean, S2>);
 }
 declare class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<DTBoolean, S1>;
-    readonly right: IOp<DTBoolean, S2>;
+    readonly left: IVOp<DTBoolean, S1>;
+    readonly right: IVOp<DTBoolean, S2>;
     readonly kind: "or";
-    constructor(left: IOp<DTBoolean, S1>, right: IOp<DTBoolean, S2>);
+    constructor(left: IVOp<DTBoolean, S1>, right: IVOp<DTBoolean, S2>);
 }
 declare class AddOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<D1, S1>;
-    readonly right: IOp<D2, S2>;
+    readonly left: IVOp<D1, S1>;
+    readonly right: IVOp<D2, S2>;
     readonly kind: "add";
-    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+    constructor(left: IVOp<D1, S1>, right: IVOp<D2, S2>);
 }
 declare class SubOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<D1, S1>;
-    readonly right: IOp<D2, S2>;
+    readonly left: IVOp<D1, S1>;
+    readonly right: IVOp<D2, S2>;
     readonly kind: "sub";
-    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+    constructor(left: IVOp<D1, S1>, right: IVOp<D2, S2>);
 }
 declare class MulOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<D1, S1>;
-    readonly right: IOp<D2, S2>;
+    readonly left: IVOp<D1, S1>;
+    readonly right: IVOp<D2, S2>;
     readonly kind: "mul";
-    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+    constructor(left: IVOp<D1, S1>, right: IVOp<D2, S2>);
 }
 declare class DivOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape, D1 extends DataType = DataType, D2 extends DataType = DataType> extends BaseOp<HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
-    readonly left: IOp<D1, S1>;
-    readonly right: IOp<D2, S2>;
+    readonly left: IVOp<D1, S1>;
+    readonly right: IVOp<D2, S2>;
     readonly kind: "div";
-    constructor(left: IOp<D1, S1>, right: IOp<D2, S2>);
+    constructor(left: IVOp<D1, S1>, right: IVOp<D2, S2>);
 }
 declare class SumOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
-    readonly operand: IOp<T, any>;
+    readonly operand: IVOp<T, any>;
     readonly kind: "sum";
-    constructor(operand: IOp<T, any>);
+    constructor(operand: IVOp<T, any>);
 }
 declare class MeanOp extends BaseOp<DTFloat64, 'scalar'> {
-    readonly operand: IOp<any, any>;
+    readonly operand: IVOp<any, any>;
     readonly kind: "mean";
-    constructor(operand: IOp<any, any>);
+    constructor(operand: IVOp<any, any>);
 }
 declare class UpperOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
-    readonly operand: IOp<{
+    readonly operand: IVOp<{
         typecode: 'string';
     }, S>;
     readonly kind: "upper";
-    constructor(operand: IOp<{
+    constructor(operand: IVOp<{
         typecode: 'string';
     }, S>);
 }
 declare class LowerOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
-    readonly operand: IOp<{
+    readonly operand: IVOp<{
         typecode: 'string';
     }, S>;
     readonly kind: "lower";
-    constructor(operand: IOp<{
+    constructor(operand: IVOp<{
         typecode: 'string';
     }, S>);
 }
 declare class ContainsOp<S1 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, 'scalar']>> {
-    readonly operand: IOp<{
+    readonly operand: IVOp<{
         typecode: 'string';
     }, S1>;
     readonly pattern: StringLiteralOp;
     readonly kind: "contains";
-    constructor(operand: IOp<{
+    constructor(operand: IVOp<{
         typecode: 'string';
     }, S1>, pattern: StringLiteralOp);
 }
 declare class StartsWithOp<S1 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[S1, 'scalar']>> {
-    readonly operand: IOp<{
+    readonly operand: IVOp<{
         typecode: 'string';
     }, S1>;
     readonly prefix: StringLiteralOp;
     readonly kind: "starts_with";
-    constructor(operand: IOp<{
+    constructor(operand: IVOp<{
         typecode: 'string';
     }, S1>, prefix: StringLiteralOp);
 }
@@ -237,15 +237,15 @@ type TemporalDataType = {
     typecode: 'datetime';
 };
 declare class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<DTString, S> {
-    readonly operand: IOp<TemporalDataType, S>;
+    readonly operand: IVOp<TemporalDataType, S>;
     readonly format: string;
     readonly kind: "temporal_to_string";
-    constructor(operand: IOp<TemporalDataType, S>, format: string);
+    constructor(operand: IVOp<TemporalDataType, S>, format: string);
 }
 declare class SortSpec {
-    readonly op: IOp<any, any>;
+    readonly op: IVOp<any, any>;
     readonly direction: 'asc' | 'desc';
-    constructor(op: IOp<any, any>, direction: 'asc' | 'desc');
+    constructor(op: IVOp<any, any>, direction: 'asc' | 'desc');
 }
 type BuiltinOp = ColRefOp | IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IsNotNullOp | CountOp | RawSqlOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
 
@@ -279,9 +279,9 @@ type DtypesComparableTo<T extends DataType> = T extends {
 } ? {
     typecode: 'interval';
 } : never;
-type IntoValueComparableTo<Target extends DataType> = LiteralValueCoercibleTo<Target> | IExpr<DtypesComparableTo<Target>, any> | IOp<DtypesComparableTo<Target>, any>;
+type IntoValueComparableTo<Target extends DataType> = LiteralValueCoercibleTo<Target> | IVExpr<DtypesComparableTo<Target>, any> | IVOp<DtypesComparableTo<Target>, any>;
 
-type Expr<T extends DataType = DataType, S extends DataShape = DataShape> = T extends {
+type VExpr<T extends DataType = DataType, S extends DataShape = DataShape> = T extends {
     typecode: 'null';
 } ? NullExpr<S> : T extends {
     typecode: 'string';
@@ -298,110 +298,133 @@ type Expr<T extends DataType = DataType, S extends DataShape = DataShape> = T ex
 } ? UUIDExpr<S> : T extends {
     typecode: 'interval';
 } ? IntervalExpr<S> : never;
-declare abstract class BaseExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IExpr<T, S> {
+declare abstract class BaseVExpr<T extends DataType = DataType, S extends DataShape = DataShape> implements IVExpr<T, S> {
     private readonly _op;
-    constructor(_op: IOp<T, S>);
-    [IsExprSymbol]: true;
+    constructor(_op: IVOp<T, S>);
+    [IsVExprSymbol]: true;
     dtype(): T;
     dshape(): S;
-    toOp(): IOp<T, S>;
+    toOp(): IVOp<T, S>;
 }
-declare class GenericExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseExpr<T, S> {
-    isNotNull(): Expr<DTBoolean, S>;
+declare class GenericVExpr<T extends DataType = DataType, S extends DataShape = DataShape> extends BaseVExpr<T, S> {
+    isNotNull(): VExpr<DTBoolean, S>;
     eq<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
     gt<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
     gte<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
     lt<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
     lte<Value extends IntoValueComparableTo<T>>(value: Value): BooleanExpr<HighestDataShape<[InferDataShape<Value>, S]>>;
-    min(): Expr<T, 'scalar'>;
-    max(): Expr<T, 'scalar'>;
+    min(): VExpr<T, 'scalar'>;
+    max(): VExpr<T, 'scalar'>;
     desc(): SortExpr;
     asc(): SortExpr;
 }
-declare class NullExpr<S extends DataShape = DataShape> extends GenericExpr<{
+declare class NullExpr<S extends DataShape = DataShape> extends GenericVExpr<{
     typecode: 'null';
 }, S> {
 }
-declare class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends GenericExpr<T, S> {
-    add<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
-    sub<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
-    mul<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
-    div<T extends number | IExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+declare class NumericExpr<T extends NumericDataType = NumericDataType, S extends DataShape = DataShape> extends GenericVExpr<T, S> {
+    add<T extends number | IVExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    sub<T extends number | IVExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    mul<T extends number | IVExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
+    div<T extends number | IVExpr<NumericDataType, any>>(value: T): NumericExpr<DTFloat64, HighestDataShape<[InferDataShape<T>, S]>>;
     sum(): NumericExpr<DTFloat64, 'scalar'>;
     mean(): NumericExpr<DTFloat64, 'scalar'>;
 }
-declare class StringExpr<S extends DataShape = DataShape> extends GenericExpr<DTString, S> {
+declare class StringExpr<S extends DataShape = DataShape> extends GenericVExpr<DTString, S> {
     upper(): StringExpr<S>;
     lower(): StringExpr<S>;
     contains(pattern: string): BooleanExpr<"columnar" extends "scalar" | S ? S & "columnar" : "scalar">;
     startsWith(prefix: string): BooleanExpr<"columnar" extends "scalar" | S ? S & "columnar" : "scalar">;
 }
-declare class BooleanExpr<S extends DataShape = DataShape> extends GenericExpr<DTBoolean, S> {
-    and(other: boolean | IExpr<DTBoolean, any>): BooleanExpr<"columnar">;
-    or(other: boolean | IExpr<DTBoolean, any>): BooleanExpr<"columnar">;
+declare class BooleanExpr<S extends DataShape = DataShape> extends GenericVExpr<DTBoolean, S> {
+    and(other: boolean | IVExpr<DTBoolean, any>): BooleanExpr<"columnar">;
+    or(other: boolean | IVExpr<DTBoolean, any>): BooleanExpr<"columnar">;
     not(): BooleanExpr<S>;
 }
-declare class DateExpr<S extends DataShape = DataShape> extends GenericExpr<DTDate, S> {
+declare class DateExpr<S extends DataShape = DataShape> extends GenericVExpr<DTDate, S> {
     toString(format: string): StringExpr<S>;
 }
-declare class TimeExpr<S extends DataShape = DataShape> extends GenericExpr<DTTime, S> {
+declare class TimeExpr<S extends DataShape = DataShape> extends GenericVExpr<DTTime, S> {
     toString(format: string): StringExpr<S>;
 }
-declare class DateTimeExpr<S extends DataShape = DataShape> extends GenericExpr<DTDateTime, S> {
+declare class DateTimeExpr<S extends DataShape = DataShape> extends GenericVExpr<DTDateTime, S> {
     toString(format: string): StringExpr<S>;
 }
-declare class IntervalExpr<S extends DataShape = DataShape> extends GenericExpr<DTInterval, S> {
+declare class IntervalExpr<S extends DataShape = DataShape> extends GenericVExpr<DTInterval, S> {
 }
-declare class UUIDExpr<S extends DataShape = DataShape> extends GenericExpr<DTUUID, S> {
+declare class UUIDExpr<S extends DataShape = DataShape> extends GenericVExpr<DTUUID, S> {
 }
-declare function col<N extends string, T extends IntoDtype>(name: N, dtype: T): Expr<InferDtype<T>, "columnar">;
+declare function col<N extends string, T extends IntoDtype>(name: N, dtype: T): VExpr<InferDtype<T>, "columnar">;
 declare class SortExpr {
-    readonly expr: BaseExpr;
+    readonly expr: BaseVExpr;
     readonly direction: 'asc' | 'desc';
-    constructor(expr: BaseExpr, direction: 'asc' | 'desc');
+    constructor(expr: BaseVExpr, direction: 'asc' | 'desc');
     toSortSpec(): SortSpec;
 }
-declare function count(): NumericExpr<DTInt64, 'scalar'>;
-declare function lit<JS extends AcceptableJsVal<DT>, DT extends IntoDtype | undefined = undefined>(value: JS, dtype?: DT): Expr<ExplicitOrInferredDtype<JS, DT>, 'scalar'>;
-
-declare const IsOpSymbol: unique symbol;
-declare const IsExprSymbol: unique symbol;
 /**
- * An IOp is the **internal** representation of an operation. It does not have the pleasant
- * user-facing API of an IExpr. For example, you might have
+ * Factory function for COUNT aggregation. Returns a NumericExpr with dtype=int64 and dshape='scalar'.
+ */
+declare function count(): NumericExpr<DTInt64, 'scalar'>;
+declare function lit<JS extends AcceptableJsVal<DT>, DT extends IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, 'scalar'>;
+
+declare const IsVOpSymbol: unique symbol;
+declare const IsVExprSymbol: unique symbol;
+/**
+ * An IVOp is an interface for a value-op, for example \`add(5, relation.col('height_cm'))\`.
+ *
+ * An IVop represent either a scalar or columnar value with a known DataType.
+ * An implementation of IVOp must have the following properties:
+ * - has a \`dtype()\` method that returns a DataType
+ * - has a \`dshape()\` method that returns a DataShape ('scalar' or 'columnar')
+ * - has a \`getName()\` method that returns a string, often used to generate the column name.
+ * - has a \`toExpr()\` method that converts it to an Expr, which is the public-facing API for expressions in Tybis.
+ *
+ * For example, you might have an operation that converts a string column to uppercase. You could implement this as an IVOp like this:
  *
  * \`\`\`ts
- * class StringUpperOp<S extends DataShape> implements IOp<{ typecode: 'string' }, S> {
+ * class StringUpperOp<S extends DataShape> implements IVOp<{ typecode: 'string' }, S> {
  *     readonly kind = 'upper' as const
- *     constructor(readonly operand: IOp<{ typecode: 'string' }, S>) {}
+ *     constructor(readonly operand: IVOp<{ typecode: 'string' }, S>) {}
  *     dtype() { return DT.string }
  *     dshape() { return this.operand.dshape() }
  *     toExpr() { return new StringExpr(this) }
+ *     getName() { return \`\${this.operand.getName()}_upper\` }
  * }
  * \`\`\`
  *
- * Note that this doesn't have the nice API of an IExpr, such as the \`.trim()\` or \`.length()\` methods.
+ * Note that this doesn't have the nice API of an IVExpr, such as the \`.trim()\` or \`.length()\` methods.
+ *
+ * Note that this also does NOT implement the actual compilation logic,
+ * eg there is nothing in there that says how to convert this to SQL or PRQL.
+ * It is the responsibility of a {@link Compiler} to define this for a given computation backend.
+ * This separation means that a \`StringUpperOp\` has shared semantics across all backends,
+ * eg you could build it on the frontend and show a preview of the resulting data
+ * with an in-memory compiler,
+ * but then serialize the op to JSON, pass it to the backend, store it in a database,
+ * and then the backend could deserialize it and compile it to SQL or PRQL or whatever,
+ * then execute on the actual database, and the semantics of the operation would be preserved across all those steps.
  */
-interface IOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
+interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
     readonly kind: K;
     /** The {@link DataType} of this expression. */
     dtype(): T;
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     dshape(): S;
-    toExpr(): Expr<T, S>;
+    /** Convert this operation to its public-facing {@link VExpr}. */
+    toExpr(): VExpr<T, S>;
     getName(): string;
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
-    [IsOpSymbol]?: boolean;
+    [IsVOpSymbol]?: boolean;
 }
-interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
+interface IVExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
     /** The {@link DataType} of this expression. */
     dtype(): T;
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     dshape(): S;
     /** Convert this expression to its internal operation representation. */
-    toOp(): IOp<T, S>;
+    toOp(): IVOp<T, S>;
     /** Optional symbol to mark this object as an Expr. If not present, the object will be checked for the presence of 'dtype' and 'dshape' properties. */
-    [IsExprSymbol]?: boolean;
+    [IsVExprSymbol]?: boolean;
 }
 
 interface DTNull {
@@ -523,8 +546,8 @@ type InferDtypeFromShorthand<S extends DTypeShorthands> = S extends 'null' ? DTN
 type InferrableJsType = string | number | boolean | Date | null;
 /** Given a JS type, what DataType will be inferred? */
 type InferDtypeFromJs<JS extends InferrableJsType> = JS extends string ? DTString : JS extends number ? DTFloat<64> : JS extends boolean ? DTBoolean : JS extends Date ? DTDateTime : JS extends null ? DTNull : never;
-type IntoDtype = DataType | DTypeShorthands | IExpr<DataType, any> | IOp<DataType, any>;
-type InferDtype<T extends IntoDtype> = T extends DataType ? T : T extends DTypeShorthands ? InferDtypeFromShorthand<T> : T extends IExpr<infer D, any> ? D : T extends IOp<infer D, any> ? D : never;
+type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any>;
+type InferDtype<T extends IntoDtype> = T extends DataType ? T : T extends DTypeShorthands ? InferDtypeFromShorthand<T> : T extends IVExpr<infer D, any> ? D : T extends IVOp<infer D, any> ? D : never;
 type HighestDataType<Types extends DataType[]> = Types extends [] ? never : Types[number] extends DTFloat64 ? DTFloat64 : Types[number] extends DTFloat32 ? DTFloat32 : Types[number] extends DTFloat16 ? DTFloat16 : Types[number] extends DTFloat8 ? DTFloat8 : Types[number] extends DTInt64 ? DTInt64 : Types[number] extends DTInt32 ? DTInt32 : Types[number] extends DTInt16 ? DTInt16 : Types[number] extends DTInt8 ? DTInt8 : never;
 
 type Schema = Record<string, DataType>;
@@ -533,76 +556,121 @@ type InferSchema<T extends IntoSchema> = T extends Schema ? T : T extends Record
     [K in keyof T]: InferDtype<T[K]>;
 } : never;
 
-type IRNode = {
-    kind: 'from';
-    name: string;
-} | {
-    kind: 'filter';
-    source: IRNode;
-    condition: IOp<{
-        typecode: 'boolean';
-    }>;
-} | {
-    kind: 'derive';
-    source: IRNode;
-    derivations: [string, IOp][];
-} | {
-    kind: 'select';
-    source: IRNode;
-    selections: [string, IOp][];
-} | {
-    kind: 'group';
-    source: IRNode;
-    keys: string[];
-    aggregations: [string, IOp][];
-} | {
-    kind: 'sort';
-    source: IRNode;
-    keys: SortSpec[];
-} | {
-    kind: 'take';
-    source: IRNode;
-    n: number;
-};
-
-interface Compiler<O extends IOp<any, any, any> = BuiltinOp> {
-    compileOp(op: O): string;
-    compileIR(node: IRNode): string;
+declare const IsROpSymbol: unique symbol;
+interface IROp<S extends Schema = Schema, K extends string = string> {
+    readonly kind: K;
+    schema(): S;
+    toRelation(): Relation<S, this>;
+    [IsROpSymbol]?: boolean;
 }
 
-type Col<K extends string = string, T extends DataType = DataType> = Expr<T, 'columnar'>;
+declare abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
+    [IsROpSymbol]: true;
+    abstract readonly kind: K;
+    private _schema;
+    protected abstract computeSchema(): S;
+    schema(): S;
+    toRelation(): Relation<S, this>;
+}
+declare class FromOp<S extends Schema> extends BaseROp<S, 'from'> {
+    readonly name: string;
+    private readonly _initialSchema;
+    readonly kind: "from";
+    constructor(name: string, _initialSchema: S);
+    protected computeSchema(): S;
+}
+declare class FilterOp<S extends Schema> extends BaseROp<S, 'filter'> {
+    readonly source: IROp<S>;
+    readonly condition: IVOp<{
+        typecode: 'boolean';
+    }>;
+    readonly kind: "filter";
+    constructor(source: IROp<S>, condition: IVOp<{
+        typecode: 'boolean';
+    }>);
+    protected computeSchema(): S;
+}
+declare class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<S & {
+    [K in keyof D]: ReturnType<D[K]['dtype']>;
+}, 'derive'> {
+    readonly source: IROp<S>;
+    readonly derivations: [string, IVOp][];
+    readonly kind: "derive";
+    constructor(source: IROp<S>, derivations: [string, IVOp][]);
+    protected computeSchema(): S & {
+        [K in keyof D]: ReturnType<D[K]['dtype']>;
+    };
+}
+declare class SelectOp<S extends Schema> extends BaseROp<S, 'select'> {
+    readonly source: IROp<any>;
+    readonly selections: [string, IVOp][];
+    readonly kind: "select";
+    constructor(source: IROp<any>, selections: [string, IVOp][]);
+    protected computeSchema(): S;
+}
+declare class GroupOp<S extends Schema> extends BaseROp<S, 'group'> {
+    readonly source: IROp<any>;
+    readonly keys: string[];
+    readonly aggregations: [string, IVOp][];
+    readonly kind: "group";
+    constructor(source: IROp<any>, keys: string[], aggregations: [string, IVOp][]);
+    protected computeSchema(): S;
+}
+declare class SortOp<S extends Schema> extends BaseROp<S, 'sort'> {
+    readonly source: IROp<S>;
+    readonly keys: SortSpec[];
+    readonly kind: "sort";
+    constructor(source: IROp<S>, keys: SortSpec[]);
+    protected computeSchema(): S;
+}
+declare class TakeOp<S extends Schema> extends BaseROp<S, 'take'> {
+    readonly source: IROp<S>;
+    readonly n: number;
+    readonly kind: "take";
+    constructor(source: IROp<S>, n: number);
+    protected computeSchema(): S;
+}
+type BuiltinROp = FromOp<any> | FilterOp<any> | DeriveOp<any, any> | SelectOp<any> | GroupOp<any> | SortOp<any> | TakeOp<any>;
+declare function isBuiltinROp(op: any): op is BuiltinROp;
+
+interface Compiler<O extends IVOp<any, any, any> = BuiltinOp, R = BuiltinROp> {
+    compileOp(op: O): string;
+    compileROp(node: R): string;
+}
+
+type Col<K extends string = string, T extends DataType = DataType> = VExpr<T, 'columnar'>;
 declare class RowAccessor<S extends Schema> {
     private readonly _schema;
     constructor(_schema: S);
     col<K extends keyof S & string>(name: K): Col<K, S[K]>;
 }
 /** Result of calling g.agg({...}) inside a group() callback. */
-declare class GroupResult<A extends Record<string, BaseExpr<DataType, 'scalar'>>> {
+declare class GroupResult<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> {
     readonly aggregations: A;
     constructor(aggregations: A);
 }
 declare class GroupAccessor<S extends Schema> extends RowAccessor<S> {
-    agg<A extends Record<string, BaseExpr<DataType, 'scalar'>>>(aggregations: A): GroupResult<A>;
+    agg<A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(aggregations: A): GroupResult<A>;
 }
 type ColName<C> = C extends Col<infer N, DataType> ? N : never;
 type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never;
-type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
-    [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never;
+type AggResultSchema<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> = {
+    [K in keyof A]: A[K] extends BaseVExpr<infer T, 'scalar'> ? T : never;
 };
-type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> = Omit<S, keyof D> & {
-    [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never;
+type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> = Omit<S, keyof D> & {
+    [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never;
 };
 type SelectInput<S extends Schema, D> = {
-    [K in keyof D]: K extends keyof S ? (IExpr<any, any> | boolean) : IExpr<any, any>;
+    [K in keyof D]: K extends keyof S ? (IVExpr<any, any> | boolean) : IVExpr<any, any>;
 };
 type SelectSchema<S extends Schema, D> = {
-    [K in keyof D as D[K] extends false ? never : K]: D[K] extends IExpr<infer T, any> ? T : D[K] extends boolean ? (K extends keyof S ? S[K] : never) : never;
+    [K in keyof D as D[K] extends false ? never : K]: D[K] extends IVExpr<infer T, any> ? T : D[K] extends boolean ? (K extends keyof S ? S[K] : never) : never;
 };
-declare class Relation<S extends Schema = Schema> {
-    readonly schema: S;
-    /** @internal */ readonly _ir: IRNode;
-    constructor(schema: S, 
-    /** @internal */ _ir: IRNode);
+declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
+    /** @internal */ readonly _op: O;
+    constructor(
+    /** @internal */ _op: O);
+    get schema(): S;
     /**
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
@@ -612,7 +680,7 @@ declare class Relation<S extends Schema = Schema> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S>;
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>>;
     /**
      * Group rows by key columns and apply aggregations.
      * @example
@@ -621,29 +689,29 @@ declare class Relation<S extends Schema = Schema> {
      *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
      * )
      */
-    group<KC extends Col[], A extends Record<string, BaseExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => KC, transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>;
+    group<KC extends Col[], A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => KC, transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>, GroupOp<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>>;
     /**
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, IExpr<any, any>>>(cb: (r: RowAccessor<S>) => D): Relation<DeriveSchema<S, D>>;
+    derive<D extends Record<string, IVExpr<any, any>>>(cb: (r: RowAccessor<S>) => D): Relation<DeriveSchema<S, D>, DeriveOp<DeriveSchema<S, D>, Record<string, IVOp>>>;
     /**
      * Replace existing columns with a new set of expressions.
      * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
      * @example penguins.select(r => ({ species: true })) // Keep existing column
      */
-    select<D extends SelectInput<S, D>>(cb: (r: RowAccessor<S>) => D): Relation<SelectSchema<S, D>>;
+    select<D extends SelectInput<S, D>>(cb: (r: RowAccessor<S>) => D): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
     /**
      * Sort rows by one or more keys.
      * @example penguins.sort(r => r.col("count").desc())
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
-    sort(cb: (r: RowAccessor<S>) => SortExpr | IExpr<any, any> | (SortExpr | IExpr<any, any>)[]): Relation<S>;
+    sort(cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<S, SortOp<S>>;
     /**
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number): Relation<S>;
+    take(n: number): Relation<S, TakeOp<S>>;
     compile(compiler: Compiler<any>): string;
     /** Compile to a PRQL query string. */
     toPrql(): string;
@@ -659,19 +727,19 @@ declare class Relation<S extends Schema = Schema> {
  *   bill_length_mm: DT.float64,
  * })
  */
-declare function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>>;
+declare function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
 
 declare class PrqlCompiler implements Compiler {
     compileOp(op: BuiltinOp): string;
     compileSortKey(spec: SortSpec): string;
-    compileIR(node: IRNode): string;
+    compileROp(node: BuiltinROp): string;
 }
 
 declare class SqlCompiler implements Compiler {
     private readonly prqlCompiler;
     compileOp(op: BuiltinOp): string;
-    compileIR(node: IRNode): string;
+    compileROp(node: BuiltinROp): string;
 }
 
-export { type Compiler, type Expr, type IExpr, type IRNode, type InferSchema, PrqlCompiler, Relation, type Schema, SqlCompiler, col, count, lit, relation };
+export { type BuiltinROp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, SqlCompiler, type VExpr, col, count, isBuiltinROp, lit, relation };
  }`

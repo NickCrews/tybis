@@ -1,5 +1,5 @@
 import type { Compiler } from './base.js'
-import type { IRNode } from '../ir.js'
+import type { BuiltinROp } from '../rop.js'
 import {
     type BuiltinOp, type SortSpec,
 } from '../value/ops.js'
@@ -59,31 +59,31 @@ export class PrqlCompiler implements Compiler {
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
 
-    compileIR(node: IRNode): string {
+    compileROp(node: BuiltinROp): string {
         switch (node.kind) {
             case 'from':
                 return `from ${node.name}`
             case 'filter':
-                return `${this.compileIR(node.source)}\nfilter ${this.compileOp(node.condition as BuiltinOp)}`
+                return `${this.compileROp(node.source as BuiltinROp)}\nfilter ${this.compileOp(node.condition as BuiltinOp)}`
             case 'derive': {
                 const dervs = node.derivations.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
-                return `${this.compileIR(node.source)}\nderive {\n${dervs}\n}`
+                return `${this.compileROp(node.source as BuiltinROp)}\nderive {\n${dervs}\n}`
             }
             case 'select': {
                 const sels = node.selections.map(([k, v]) => `  ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
-                return `${this.compileIR(node.source)}\nselect {\n${sels}\n}`
+                return `${this.compileROp(node.source as BuiltinROp)}\nselect {\n${sels}\n}`
             }
             case 'group': {
                 const keys = node.keys.join(', ')
                 const aggs = node.aggregations.map(([k, v]) => `    ${k} = ${this.compileOp(v as BuiltinOp)}`).join(',\n')
-                return `${this.compileIR(node.source)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
+                return `${this.compileROp(node.source as BuiltinROp)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
             }
             case 'sort': {
                 const keys = node.keys.map(k => this.compileSortKey(k)).join(', ')
-                return `${this.compileIR(node.source)}\nsort {${keys}}`
+                return `${this.compileROp(node.source as BuiltinROp)}\nsort {${keys}}`
             }
             case 'take':
-                return `${this.compileIR(node.source)}\ntake ${node.n}`
+                return `${this.compileROp(node.source as BuiltinROp)}\ntake ${node.n}`
             default: throw new Error(`Unhandled IR node: ${(node satisfies never) as any}`)
         }
     }

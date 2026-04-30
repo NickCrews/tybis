@@ -239,11 +239,10 @@ describe('Tybis Integration Tests', () => {
         it('expressions are abstract nodes, not strings', () => {
             const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
             // The IR stores expression objects, not strings
-            const ir = q._ir
-            expect(ir.kind).toBe('filter')
-            if (ir.kind === 'filter') {
-                expect(ir.condition.kind).toBe('gt')
-            }
+            const op = q._op
+            expect(op.kind).toBe('filter')
+            // It infers the type of op as a FilterOp just based on how we called .filter()
+            expect(op.condition.kind).toBe('gt')
         })
     })
 })
