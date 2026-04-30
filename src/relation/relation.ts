@@ -115,7 +115,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
-        return new FilterOp(this._op, condition.toOp()).toRelation()
+        return new Relation(new FilterOp(this._op, condition.toOp()))
     }
 
     /**
@@ -166,7 +166,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
             ([k, v]) => [k, v.toOp()] as [string, IVOp]
         )
 
-        return new GroupOp(this._op, keyPairs, aggregations).toRelation() as any
+        return new Relation(new GroupOp(this._op, keyPairs, aggregations)) as any
     }
 
 
@@ -182,7 +182,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         const derivations = cb(accessor)
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])
 
-        return new DeriveOp(this._op, pairs).toRelation() as any
+        return new Relation(new DeriveOp(this._op, pairs)) as any
     }
 
     /**
@@ -225,7 +225,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
             throw new Error("select() requires at least one expression")
         }
 
-        return new SelectOp(this._op, pairs).toRelation() as any
+        return new Relation(new SelectOp(this._op, pairs)) as any
     }
 
     /**
@@ -242,7 +242,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         const sortKeys = keysList.map(k =>
             k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
         )
-        return new SortOp(this._op, sortKeys).toRelation()
+        return new Relation(new SortOp(this._op, sortKeys))
     }
 
     /**
@@ -250,7 +250,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * @example penguins.take(10)
      */
     take(n: number): Relation<S, TakeOp<S>> {
-        return new TakeOp(this._op, n).toRelation()
+        return new Relation(new TakeOp(this._op, n))
     }
 
     compile(compiler: Compiler<any>): string {
@@ -284,5 +284,5 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
  * })
  */
 export function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>> {
-    return new FromOp(name, schema(sch)).toRelation()
+    return new Relation(new FromOp(name, schema(sch)))
 }

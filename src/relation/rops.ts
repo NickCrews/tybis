@@ -1,5 +1,4 @@
 import { type Schema } from './schema.js'
-import { Relation } from './relation.js'
 import { IROp, IsROpSymbol } from './irop.js'
 import { IVOp } from '../value/core.js'
 import type { SortSpec } from '../value/ops.js'
@@ -17,10 +16,6 @@ export abstract class BaseROp<S extends Schema = Schema, K extends string = stri
             this._schema = this.computeSchema()
         }
         return this._schema
-    }
-
-    toRelation(): Relation<S, this> {
-        return new Relation(this)
     }
 }
 
