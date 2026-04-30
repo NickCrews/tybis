@@ -1,67 +1,88 @@
 import { isValidDataType, type DataType } from '../datatype.js'
 import { isValidDataShape, type DataShape } from '../datashape.js'
-import { Expr } from './expr.js'
+import { VExpr } from './expr.js'
+import { type Compiler } from '../compilers/base.js'
 
 // ---------------------------------------------------------------------------
 // Interfaces
 // ---------------------------------------------------------------------------
 // Users are free to use these symbols to mark their own custom ops and expressions.
-export const IsOpSymbol = Symbol('isOp')
-export const IsExprSymbol = Symbol('isExpr')
+export const IsVOpSymbol = Symbol('isVOp')
+export const IsVExprSymbol = Symbol('isVExpr')
 export const DependsOnSymbol = Symbol('dependsOn')
 
 /**
- * An IOp is the **internal** representation of an operation. It does not have the pleasant
- * user-facing API of an IExpr. For example, you might have
+ * An IVOp is an interface for a value-op, for example `add(5, relation.col('height_cm'))`.
+ * 
+ * An IVop represent either a scalar or columnar value with a known DataType.
+ * An implementation of IVOp must have the following properties:
+ * - has a `dtype()` method that returns a DataType
+ * - has a `dshape()` method that returns a DataShape ('scalar' or 'columnar')
+ * - has a `getName()` method that returns a string, often used to generate the column name.
+ * - has a `toExpr()` method that converts it to an Expr, which is the public-facing API for expressions in Tybis.
+ * 
+ * For example, you might have an operation that converts a string column to uppercase. You could implement this as an IVOp like this:
  * 
  * ```ts
- * class StringUpperOp<S extends DataShape> implements IOp<{ typecode: 'string' }, S> {
+ * class StringUpperOp<S extends DataShape> implements IVOp<{ typecode: 'string' }, S> {
  *     readonly kind = 'upper' as const
- *     constructor(readonly operand: IOp<{ typecode: 'string' }, S>) {}
+ *     constructor(readonly operand: IVOp<{ typecode: 'string' }, S>) {}
  *     dtype() { return DT.string }
  *     dshape() { return this.operand.dshape() }
  *     toExpr() { return new StringExpr(this) }
+ *     getName() { return `${this.operand.getName()}_upper` }
  * }
  * ```
  * 
- * Note that this doesn't have the nice API of an IExpr, such as the `.trim()` or `.length()` methods.
+ * Note that this doesn't have the nice API of an IVExpr, such as the `.trim()` or `.length()` methods.
+ * 
+ * Note that this also does NOT implement the actual compilation logic,
+ * eg there is nothing in there that says how to convert this to SQL or PRQL.
+ * It is the responsibility of a {@link Compiler} to define this for a given computation backend.
+ * This separation means that a `StringUpperOp` has shared semantics across all backends,
+ * eg you could build it on the frontend and show a preview of the resulting data
+ * with an in-memory compiler,
+ * but then serialize the op to JSON, pass it to the backend, store it in a database,
+ * and then the backend could deserialize it and compile it to SQL or PRQL or whatever,
+ * then execute on the actual database, and the semantics of the operation would be preserved across all those steps.
  */
-export interface IOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
+export interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
     readonly kind: K
     /** The {@link DataType} of this expression. */
     dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     dshape(): S
-    toExpr(): Expr<T, S>
+    /** Convert this operation to its public-facing {@link VExpr}. */
+    toExpr(): VExpr<T, S>
     getName(): string
     /** Optional symbol to mark this object as an Op. If not present, the object will be checked for the presence of 'kind', 'dtype', and 'dshape' properties. */
-    [IsOpSymbol]?: boolean
+    [IsVOpSymbol]?: boolean
 }
 
-export interface IExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
+export interface IVExpr<T extends DataType = DataType, S extends DataShape = DataShape, N extends string = string> {
     /** The {@link DataType} of this expression. */
     dtype(): T
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
     dshape(): S
     /** Convert this expression to its internal operation representation. */
-    toOp(): IOp<T, S>
+    toOp(): IVOp<T, S>
     /** Optional symbol to mark this object as an Expr. If not present, the object will be checked for the presence of 'dtype' and 'dshape' properties. */
-    [IsExprSymbol]?: boolean
+    [IsVExprSymbol]?: boolean
 }
 
 /**
- * Check if the given object is an IOp.
+ * Check if the given object satisfies the IVOp (Value Operation interface).
  * 
- * First checks for the presence of the IsOpSymbol, then falls back to checking for all of the following properties:
+ * First checks for the presence of the IsVOpSymbol, then falls back to checking for all of the following properties:
  * - kind exists
  * - toExpr() exists
  * - dtype() returns a valid DataType
  * - dshape() returns a valid DataShape
  */
-export function isOp(obj: any): obj is IOp {
+export function isVOp(obj: any): obj is IVOp {
     // First check for the presence of the symbol property
-    if (obj && typeof obj === 'object' && IsOpSymbol in obj) {
-        return obj[IsOpSymbol]
+    if (obj && typeof obj === 'object' && IsVOpSymbol in obj) {
+        return obj[IsVOpSymbol]
     }
     // Fallback: check for the presence of 'kind', 'dtype', and 'dshape' properties
     if (!obj || typeof obj !== 'object') {
@@ -75,17 +96,17 @@ export function isOp(obj: any): obj is IOp {
 }
 
 /**
- * Check if the given object is an IExpr.
+ * Check if the given object satisfies IVExpr (Value Expression interface).
  * 
- * First checks for the presence of the IsExprSymbol, then falls back to checking for all of the following properties:
+ * First checks for the presence of the IsVExprSymbol, then falls back to checking for all of the following properties:
  * - dtype() returns a valid DataType
  * - dshape() returns a valid DataShape
  * - toOp() exists
  */
-export function isExpr(obj: any): obj is IExpr {
+export function isVExpr(obj: any): obj is IVExpr {
     // First check for the presence of the symbol property
-    if (obj && typeof obj === 'object' && IsExprSymbol in obj) {
-        return obj[IsExprSymbol]
+    if (obj && typeof obj === 'object' && IsVExprSymbol in obj) {
+        return obj[IsVExprSymbol]
     }
     // Fallback: check for the presence of 'dtype' and 'dshape' properties
     if (!obj || typeof obj !== 'object') {

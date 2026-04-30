@@ -31,11 +31,11 @@ describe('Group aggregation', () => {
             }
           )"
         `)
-        expectTypeOf(q.col('species')).toEqualTypeOf<ty.Expr<dt.DTString, 'columnar'>>()
-        expectTypeOf(q.col('count')).toEqualTypeOf<ty.Expr<dt.DTInt64, 'columnar'>>()
-        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.Expr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('species')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(q.col('count')).toEqualTypeOf<ty.VExpr<dt.DTInt64, 'columnar'>>()
+        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
     })
 
     it('should throw runtime and type error when passing columnar expression to agg()', () => {

@@ -2,12 +2,12 @@ import { type DataType } from './datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IRNode } from './ir.js'
 import type { Compiler } from './compilers/base.js'
-import { type IOp, type IExpr } from './value/core.js'
+import { type IVOp, type IVExpr } from './value/core.js'
 import { SortSpec } from './value/ops.js'
 import {
-    BaseExpr, BooleanExpr, SortExpr,
+    BaseVExpr, BooleanExpr, SortExpr,
     col,
-    Expr,
+    VExpr,
 } from './value/expr.js'
 import { PrqlCompiler } from './compilers/prql-compiler.js'
 import { SqlCompiler } from './compilers/sql-compiler.js'
@@ -17,7 +17,7 @@ import { suggestColumnName } from './typo.js'
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
-type Col<K extends string = string, T extends DataType = DataType> = Expr<T, 'columnar'>
+type Col<K extends string = string, T extends DataType = DataType> = VExpr<T, 'columnar'>
 
 function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<K, S[K]> {
     if (!(name in schema)) {
@@ -36,12 +36,12 @@ class RowAccessor<S extends Schema> {
 }
 
 /** Result of calling g.agg({...}) inside a group() callback. */
-class GroupResult<A extends Record<string, BaseExpr<DataType, 'scalar'>>> {
+class GroupResult<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> {
     constructor(readonly aggregations: A) { }
 }
 
 class GroupAccessor<S extends Schema> extends RowAccessor<S> {
-    agg<A extends Record<string, BaseExpr<DataType, 'scalar'>>>(
+    agg<A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(
         aggregations: A
     ): GroupResult<A> {
         for (const [key, expr] of Object.entries(aggregations)) {
@@ -60,24 +60,24 @@ class GroupAccessor<S extends Schema> extends RowAccessor<S> {
 type ColName<C> = C extends Col<infer N, DataType> ? N : never
 type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never
 
-type AggResultSchema<A extends Record<string, BaseExpr<DataType, 'scalar'>>> = {
-    [K in keyof A]: A[K] extends BaseExpr<infer T, 'scalar'> ? T : never
+type AggResultSchema<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> = {
+    [K in keyof A]: A[K] extends BaseVExpr<infer T, 'scalar'> ? T : never
 }
 
-type DeriveSchema<S extends Schema, D extends Record<string, IExpr<any, any>>> =
+type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> =
     Omit<S, keyof D> & {
-        [K in keyof D]: D[K] extends IExpr<infer T, any> ? T : never
+        [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never
     }
 
 type SelectInput<S extends Schema, D> = {
     [K in keyof D]: K extends keyof S
-    ? (IExpr<any, any> | boolean)
-    : IExpr<any, any>
+    ? (IVExpr<any, any> | boolean)
+    : IVExpr<any, any>
 }
 
 type SelectSchema<S extends Schema, D> = {
     [K in keyof D as D[K] extends false ? never : K]:
-    D[K] extends IExpr<infer T, any> ? T :
+    D[K] extends IVExpr<infer T, any> ? T :
     D[K] extends boolean ? (K extends keyof S ? S[K] : never) :
     never
 }
@@ -120,7 +120,7 @@ export class Relation<S extends Schema = Schema> {
      */
     group<
         KC extends Col[],
-        A extends Record<string, BaseExpr<DataType, 'scalar'>>
+        A extends Record<string, BaseVExpr<DataType, 'scalar'>>
     >(
         keys: (r: RowAccessor<S>) => KC,
         transform: (g: GroupAccessor<S>) => GroupResult<A>
@@ -132,7 +132,7 @@ export class Relation<S extends Schema = Schema> {
 
         const keyNames = keyCols.map(c => c.toOp().getName())
         const aggregations = Object.entries(result.aggregations).map(
-            ([k, v]) => [k, v.toOp()] as [string, IOp]
+            ([k, v]) => [k, v.toOp()] as [string, IVOp]
         )
 
         const resultSchema: Record<string, DataType> = {}
@@ -157,12 +157,12 @@ export class Relation<S extends Schema = Schema> {
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      */
-    derive<D extends Record<string, IExpr<any, any>>>(
+    derive<D extends Record<string, IVExpr<any, any>>>(
         cb: (r: RowAccessor<S>) => D
     ): Relation<DeriveSchema<S, D>> {
         const accessor = new RowAccessor(this.schema)
         const derivations = cb(accessor)
-        const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IOp])
+        const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])
 
         const newSchema = { ...this.schema } as Record<string, DataType>
         for (const [k, v] of Object.entries(derivations)) {
@@ -191,10 +191,10 @@ export class Relation<S extends Schema = Schema> {
         const accessor = new RowAccessor(this.schema)
         const selections = cb(accessor)
 
-        const pairs: [string, IOp][] = []
+        const pairs: [string, IVOp][] = []
         const newSchema: Record<string, DataType> = {}
 
-        for (const [k, v] of Object.entries(selections) as [string, IExpr<any, any> | boolean][]) {
+        for (const [k, v] of Object.entries(selections) as [string, IVExpr<any, any> | boolean][]) {
             if (typeof v === 'boolean') {
                 if (v === true) {
                     if (!(k in this.schema)) {
@@ -202,13 +202,13 @@ export class Relation<S extends Schema = Schema> {
                         throw new Error(`Cannot select '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
                     }
                     newSchema[k] = this.schema[k]!
-                    pairs.push([k, accessor.col(k).toOp() as unknown as IOp])
+                    pairs.push([k, accessor.col(k).toOp() as unknown as IVOp])
                 } else {
                     continue
                 }
             } else {
                 newSchema[k] = v.dtype()
-                pairs.push([k, v.toOp() as unknown as IOp])
+                pairs.push([k, v.toOp() as unknown as IVOp])
             }
         }
 
@@ -229,7 +229,7 @@ export class Relation<S extends Schema = Schema> {
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
     sort(
-        cb: (r: RowAccessor<S>) => SortExpr | IExpr<any, any> | (SortExpr | IExpr<any, any>)[]
+        cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
     ): Relation<S> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)

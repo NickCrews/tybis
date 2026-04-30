@@ -8,6 +8,6 @@ export {
     count,
     col,
     lit,
-    IExpr,
-    Expr,
+    IVExpr,
+    VExpr,
 } from './value'

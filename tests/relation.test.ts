@@ -126,14 +126,14 @@ describe('Type Safety', () => {
     it('string columns should have string methods', () => {
         const r = ty.relation('t', { name: 'string' })
         const nameCol = r.col('name')
-        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
+        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
     })
 
     it('numeric columns should have comparison methods', () => {
         const numCol = ty.col('age', 'int32')
-        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
-        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
+        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IVExpr<dt.DTFloat64, 'columnar'>>()
     })
 })

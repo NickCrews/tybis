@@ -12,13 +12,13 @@ describe('DateExpr', () => {
     describe('Type Safety', () => {
         it('should have datetime type', () => {
             const datetimeCol = ty.col('event_datetime', 'datetime')
-            expectTypeOf(datetimeCol).toMatchTypeOf<ty.IExpr<{ typecode: 'datetime' }, 'columnar'>>()
+            expectTypeOf(datetimeCol).toMatchTypeOf<ty.IVExpr<{ typecode: 'datetime' }, 'columnar'>>()
         })
 
         it('toString() returns StringExpr', () => {
             const datetimeCol = ty.col('event_datetime', 'datetime')
             const strExpr = datetimeCol.toString('%Y-%m-%d')
-            expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<{ typecode: 'string' }, 'columnar'>>()
+            expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string' }, 'columnar'>>()
         })
     })
 

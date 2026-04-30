@@ -2,15 +2,15 @@ import { inferDtypeFromJs, type DataType, type InferDtype, type InferrableJsType
 import * as dt from '../datatype'
 import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.js'
 import { highestDataShape } from '../datashape.js'
-import { IExpr, IOp, isExpr, isOp, IsOpSymbol } from './core.js'
-import { Expr, opToExpr } from './expr.js'
+import { IVExpr, IVOp, isVExpr, isVOp, IsVOpSymbol } from './core.js'
+import { VExpr, vOpToVExpr } from './expr.js'
 
 // ---------------------------------------------------------------------------
 // Base Op class
 // ---------------------------------------------------------------------------
 
-export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IOp<T, S> {
-    [IsOpSymbol] = true as const
+export abstract class BaseOp<T extends DataType = DataType, S extends DataShape = DataShape> implements IVOp<T, S> {
+    [IsVOpSymbol] = true as const
     abstract readonly kind: string
     private readonly _dtype: T
     private readonly _dshape: S
@@ -20,16 +20,16 @@ export abstract class BaseOp<T extends DataType = DataType, S extends DataShape 
     }
     dtype(): T { return this._dtype }
     dshape(): S { return this._dshape }
-    toExpr(): Expr<T, S> { return opToExpr(this) }
+    toExpr(): VExpr<T, S> { return vOpToVExpr(this) }
     getName(): string { return this.kind }
 }
 
 type DT<T extends InferrableJsType | dt.IntoDtype> = T extends InferrableJsType ? dt.InferDtypeFromJs<T> : T extends dt.IntoDtype ? InferDtype<T> : never
 /** Convert an expression, op, or JS value to an Op. */
-export function toOpValue<T extends IExpr | IOp | InferrableJsType>(exprOrJs: T): IOp<DT<T>, InferDataShape<T>> {
-    if (isOp(exprOrJs)) {
+export function toOpValue<T extends IVExpr | IVOp | InferrableJsType>(exprOrJs: T): IVOp<DT<T>, InferDataShape<T>> {
+    if (isVOp(exprOrJs)) {
         return exprOrJs as any
-    } else if (isExpr(exprOrJs)) {
+    } else if (isVExpr(exprOrJs)) {
         return exprOrJs.toOp() as any
     } else {
         return litOp(exprOrJs as InferrableJsType) as any
@@ -274,9 +274,9 @@ export type AcceptableJsVal<DT extends dt.IntoDtype | undefined = undefined> = D
 export type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends dt.IntoDtype | undefined> = DT extends dt.IntoDtype ? dt.InferDtype<DT> : dt.InferDtypeFromJs<JS>
 
 /** Create a literal Op from a JS value. */
-export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): IOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
+export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): IVOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
     const finalDtype = dtype ? dt.dtype(dtype) : inferDtypeFromJs(value)
-    type R = IOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'>
+    type R = IVOp<ExplicitOrInferredDtype<JS, DT>, 'scalar'>
     const tc = finalDtype.typecode
     switch (tc) {
         case 'null':
@@ -312,7 +312,7 @@ export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | 
 
 export class IsNotNullOp<S extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, S> {
     readonly kind = 'is_not_null' as const
-    constructor(readonly operand: IOp<DataType, S>) { super(dt.DTBoolean(), operand.dshape()) }
+    constructor(readonly operand: IVOp<DataType, S>) { super(dt.DTBoolean(), operand.dshape()) }
 }
 
 export class CountOp extends BaseOp<dt.DTInt<64>, 'scalar'> {
@@ -330,39 +330,39 @@ export class RawSqlOp<T extends DataType = DataType, S extends DataShape = DataS
 
 export class EqOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'eq' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) {
+    constructor(readonly left: IVOp<DataType, S1>, readonly right: IVOp<DataType, S2>) {
         super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>)
     }
 }
 
 export class GtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'gt' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<DataType, S1>, readonly right: IVOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class GteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'gte' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<DataType, S1>, readonly right: IVOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LtOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'lt' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<DataType, S1>, readonly right: IVOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LteOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'lte' as const
-    constructor(readonly left: IOp<DataType, S1>, readonly right: IOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<DataType, S1>, readonly right: IVOp<DataType, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class MinOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'min' as const
-    constructor(readonly operand: IOp<T, any>) { super(operand.dtype(), 'scalar') }
+    constructor(readonly operand: IVOp<T, any>) { super(operand.dtype(), 'scalar') }
 }
 
 export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'max' as const
-    constructor(readonly operand: IOp<T, any>) { super(operand.dtype(), 'scalar') }
+    constructor(readonly operand: IVOp<T, any>) { super(operand.dtype(), 'scalar') }
 }
 
 // ---------------------------------------------------------------------------
@@ -371,17 +371,17 @@ export class MaxOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
 
 export class LogicalNotOp<S extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, S> {
     readonly kind = 'not' as const
-    constructor(readonly operand: IOp<dt.DTBoolean, S>) { super(dt.DTBoolean(), operand.dshape()) }
+    constructor(readonly operand: IVOp<dt.DTBoolean, S>) { super(dt.DTBoolean(), operand.dshape()) }
 }
 
 export class LogicalAndOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'and' as const
-    constructor(readonly left: IOp<dt.DTBoolean, S1>, readonly right: IOp<dt.DTBoolean, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<dt.DTBoolean, S1>, readonly right: IVOp<dt.DTBoolean, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 export class LogicalOrOp<S1 extends DataShape = DataShape, S2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, S2]>> {
     readonly kind = 'or' as const
-    constructor(readonly left: IOp<dt.DTBoolean, S1>, readonly right: IOp<dt.DTBoolean, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
+    constructor(readonly left: IVOp<dt.DTBoolean, S1>, readonly right: IVOp<dt.DTBoolean, S2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[S1, S2]>) }
 }
 
 // ---------------------------------------------------------------------------
@@ -395,7 +395,7 @@ export class AddOp<
     D2 extends DataType = DataType,
 > extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'add' as const
-    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+    constructor(readonly left: IVOp<D1, S1>, readonly right: IVOp<D2, S2>) {
         super(
             dt.highestDataType(left.dtype(), right.dtype()),
             highestDataShape(left.dshape(), right.dshape()),
@@ -410,7 +410,7 @@ export class SubOp<
     D2 extends DataType = DataType,
 > extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'sub' as const
-    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+    constructor(readonly left: IVOp<D1, S1>, readonly right: IVOp<D2, S2>) {
         super(
             dt.highestDataType(left.dtype(), right.dtype()),
             highestDataShape(left.dshape(), right.dshape()),
@@ -425,7 +425,7 @@ export class MulOp<
     D2 extends DataType = DataType,
 > extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'mul' as const
-    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+    constructor(readonly left: IVOp<D1, S1>, readonly right: IVOp<D2, S2>) {
         super(
             dt.highestDataType(left.dtype(), right.dtype()),
             highestDataShape(left.dshape(), right.dshape()),
@@ -440,7 +440,7 @@ export class DivOp<
     D2 extends DataType = DataType,
 > extends BaseOp<dt.HighestDataType<[D1, D2]>, HighestDataShape<[S1, S2]>> {
     readonly kind = 'div' as const
-    constructor(readonly left: IOp<D1, S1>, readonly right: IOp<D2, S2>) {
+    constructor(readonly left: IVOp<D1, S1>, readonly right: IVOp<D2, S2>) {
         super(
             dt.highestDataType(left.dtype(), right.dtype()),
             highestDataShape(left.dshape(), right.dshape()),
@@ -449,12 +449,12 @@ export class DivOp<
 }
 export class SumOp<T extends DataType = DataType> extends BaseOp<T, 'scalar'> {
     readonly kind = 'sum' as const
-    constructor(readonly operand: IOp<T, any>) { super(operand.dtype(), 'scalar') }
+    constructor(readonly operand: IVOp<T, any>) { super(operand.dtype(), 'scalar') }
 }
 
 export class MeanOp extends BaseOp<dt.DTFloat64, 'scalar'> {
     readonly kind = 'mean' as const
-    constructor(readonly operand: IOp<any, any>) { super(dt.DTFloat64(), 'scalar') }
+    constructor(readonly operand: IVOp<any, any>) { super(dt.DTFloat64(), 'scalar') }
 }
 
 
@@ -464,22 +464,22 @@ export class MeanOp extends BaseOp<dt.DTFloat64, 'scalar'> {
 
 export class UpperOp<S extends DataShape = DataShape> extends BaseOp<dt.DTString, S> {
     readonly kind = 'upper' as const
-    constructor(readonly operand: IOp<{ typecode: 'string' }, S>) { super(dt.DTString(), operand.dshape()) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, S>) { super(dt.DTString(), operand.dshape()) }
 }
 
 export class LowerOp<S extends DataShape = DataShape> extends BaseOp<dt.DTString, S> {
     readonly kind = 'lower' as const
-    constructor(readonly operand: IOp<{ typecode: 'string' }, S>) { super(dt.DTString(), operand.dshape()) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, S>) { super(dt.DTString(), operand.dshape()) }
 }
 
 export class ContainsOp<S1 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, 'scalar']>> {
     readonly kind = 'contains' as const
-    constructor(readonly operand: IOp<{ typecode: 'string' }, S1>, readonly pattern: StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape()) as HighestDataShape<[S1, 'scalar']>) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, S1>, readonly pattern: StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape()) as HighestDataShape<[S1, 'scalar']>) }
 }
 
 export class StartsWithOp<S1 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[S1, 'scalar']>> {
     readonly kind = 'starts_with' as const
-    constructor(readonly operand: IOp<{ typecode: 'string' }, S1>, readonly prefix: StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape()) as HighestDataShape<[S1, 'scalar']>) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, S1>, readonly prefix: StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape()) as HighestDataShape<[S1, 'scalar']>) }
 }
 
 // ---------------------------------------------------------------------------
@@ -490,7 +490,7 @@ type TemporalDataType = { typecode: 'date' } | { typecode: 'time' } | { typecode
 
 export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<dt.DTString, S> {
     readonly kind = 'temporal_to_string' as const
-    constructor(readonly operand: IOp<TemporalDataType, S>, readonly format: string) { super(dt.DTString(), operand.dshape()) }
+    constructor(readonly operand: IVOp<TemporalDataType, S>, readonly format: string) { super(dt.DTString(), operand.dshape()) }
 }
 
 // ---------------------------------------------------------------------------
@@ -498,7 +498,7 @@ export class TemporalToStringOp<S extends DataShape = DataShape> extends BaseOp<
 // ---------------------------------------------------------------------------
 
 export class SortSpec {
-    constructor(readonly op: IOp<any, any>, readonly direction: 'asc' | 'desc') { }
+    constructor(readonly op: IVOp<any, any>, readonly direction: 'asc' | 'desc') { }
 }
 
 // ---------------------------------------------------------------------------

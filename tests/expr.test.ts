@@ -6,7 +6,7 @@ import * as ops from '../src/value/ops.js'
 import * as vals from '../src/value/index.js'
 
 const compiler = new ty.PrqlCompiler()
-const compile = (e: vals.Expr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
+const compile = (e: vals.VExpr<any, any>) => compiler.compileOp(e.toOp() as ops.BuiltinOp)
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
@@ -170,28 +170,28 @@ describe('count() factory function', () => {
 describe('opToExpr()', () => {
     it('wraps a NullLiteralOp in a NullExpr', () => {
         const op = new ops.NullLiteralOp()
-        const expr = vals.opToExpr(op)
+        const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'null' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps an IntervalLiteralOp in an IntervalExpr', () => {
         const op = new ops.IntervalLiteralOp(5)
-        const expr = vals.opToExpr(op)
+        const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'interval' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps a UuidLiteralOp in a UUIDExpr', () => {
         const op = new ops.UuidLiteralOp('550e8400-e29b-41d4-a716-446655440000')
-        const expr = vals.opToExpr(op)
+        const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'uuid' })
         expect(expr.dshape()).toBe('scalar')
     })
 
     it('wraps a BooleanLiteralOp in a BooleanExpr', () => {
         const op = new ops.BooleanLiteralOp(true)
-        const expr = vals.opToExpr(op)
+        const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'boolean' })
     })
 })

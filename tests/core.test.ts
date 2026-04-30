@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isOp, isExpr, IsOpSymbol, IsExprSymbol } from '../src/value/core.js'
+import { isVOp, isVExpr, IsVOpSymbol, IsVExprSymbol } from '../src/value/core.js'
 import * as ty from '../src/index.js'
 import * as ops from '../src/value/ops.js'
 
@@ -7,12 +7,12 @@ describe('isOp()', () => {
     describe('symbol-based detection', () => {
         it('returns true for objects with IsOpSymbol = true', () => {
             const op = new ops.FloatLiteralOp(42)
-            expect(isOp(op)).toBe(true)
+            expect(isVOp(op)).toBe(true)
         })
 
         it('returns false for objects with IsOpSymbol = false', () => {
-            const fakeOp = { [IsOpSymbol]: false, kind: 'fake', dtype: () => ({ typecode: 'float', size: 64 }), dshape: () => 'scalar' }
-            expect(isOp(fakeOp)).toBe(false)
+            const fakeOp = { [IsVOpSymbol]: false, kind: 'fake', dtype: () => ({ typecode: 'float', size: 64 }), dshape: () => 'scalar' }
+            expect(isVOp(fakeOp)).toBe(false)
         })
     })
 
@@ -24,7 +24,7 @@ describe('isOp()', () => {
                 dshape: () => 'scalar',
                 toExpr: () => ty.lit('test'),
             }
-            expect(isOp(obj)).toBe(true)
+            expect(isVOp(obj)).toBe(true)
         })
 
         it('returns false for objects missing toExpr()', () => {
@@ -33,7 +33,7 @@ describe('isOp()', () => {
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'scalar',
             }
-            expect(isOp(obj)).toBe(false)
+            expect(isVOp(obj)).toBe(false)
         })
 
         it('returns false when kind is missing', () => {
@@ -41,7 +41,7 @@ describe('isOp()', () => {
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'scalar',
             }
-            expect(isOp(obj)).toBe(false)
+            expect(isVOp(obj)).toBe(false)
         })
 
         it('returns false when dtype() returns an invalid datatype', () => {
@@ -50,7 +50,7 @@ describe('isOp()', () => {
                 dtype: () => ({ typecode: 'unknown_type' }),
                 dshape: () => 'scalar',
             }
-            expect(isOp(obj)).toBe(false)
+            expect(isVOp(obj)).toBe(false)
         })
 
         it('returns false when dshape() returns an invalid shape', () => {
@@ -59,41 +59,41 @@ describe('isOp()', () => {
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'invalid_shape',
             }
-            expect(isOp(obj)).toBe(false)
+            expect(isVOp(obj)).toBe(false)
         })
 
         it('returns false for null', () => {
-            expect(isOp(null)).toBe(false)
+            expect(isVOp(null)).toBe(false)
         })
 
         it('returns false for primitives', () => {
-            expect(isOp(42)).toBe(false)
-            expect(isOp('hello')).toBe(false)
-            expect(isOp(true)).toBe(false)
-            expect(isOp(undefined)).toBe(false)
+            expect(isVOp(42)).toBe(false)
+            expect(isVOp('hello')).toBe(false)
+            expect(isVOp(true)).toBe(false)
+            expect(isVOp(undefined)).toBe(false)
         })
 
         it('returns false for plain objects missing dtype/dshape', () => {
-            expect(isOp({})).toBe(false)
+            expect(isVOp({})).toBe(false)
         })
     })
 
     describe('with real ops', () => {
         it('recognizes ColRefOp', () => {
-            expect(isOp(new ops.ColRefOp('name', 'string'))).toBe(true)
+            expect(isVOp(new ops.ColRefOp('name', 'string'))).toBe(true)
         })
 
         it('recognizes IntLiteralOp', () => {
-            expect(isOp(new ops.IntLiteralOp(10))).toBe(true)
+            expect(isVOp(new ops.IntLiteralOp(10))).toBe(true)
         })
 
         it('recognizes StringLiteralOp', () => {
-            expect(isOp(new ops.StringLiteralOp('hello'))).toBe(true)
+            expect(isVOp(new ops.StringLiteralOp('hello'))).toBe(true)
         })
     })
 
     it('does not recognize an Expr as an Op', () => {
-        const result = isOp(ty.lit(42))
+        const result = isVOp(ty.lit(42))
         expect(result).toBe(false)
     })
 })
@@ -102,16 +102,16 @@ describe('isExpr()', () => {
     describe('symbol-based detection', () => {
         it('returns true for objects with IsExprSymbol = true', () => {
             const expr = ty.lit('hello')
-            expect(isExpr(expr)).toBe(true)
+            expect(isVExpr(expr)).toBe(true)
         })
 
         it('returns false for objects with IsExprSymbol = false', () => {
             const fakeExpr = {
-                [IsExprSymbol]: false,
+                [IsVExprSymbol]: false,
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'scalar',
             }
-            expect(isExpr(fakeExpr)).toBe(false)
+            expect(isVExpr(fakeExpr)).toBe(false)
         })
     })
 
@@ -121,7 +121,7 @@ describe('isExpr()', () => {
                 dtype: () => ({ typecode: 'boolean' }),
                 dshape: () => 'columnar',
             }
-            expect(isExpr(obj)).toBe(false)
+            expect(isVExpr(obj)).toBe(false)
         })
 
         it('returns true for objects with valid dtype(), valid dshape(), and toOp()', () => {
@@ -130,7 +130,7 @@ describe('isExpr()', () => {
                 dshape: () => 'columnar',
                 toOp: () => new ops.BooleanLiteralOp(true),
             }
-            expect(isExpr(obj)).toBe(true)
+            expect(isVExpr(obj)).toBe(true)
         })
 
         it('returns false when dtype() returns an invalid datatype', () => {
@@ -138,7 +138,7 @@ describe('isExpr()', () => {
                 dtype: () => ({ typecode: 'not_a_real_type' }),
                 dshape: () => 'scalar',
             }
-            expect(isExpr(obj)).toBe(false)
+            expect(isVExpr(obj)).toBe(false)
         })
 
         it('returns false when dshape() returns an invalid shape', () => {
@@ -146,35 +146,35 @@ describe('isExpr()', () => {
                 dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'wrong',
             }
-            expect(isExpr(obj)).toBe(false)
+            expect(isVExpr(obj)).toBe(false)
         })
 
         it('returns false for null', () => {
-            expect(isExpr(null)).toBe(false)
+            expect(isVExpr(null)).toBe(false)
         })
 
         it('returns false for primitives', () => {
-            expect(isExpr(42)).toBe(false)
-            expect(isExpr('hello')).toBe(false)
+            expect(isVExpr(42)).toBe(false)
+            expect(isVExpr('hello')).toBe(false)
         })
 
         it('returns false for plain objects missing required methods', () => {
-            expect(isExpr({})).toBe(false)
+            expect(isVExpr({})).toBe(false)
         })
     })
 
     describe('with real expressions', () => {
         it('recognizes lit() result', () => {
-            expect(isExpr(ty.lit(42))).toBe(true)
+            expect(isVExpr(ty.lit(42))).toBe(true)
         })
 
         it('recognizes col() result', () => {
-            expect(isExpr(ty.col('name', 'string'))).toBe(true)
+            expect(isVExpr(ty.col('name', 'string'))).toBe(true)
         })
 
         it('does not recognize an Op as an Expr', () => {
             const op = new ops.StringLiteralOp('hello')
-            const result = isExpr(op)
+            const result = isVExpr(op)
             expect(result).toBe(false)
         })
     })

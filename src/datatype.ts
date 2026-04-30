@@ -1,4 +1,4 @@
-import { type IExpr, type IOp, isExpr, isOp } from "./value/core"
+import { type IVExpr, type IVOp, isVExpr, isVOp } from "./value/core"
 
 export interface DTNull { typecode: 'null' }
 export function DTNull(): DTNull { return { typecode: 'null' } }
@@ -168,20 +168,20 @@ export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferD
     throw new Error(`Cannot infer dtype for value: ${value}`)
 }
 
-export type IntoDtype = DataType | DTypeShorthands | IExpr<DataType, any> | IOp<DataType, any>
+export type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any>
 export type InferDtype<T extends IntoDtype> =
     T extends DataType ? T :
     T extends DTypeShorthands ? InferDtypeFromShorthand<T> :
-    T extends IExpr<infer D, any> ? D :
-    T extends IOp<infer D, any> ? D :
+    T extends IVExpr<infer D, any> ? D :
+    T extends IVOp<infer D, any> ? D :
     never
 
 export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
     if (isValidDataType(thing)) return thing as InferDtype<T>
     if (typeof thing === 'string') return dtypeFromShorthand(thing as DTypeShorthands) as InferDtype<T>
     if (typeof thing === 'object' && thing !== null) {
-        if (isExpr(thing)) return thing.dtype() as InferDtype<T>
-        if (isOp(thing)) return thing.dtype() as InferDtype<T>
+        if (isVExpr(thing)) return thing.dtype() as InferDtype<T>
+        if (isVOp(thing)) return thing.dtype() as InferDtype<T>
     }
     throw new Error(`Cannot determine dtype of: ${thing}`)
 }

@@ -129,7 +129,7 @@ describe('UUIDExpr', () => {
               "from users
               filter id != null"
             `)
-            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.IExpr<dt.DTBoolean, 'columnar'>>()
+            expectTypeOf(q.col('id').isNotNull()).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
         })
 
         it('can be used in aggregations', () => {

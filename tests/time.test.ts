@@ -40,7 +40,7 @@ describe('TimeExpr', () => {
         it('returns StringExpr', () => {
             const timeCol = ty.col('mytime', 'time')
             const strExpr = timeCol.toString('%H:%M:%S')
-            expectTypeOf(strExpr).toMatchTypeOf<ty.IExpr<{ typecode: 'string' }, 'columnar'>>()
+            expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string' }, 'columnar'>>()
         })
     })
 

@@ -1,8 +1,8 @@
 export type { BuiltinOp } from './ops.js'
-export { IsOpSymbol, IsExprSymbol, isOp, isExpr, type IExpr, type IOp } from './core.js'
+export { IsVOpSymbol, IsVExprSymbol, isVOp, isVExpr, type IVExpr, type IVOp } from './core.js'
 export {
-    type Expr,
-    BaseExpr,
+    type VExpr,
+    BaseVExpr,
     NumericExpr,
     StringExpr,
     BooleanExpr,
@@ -16,5 +16,5 @@ export {
     count,
     sql,
     lit,
-    opToExpr,
+    vOpToVExpr,
 } from './expr.js'

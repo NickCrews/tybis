@@ -34,23 +34,23 @@ export function isComparable<A extends dt.DataType, B extends dt.DataType>(dtype
 
 export type IntoValueComparableTo<Target extends dt.DataType> =
     | ops.LiteralValueCoercibleTo<Target>
-    | core.IExpr<DtypesComparableTo<Target>, any>
-    | core.IOp<DtypesComparableTo<Target>, any>
+    | core.IVExpr<DtypesComparableTo<Target>, any>
+    | core.IVOp<DtypesComparableTo<Target>, any>
 
 /** Given a target dtype and an IntoValue, coerce the value into a type that is comparable to the dtype */
-export function coerceToComparable<Target extends dt.DataType, Value extends IntoValueComparableTo<Target>>(target: Target, value: Value): core.IOp<DtypesComparableTo<Target>, InferDataShape<Value>> {
-    if (core.isExpr(value)) {
+export function coerceToComparable<Target extends dt.DataType, Value extends IntoValueComparableTo<Target>>(target: Target, value: Value): core.IVOp<DtypesComparableTo<Target>, InferDataShape<Value>> {
+    if (core.isVExpr(value)) {
         const valueDtype = value.dtype()
         if (isComparable(target, valueDtype)) {
-            return value.toOp() as core.IOp<DtypesComparableTo<Target>, any>
+            return value.toOp() as core.IVOp<DtypesComparableTo<Target>, any>
         } else {
             throw new Error(`Cannot compare value of type ${JSON.stringify(valueDtype)} to target type ${JSON.stringify(target)}`)
         }
     }
-    if (core.isOp(value)) {
+    if (core.isVOp(value)) {
         const valueDtype = value.dtype()
         if (isComparable(target, valueDtype)) {
-            return value as core.IOp<DtypesComparableTo<Target>, any>
+            return value as core.IVOp<DtypesComparableTo<Target>, any>
         } else {
             throw new Error(`Cannot compare value of type ${JSON.stringify(valueDtype)} to target type ${JSON.stringify(target)}`)
         }
@@ -58,5 +58,5 @@ export function coerceToComparable<Target extends dt.DataType, Value extends Int
     return ops.litOp(
         value as unknown as ops.AcceptableJsVal<Target>,
         target,
-    ) as unknown as core.IOp<DtypesComparableTo<Target>, InferDataShape<Value>>
+    ) as unknown as core.IVOp<DtypesComparableTo<Target>, InferDataShape<Value>>
 }
