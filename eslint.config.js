@@ -12,6 +12,16 @@ export default defineConfig(
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
     languageOptions: {
+      parserOptions: {
+        projectService: {
+          allowDefaultProject: [
+            'eslint.config.js',
+            'tsup.config.ts',
+            'vitest.config.ts',
+          ],
+        },
+        tsconfigRootDir: import.meta.dirname,
+      },
       globals: {
         ...globals.browser,
         ...globals.node,

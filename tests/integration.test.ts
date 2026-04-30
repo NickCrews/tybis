@@ -23,7 +23,7 @@ describe('Tybis Integration Tests', () => {
 
         it('group + agg', () => {
             const q = penguins.group(
-                r => [r.col('species'), r.col('year')],
+                _r => ({ species: true, year: true }),
                 g => g.agg({
                     count: ty.count(),
                     mean_bill: g.col('bill_length_mm').mean(),
@@ -74,7 +74,7 @@ describe('Tybis Integration Tests', () => {
         })
 
         it('select shorthand', () => {
-            const q = penguins.select(r => ({
+            const q = penguins.select(_r => ({
                 species: true,
             }))
             expect(q.toPrql()).toMatchInlineSnapshot(`
@@ -87,15 +87,15 @@ describe('Tybis Integration Tests', () => {
 
         it('chained operations', () => {
             const q = penguins
-                .filter(r => r.col('bill_length_mm').gt(40))
+                .filter(_r => _r.col('bill_length_mm').gt(40))
                 .group(
-                    r => [r.col('species'), r.col('year')],
+                    _r => ({ species: true, year: true }),
                     g => g.agg({
                         count: ty.count(),
                         mean_bill: g.col('bill_length_mm').mean(),
                     })
                 )
-                .sort(r => r.col('count').desc())
+                .sort(_r => _r.col('count').desc())
                 .take(10)
             expect(q.toPrql()).toMatchInlineSnapshot(`
                 "from penguins
@@ -125,7 +125,7 @@ describe('Tybis Integration Tests', () => {
 
         it('group + agg compiles to valid SQL', () => {
             const sql = penguins.group(
-                r => [r.col('species'), r.col('year')],
+                _r => ({ species: true, year: true }),
                 g => g.agg({
                     count: ty.count(),
                     mean_bill: g.col('bill_length_mm').mean(),
@@ -154,14 +154,14 @@ describe('Tybis Integration Tests', () => {
         })
 
         it('select shorthand', () => {
-            const sql = penguins.select(r => ({
+            const sql = penguins.select(_r => ({
                 species: true,
             })).toSql()
             expect(sql).toMatchInlineSnapshot(`"SELECT species FROM penguins"`)
         })
 
         it('select explicitly dropping column with false', () => {
-            const sql = penguins.select(r => ({
+            const sql = penguins.select(_r => ({
                 species: true,
                 year: false,
             })).toSql()
@@ -198,14 +198,14 @@ describe('Tybis Integration Tests', () => {
         })
 
         it('throws an error if shorthand is used for a missing column', () => {
-            expect(() => penguins.select(r => ({
+            expect(() => penguins.select(_r => ({
                 // @ts-expect-error
                 missing: true
             }))).toThrowError("Cannot select 'missing': column does not exist.")
         })
 
         it('allows false to explicitly drop a column', () => {
-            const q = penguins.select(r => ({
+            const q = penguins.select(_r => ({
                 species: true,
                 year: false,
             }))

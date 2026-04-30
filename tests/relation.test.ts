@@ -26,7 +26,7 @@ describe('Type Safety', () => {
         })
 
         const result = penguins.group(
-            r => [r.col('species'), r.col('year')],
+            _r => ({ species: true, year: true }),
             g => g.agg({
                 count: ty.count(),
                 mean_bill: g.col('bill_length_mm').mean(),
@@ -109,9 +109,9 @@ describe('Type Safety', () => {
             bill_length_mm: 'float64',
         })
 
-        const result = penguins.select(r => ({
+        const result = penguins.select(_r => ({
             species: true,
-            year: false as const,
+            year: false,
         }))
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{

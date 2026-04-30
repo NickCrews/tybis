@@ -58,7 +58,7 @@ describe('min() and max()', () => {
     it('max() compiles correctly in group agg', () => {
         const table = ty.table('data', { category: 'string', score: 'float64' })
         const q = table.group(
-            r => [r.col('category')],
+            _r => ({ category: true }),
             g => g.agg({ max_score: g.col('score').max() })
         )
         expect(q.toPrql()).toMatchInlineSnapshot(`
@@ -74,7 +74,7 @@ describe('min() and max()', () => {
     it('min() compiles correctly in group agg', () => {
         const table = ty.table('data', { category: 'string', score: 'float64' })
         const q = table.group(
-            r => [r.col('category')],
+            _r => ({ category: true }),
             g => g.agg({ min_score: g.col('score').min() })
         )
         expect(q.toPrql()).toMatchInlineSnapshot(`

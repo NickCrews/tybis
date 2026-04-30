@@ -74,14 +74,13 @@ export class SelectOp<S extends Schema> extends BaseROp<S, 'select'> {
 
 export class GroupOp<S extends Schema> extends BaseROp<S, 'group'> {
     readonly kind = 'group' as const
-    constructor(readonly source: IROp<any>, readonly keys: string[], readonly aggregations: [string, IVOp][]) {
+    constructor(readonly source: IROp<any>, readonly keys: [string, IVOp][], readonly aggregations: [string, IVOp][]) {
         super()
     }
     protected computeSchema(): S {
         const s: any = {}
-        const sourceSchema = this.source.schema()
-        for (const key of this.keys) {
-            s[key] = sourceSchema[key]
+        for (const [k, v] of this.keys) {
+            s[k] = v.dtype()
         }
         for (const [k, v] of this.aggregations) {
             s[k] = v.dtype()

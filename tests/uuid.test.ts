@@ -50,7 +50,7 @@ describe('UUIDExpr', () => {
 
         it('group by uuid', () => {
             const q = users.group(
-                r => [r.col('id')],
+                _r => ({ id: true }),
                 g => g.agg({
                     count: ty.count(),
                 })
@@ -134,7 +134,7 @@ describe('UUIDExpr', () => {
 
         it('can be used in aggregations', () => {
             const q = users.group(
-                r => [r.col('id')],
+                _r => ({ id: true }),
                 g => g.agg({
                     total: ty.count(),
                 })
@@ -151,7 +151,7 @@ describe('UUIDExpr', () => {
 
         it('supports min/max aggregations', () => {
             const q = users.group(
-                r => [r.col('name')],
+                _r => ({ name: true }),
                 g => g.agg({
                     min_id: g.col('id').min(),
                     max_id: g.col('id').max(),
@@ -191,7 +191,7 @@ describe('UUIDExpr', () => {
 
         it('group by multiple uuid columns', () => {
             const q = relationships.group(
-                r => [r.col('follower_id'), r.col('following_id')],
+                _r => ({ follower_id: true, following_id: true }),
                 g => g.agg({
                     count: ty.count(),
                 })

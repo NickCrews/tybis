@@ -44,7 +44,7 @@ const penguins = ty.table('penguins', {
 
 const bySpecies = penguins
   .group(
-    r => [r.col('species')],
+    r => ({ species: true }),
     g => g.agg({
       count: ty.count(),
       avg_bill: g.col('bill_length_mm').mean(),
@@ -73,7 +73,7 @@ const penguins = ty.table('penguins', {
 const result = penguins
   .filter(r => r.col('bill_length_mm').gt(40))
   .group(
-    r => [r.col('species'), r.col('year')],
+    r => ({ species: true, year: true }),
     g => g.agg({
       count: ty.count(),
       mean_bill: g.col('bill_length_mm').mean(),
@@ -111,7 +111,7 @@ const topCustomers = orders
   .filter(r => r.col('is_paid').eq(true))
   .filter(r => r.col('amount').gt(50))
   .group(
-    r => [r.col('customer_id')],
+    r => ({ customer_id: true }),
     g => g.agg({
       order_count: ty.count(),
       total_spent: g.col('amount').sum(),
@@ -167,7 +167,7 @@ const withExtract = events
     year: ty.sql("EXTRACT(YEAR FROM occurred_at)", 'int32'),
   }))
   .group(
-    r => [r.col('event_name'), r.col('year')],
+    r => ({ event_name: true, year: true }),
     g => g.agg({ n: ty.count() })
   )
   .sort(r => r.col('n').desc())

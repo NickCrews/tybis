@@ -21,7 +21,7 @@ export class SqlCompiler implements Compiler {
         try {
             result = compile(prqlText, opts)
         } catch (error) {
-            throw new Error(`PRQL compilation failed for query:\n${prqlText}\nError: ${error}`)
+            throw new Error(`PRQL compilation failed for query:\n${prqlText}\nError: ${error}`, { cause: error })
         }
         if (result === undefined) {
             throw new Error(`PRQL compilation failed for query:\n${prqlText}`)

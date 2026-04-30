@@ -29,7 +29,7 @@ const penguins = ty.table('penguins', {
 const result = penguins
     .filter(r => r.col('bill_length_mm').gt(40))
     .group(
-        r => [r.col('species'), r.col('year')],
+        r => ({ species: true, year: true }),
         g => g.agg({
             count: ty.count(),
             mean_bill: g.col('bill_length_mm').mean(),
@@ -97,7 +97,7 @@ Group rows by key columns and apply aggregations.
 
 ```typescript
 orders.group(
-    r => [r.col('customer_id')],
+    r => ({ customer_id: true }),
     g => g.agg({
         order_count: ty.count(),
         total_spent: g.col('amount').sum(),

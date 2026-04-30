@@ -6,7 +6,8 @@ import type { Compiler } from './compilers/base.js'
 import { type IVOp, type IVExpr } from './value/core.js'
 import { SortSpec } from './value/ops.js'
 import {
-    BaseVExpr, BooleanExpr, SortExpr,
+    BooleanExpr,
+    SortExpr,
     col,
     VExpr,
 } from './value/expr.js'
@@ -18,31 +19,37 @@ import { suggestColumnName } from './typo.js'
 // Row and group accessors
 // ---------------------------------------------------------------------------
 
-type Col<K extends string = string, T extends DataType = DataType> = VExpr<T, 'columnar'>
+type Col<T extends DataType = DataType> = VExpr<T, 'columnar'>
 
-function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<K, S[K]> {
+function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<S[K]> {
     if (!(name in schema)) {
         const suggestion = suggestColumnName(name, Object.keys(schema))
         throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
     }
-    return col(name, schema[name] as S[K]) as Col<K, S[K]>
+    return col(name, schema[name] as S[K]) as Col<S[K]>
 }
 
 class RowAccessor<S extends Schema> {
     constructor(private readonly _schema: S) { }
 
-    col<K extends keyof S & string>(name: K): Col<K, S[K]> {
+    col<K extends keyof S & string>(name: K): Col<S[K]> {
         return _colWithSchemaCheck(this._schema, name)
     }
 }
 
 /** Result of calling g.agg({...}) inside a group() callback. */
-class GroupResult<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> {
+class GroupResult<A extends Record<string, IVExpr<any, 'scalar'>>> {
     constructor(readonly aggregations: A) { }
 }
 
-class GroupAccessor<S extends Schema> extends RowAccessor<S> {
-    agg<A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(
+class GroupAccessor<S extends Schema> {
+    constructor(private readonly _schema: S) { }
+
+    col<K extends keyof S & string>(name: K): Col<S[K]> {
+        return _colWithSchemaCheck(this._schema, name)
+    }
+
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
         aggregations: A
     ): GroupResult<A> {
         for (const [key, expr] of Object.entries(aggregations)) {
@@ -58,11 +65,8 @@ class GroupAccessor<S extends Schema> extends RowAccessor<S> {
 // Helper types for group() result schema
 // ---------------------------------------------------------------------------
 
-type ColName<C> = C extends Col<infer N, DataType> ? N : never
-type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never
-
-type AggResultSchema<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> = {
-    [K in keyof A]: A[K] extends BaseVExpr<infer T, 'scalar'> ? T : never
+type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
+    [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never
 }
 
 type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> =
@@ -100,7 +104,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
      */
-    col<K extends keyof S & string>(name: K): Col<K, S[K]> {
+    col<K extends keyof S & string>(name: K): Col<S[K]> {
         return _colWithSchemaCheck(this.schema, name)
     }
 
@@ -118,31 +122,51 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Group rows by key columns and apply aggregations.
      * @example
      * penguins.group(
-     *   r => [r.col("species"), r.col("year")],
+     *   r => ({ species: true, year: true }),
      *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
      * )
      */
     group<
-        KC extends Col[],
-        A extends Record<string, BaseVExpr<DataType, 'scalar'>>
+        K extends SelectInput<S, K>,
+        A extends Record<string, IVExpr<any, 'scalar'>>
     >(
-        keys: (r: RowAccessor<S>) => KC,
+        keys: (r: RowAccessor<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K),
         transform: (g: GroupAccessor<S>) => GroupResult<A>
     ): Relation<
-        Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>,
-        GroupOp<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>
+        SelectSchema<S, K> & AggResultSchema<A>,
+        GroupOp<SelectSchema<S, K> & AggResultSchema<A>>
     > {
         const accessor = new RowAccessor(this.schema)
-        const keyCols = keys(accessor)
+        const groupingKeys = keys(accessor) as Record<string, IVExpr<any, any> | boolean>
+
+        const keyPairs: [string, IVOp][] = []
+        for (const [k, v] of Object.entries(groupingKeys)) {
+            if (typeof v === 'boolean') {
+                if (v === true) {
+                    if (!(k in this.schema)) {
+                        const suggestion = suggestColumnName(k, Object.keys(this.schema))
+                        throw new Error(`Cannot group by '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+                    }
+                    keyPairs.push([k, accessor.col(k).toOp() as unknown as IVOp])
+                }
+            } else {
+                keyPairs.push([k, v.toOp() as unknown as IVOp])
+            }
+        }
+
+        // We could extend this to support empty keys (aggregating the whole table) in the future.
+        if (keyPairs.length === 0) {
+            throw new Error("group() requires at least one grouping key")
+        }
+
         const groupAccessor = new GroupAccessor(this.schema)
         const result = transform(groupAccessor)
 
-        const keyNames = keyCols.map(c => c.toOp().getName())
         const aggregations = Object.entries(result.aggregations).map(
             ([k, v]) => [k, v.toOp()] as [string, IVOp]
         )
 
-        return new GroupOp(this._op, keyNames, aggregations).toRelation() as any
+        return new GroupOp(this._op, keyPairs, aggregations).toRelation() as any
     }
 
 

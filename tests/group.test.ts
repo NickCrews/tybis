@@ -12,7 +12,7 @@ describe('Group aggregation', () => {
 
     it('should accept scalar expressions in agg()', () => {
         const q = penguins.group(
-            r => [r.col('species')],
+            _r => ({ species: true }),
             g => g.agg({
                 count: ty.count(),
                 mean_bill: g.col('bill_length_mm').mean(),
@@ -38,10 +38,30 @@ describe('Group aggregation', () => {
         expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
     })
 
+    it('should support renames and expressions in keys', () => {
+        const q = penguins.group(
+            r => ({
+                kind: r.col('species'),
+                decade: r.col('year').div(10)
+            }),
+            g => g.agg({ count: ty.count() })
+        )
+        expect(q.toPrql()).toMatchInlineSnapshot(`
+          "from penguins
+          group {kind = species, decade = year / 10} (
+            aggregate {
+              count = count this
+            }
+          )"
+        `)
+        expectTypeOf(q.col('kind')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
+        expectTypeOf(q.col('decade')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
+    })
+
     it('should throw runtime and type error when passing columnar expression to agg()', () => {
         expect(() => {
             penguins.group(
-                r => [r.col('species')],
+                _r => ({ species: true }),
                 g => g.agg({
                     // @ts-expect-error - This is intentionally wrong to test runtime validation
                     bill: g.col('bill_length_mm'),
@@ -53,12 +73,22 @@ describe('Group aggregation', () => {
     it('should throw runtime and type error when passing derived columnar expression to agg()', () => {
         expect(() => {
             penguins.group(
-                r => [r.col('species')],
+                _r => ({ species: true }),
                 g => g.agg({
                     // @ts-expect-error - This is intentionally wrong to test runtime validation
                     uppercased: g.col('species').upper()
                 })
             )
         }).toThrow(/must be a scalar expression/)
+    })
+
+    it('should throw when no keys are provided', () => {
+        expect(() => {
+            penguins.group(
+                // @ts-expect-error - This is intentionally wrong to test runtime validation
+                () => ({}),
+                g => g.agg({ count: ty.count() })
+            )
+        }).toThrow(/requires at least one grouping key/)
     })
 })

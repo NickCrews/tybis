@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { expectTypeOf } from 'expect-type'
 import * as ty from '../src/index.js'
 
 const penguins = ty.table('penguins', {
@@ -109,7 +108,7 @@ describe('GroupAccessor.agg() validation', () => {
     it('throws when aggregation contains a columnar expression', () => {
         expect(() =>
             penguins.group(
-                r => [r.col('species')],
+                _r => ({ species: true }),
                 g => g.agg({
                     // @ts-expect-error — columnar expr is not assignable to scalar aggregation
                     bad: g.col('bill_length_mm'),
@@ -148,7 +147,7 @@ describe('Relation schema is preserved through operations', () => {
 
     it('group reduces schema to key columns and aggregations', () => {
         const q = penguins.group(
-            r => [r.col('species')],
+            _r => ({ species: true }),
             g => g.agg({ n: ty.count() })
         )
         expect('species' in q.schema).toBe(true)

@@ -362,9 +362,20 @@ declare class SortExpr {
     toSortSpec(): SortSpec;
 }
 /**
- * Factory function for COUNT aggregation. Returns a NumericExpr with dtype=int64 and dshape='scalar'.
+ * Counts the number of rows. Analogous to SQL's COUNT(*). Returns a NumericExpr with dtype=int64 and dshape='scalar'.
  */
 declare function count(): NumericExpr<DTInt64, 'scalar'>;
+/**
+ * Create a scalar value expression that represents a single literal value, eg \`ty.lit(42)\` or \`ty.lit("hello")\`.
+ *
+ * The dtype can be inferred from the value, or explicitly provided if needed.
+ *
+ * Note how \`ty.lit("name")\` represents a string literal value, which is different from \`myrelation.col("name")\`, which represents a reference to a column named "name".
+ *
+ * @param value The literal value to use.
+ * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
+ * @returns A VExpr representing the literal value.
+ */
 declare function lit<JS extends AcceptableJsVal<DT>, DT extends IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, 'scalar'>;
 
 declare const IsVOpSymbol: unique symbol;
@@ -404,7 +415,7 @@ declare const IsVExprSymbol: unique symbol;
  * and then the backend could deserialize it and compile it to SQL or PRQL or whatever,
  * then execute on the actual database, and the semantics of the operation would be preserved across all those steps.
  */
-interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends any = any> {
+interface IVOp<T extends DataType = DataType, S extends DataShape = DataShape, K extends string = string> {
     readonly kind: K;
     /** The {@link DataType} of this expression. */
     dtype(): T;
@@ -546,8 +557,8 @@ type InferDtypeFromShorthand<S extends DTypeShorthands> = S extends 'null' ? DTN
 type InferrableJsType = string | number | boolean | Date | null;
 /** Given a JS type, what DataType will be inferred? */
 type InferDtypeFromJs<JS extends InferrableJsType> = JS extends string ? DTString : JS extends number ? DTFloat<64> : JS extends boolean ? DTBoolean : JS extends Date ? DTDateTime : JS extends null ? DTNull : never;
-type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any>;
-type InferDtype<T extends IntoDtype> = T extends DataType ? T : T extends DTypeShorthands ? InferDtypeFromShorthand<T> : T extends IVExpr<infer D, any> ? D : T extends IVOp<infer D, any> ? D : never;
+type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, DataShape> | IVOp<DataType, DataShape>;
+type InferDtype<T extends IntoDtype> = T extends DataType ? T : T extends DTypeShorthands ? InferDtypeFromShorthand<T> : T extends IVExpr<infer D, DataShape> ? D : T extends IVOp<infer D, DataShape> ? D : never;
 type HighestDataType<Types extends DataType[]> = Types extends [] ? never : Types[number] extends DTFloat64 ? DTFloat64 : Types[number] extends DTFloat32 ? DTFloat32 : Types[number] extends DTFloat16 ? DTFloat16 : Types[number] extends DTFloat8 ? DTFloat8 : Types[number] extends DTInt64 ? DTInt64 : Types[number] extends DTInt32 ? DTInt32 : Types[number] extends DTInt16 ? DTInt16 : Types[number] extends DTInt8 ? DTInt8 : never;
 
 type Schema = Record<string, DataType>;
@@ -557,10 +568,38 @@ type InferSchema<T extends IntoSchema> = T extends Schema ? T : T extends Record
 } : never;
 
 declare const IsROpSymbol: unique symbol;
+/**
+ * An IROp is an interface for a relational operation, representing a step in a query such as a \`filter\` or a \`group\` or a \`select\`.
+ *
+ * An IROp represents tabular data with a known Schema.
+ * An implementation of IROp must have the following properties:
+ * - has a \`schema()\` method that returns a Schema
+ * - has a \`toRelation()\` method that converts it to a Relation, which is the public-facing API for query building in Tybis.
+ *
+ * For example, you might have an operation that samples rows. You could implement this as an IROp like this:
+ *
+ * \`\`\`ts
+ * class SampleOp<S extends Schema> extends BaseROp<S, 'sample'> {
+ *     readonly kind = 'sample' as const
+ *     constructor(readonly source: IROp<S>, readonly n: number) { super() }
+ *     protected computeSchema(): S { return this.source.schema() }
+ * }
+ * \`\`\`
+ *
+ * Note that this doesn't have the nice API of a Relation, such as the \`.filter()\` or \`.select()\` methods.
+ *
+ * Note that this also does NOT implement the actual compilation logic,
+ * eg there is nothing in there that says how to convert this to SQL or PRQL.
+ * It is the responsibility of a Compiler to define this for a given computation backend.
+ * This separation means that a \`SampleOp\` has shared semantics across all backends.
+ */
 interface IROp<S extends Schema = Schema, K extends string = string> {
     readonly kind: K;
+    /** The structural {@link Schema} of the relation produced by this operation. */
     schema(): S;
+    /** Convert this operation to its public-facing {@link Relation}. */
     toRelation(): Relation<S, this>;
+    /** Optional symbol to mark this object as an ROp. If not present, the object will be checked for the presence of 'kind', 'schema', and 'toRelation' properties. */
     [IsROpSymbol]?: boolean;
 }
 
@@ -610,10 +649,10 @@ declare class SelectOp<S extends Schema> extends BaseROp<S, 'select'> {
 }
 declare class GroupOp<S extends Schema> extends BaseROp<S, 'group'> {
     readonly source: IROp<any>;
-    readonly keys: string[];
+    readonly keys: [string, IVOp][];
     readonly aggregations: [string, IVOp][];
     readonly kind: "group";
-    constructor(source: IROp<any>, keys: string[], aggregations: [string, IVOp][]);
+    constructor(source: IROp<any>, keys: [string, IVOp][], aggregations: [string, IVOp][]);
     protected computeSchema(): S;
 }
 declare class SortOp<S extends Schema> extends BaseROp<S, 'sort'> {
@@ -631,18 +670,17 @@ declare class TakeOp<S extends Schema> extends BaseROp<S, 'take'> {
     protected computeSchema(): S;
 }
 type BuiltinROp = FromOp<any> | FilterOp<any> | DeriveOp<any, any> | SelectOp<any> | GroupOp<any> | SortOp<any> | TakeOp<any>;
-declare function isBuiltinROp(op: any): op is BuiltinROp;
 
-interface Compiler<O extends IVOp<any, any, any> = BuiltinOp, R = BuiltinROp> {
+interface Compiler<O extends IVOp<any, any, string> = BuiltinOp, R = BuiltinROp> {
     compileOp(op: O): string;
     compileROp(node: R): string;
 }
 
-type Col<K extends string = string, T extends DataType = DataType> = VExpr<T, 'columnar'>;
+type Col<T extends DataType = DataType> = VExpr<T, 'columnar'>;
 declare class RowAccessor<S extends Schema> {
     private readonly _schema;
     constructor(_schema: S);
-    col<K extends keyof S & string>(name: K): Col<K, S[K]>;
+    col<K extends keyof S & string>(name: K): Col<S[K]>;
 }
 /** Result of calling g.agg({...}) inside a group() callback. */
 declare class GroupResult<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> {
@@ -652,8 +690,6 @@ declare class GroupResult<A extends Record<string, BaseVExpr<DataType, 'scalar'>
 declare class GroupAccessor<S extends Schema> extends RowAccessor<S> {
     agg<A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(aggregations: A): GroupResult<A>;
 }
-type ColName<C> = C extends Col<infer N, DataType> ? N : never;
-type ColArrayNames<KC> = KC extends Array<infer C> ? ColName<C> : never;
 type AggResultSchema<A extends Record<string, BaseVExpr<DataType, 'scalar'>>> = {
     [K in keyof A]: A[K] extends BaseVExpr<infer T, 'scalar'> ? T : never;
 };
@@ -675,7 +711,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
      */
-    col<K extends keyof S & string>(name: K): Col<K, S[K]>;
+    col<K extends keyof S & string>(name: K): Col<S[K]>;
     /**
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
@@ -685,11 +721,11 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Group rows by key columns and apply aggregations.
      * @example
      * penguins.group(
-     *   r => [r.col("species"), r.col("year")],
+     *   r => ({ species: true, year: true }),
      *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
      * )
      */
-    group<KC extends Col[], A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => KC, transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>, GroupOp<Pick<S, ColArrayNames<KC> & keyof S> & AggResultSchema<A>>>;
+    group<K extends SelectInput<S, K>, A extends Record<string, BaseVExpr<DataType, 'scalar'>>>(keys: (r: RowAccessor<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K), transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<SelectSchema<S, K> & AggResultSchema<A>, GroupOp<SelectSchema<S, K> & AggResultSchema<A>>>;
     /**
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
@@ -719,15 +755,17 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     toSql(): string;
 }
 /**
- * Define a relation with an explicit name and schema.
+ * Define a relation backed by a database table or view.
+ * @param name The name of the table or view.
+ * @param sch An object describing the schema, where keys are column names and values are data types.
  * @example
- * const penguins = relation('penguins', {
+ * const penguins = table('penguins', {
  *   species: DT.string,
  *   year: DT.int32,
  *   bill_length_mm: DT.float64,
  * })
  */
-declare function relation<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
+declare function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
 
 declare class PrqlCompiler implements Compiler {
     compileOp(op: BuiltinOp): string;
@@ -741,5 +779,5 @@ declare class SqlCompiler implements Compiler {
     compileROp(node: BuiltinROp): string;
 }
 
-export { type BuiltinROp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, SqlCompiler, type VExpr, col, count, isBuiltinROp, lit, relation };
+export { type BuiltinROp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, SqlCompiler, type VExpr, col, count, lit, table };
  }`
