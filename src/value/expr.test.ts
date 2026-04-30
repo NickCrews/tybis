@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import * as ty from '../src/index.js'
-import * as dt from '../src/datatype.js'
-import * as ops from '../src/value/ops.js'
-import * as vals from '../src/value/index.js'
+import * as ty from '../index.js'
+import * as dt from '../datatype.js'
+import * as ops from './ops.js'
+import * as vals from './index.js'
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {

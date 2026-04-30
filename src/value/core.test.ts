@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { isVOp, isVExpr, IsVOpSymbol, IsVExprSymbol } from '../src/value/core.js'
-import * as ty from '../src/index.js'
-import * as ops from '../src/value/ops.js'
+import { isVOp, isVExpr, IsVOpSymbol, IsVExprSymbol } from './core.js'
+import * as ty from '../index.js'
+import * as ops from './ops.js'
 
 describe('isOp()', () => {
     describe('symbol-based detection', () => {

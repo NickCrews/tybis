@@ -1,3 +1,35 @@
+export function suggestColumnName(input: string, candidates: string[]): string | undefined {
+    if (candidates.length === 0) return undefined
+
+    const normalizedInput = normalizeColumnName(input)
+    if (normalizedInput.length === 0) return undefined
+
+    let best: { name: string; distance: number; length: number } | undefined
+
+    for (const candidate of candidates) {
+        const normalizedCandidate = normalizeColumnName(candidate)
+        if (normalizedCandidate.length === 0) continue
+
+        const distance = levenshteinDistance(normalizedInput, normalizedCandidate)
+        const lengthDelta = Math.abs(normalizedInput.length - normalizedCandidate.length)
+        const adjustedDistance = distance + Math.floor(lengthDelta / 2)
+
+        if (
+            !best ||
+            adjustedDistance < best.distance ||
+            (adjustedDistance === best.distance && candidate.length < best.length) ||
+            (adjustedDistance === best.distance && candidate.length === best.length && candidate < best.name)
+        ) {
+            best = { name: candidate, distance: adjustedDistance, length: candidate.length }
+        }
+    }
+
+    if (!best) return undefined
+
+    const threshold = Math.max(1, Math.floor(normalizedInput.length * 0.4))
+    return best.distance <= threshold ? best.name : undefined
+}
+
 function normalizeColumnName(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
@@ -29,36 +61,4 @@ function levenshteinDistance(a: string, b: string): number {
     }
 
     return prev[b.length]!
-}
-
-export function suggestColumnName(input: string, candidates: string[]): string | undefined {
-    if (candidates.length === 0) return undefined
-
-    const normalizedInput = normalizeColumnName(input)
-    if (normalizedInput.length === 0) return undefined
-
-    let best: { name: string; distance: number; length: number } | undefined
-
-    for (const candidate of candidates) {
-        const normalizedCandidate = normalizeColumnName(candidate)
-        if (normalizedCandidate.length === 0) continue
-
-        const distance = levenshteinDistance(normalizedInput, normalizedCandidate)
-        const lengthDelta = Math.abs(normalizedInput.length - normalizedCandidate.length)
-        const adjustedDistance = distance + Math.floor(lengthDelta / 2)
-
-        if (
-            !best ||
-            adjustedDistance < best.distance ||
-            (adjustedDistance === best.distance && candidate.length < best.length) ||
-            (adjustedDistance === best.distance && candidate.length === best.length && candidate < best.name)
-        ) {
-            best = { name: candidate, distance: adjustedDistance, length: candidate.length }
-        }
-    }
-
-    if (!best) return undefined
-
-    const threshold = Math.max(1, Math.floor(normalizedInput.length * 0.4))
-    return best.distance <= threshold ? best.name : undefined
 }

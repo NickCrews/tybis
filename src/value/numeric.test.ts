@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import * as ops from '../src/value/ops.js'
+import * as ops from './ops.js'
 
 describe('Numeric Operations', () => {
     describe('addition', () => {

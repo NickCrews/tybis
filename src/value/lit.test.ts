@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import * as ty from '../src/index.js'
-import * as dt from '../src/datatype.js'
+import * as ty from '../index.js'
+import * as dt from '../datatype.js'
 
 describe('lit()', () => {
     describe('null', () => {

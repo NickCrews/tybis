@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
-import * as ty from '../src/index.js'
+import * as ty from '../index.js'
 
 describe('TimeExpr', () => {
     describe('Type Safety', () => {
