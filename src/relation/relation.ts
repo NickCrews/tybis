@@ -13,7 +13,7 @@ import {
 } from '../value/expr.js'
 import { PrqlCompiler } from '../compilers/prql-compiler.js'
 import { SqlCompiler } from '../compilers/sql-compiler.js'
-import { suggestColumnName } from '../typo.js'
+import { suggestColumnName } from '../utils/typo.js'
 
 // ---------------------------------------------------------------------------
 // Row and group accessors
