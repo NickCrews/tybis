@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { isVOp, isVExpr, IsVOpSymbol, IsVExprSymbol } from './core.js'
 import * as ty from '../index.js'
 import * as ops from './ops.js'
+import { FloatLiteralOp, IntLiteralOp, StringLiteralOp } from './lit.js'
 
 describe('isOp()', () => {
     describe('symbol-based detection', () => {
         it('returns true for objects with IsOpSymbol = true', () => {
-            const op = new ops.FloatLiteralOp(42)
+            const op = new FloatLiteralOp(42)
             expect(isVOp(op)).toBe(true)
         })
 
@@ -84,11 +85,11 @@ describe('isOp()', () => {
         })
 
         it('recognizes IntLiteralOp', () => {
-            expect(isVOp(new ops.IntLiteralOp(10))).toBe(true)
+            expect(isVOp(new IntLiteralOp(10))).toBe(true)
         })
 
         it('recognizes StringLiteralOp', () => {
-            expect(isVOp(new ops.StringLiteralOp('hello'))).toBe(true)
+            expect(isVOp(new StringLiteralOp('hello'))).toBe(true)
         })
     })
 
@@ -126,9 +127,9 @@ describe('isExpr()', () => {
 
         it('returns true for objects with valid dtype(), valid dshape(), and toOp()', () => {
             const obj = {
-                dtype: () => ({ typecode: 'boolean' }),
+                dtype: () => ({ typecode: 'string' }),
                 dshape: () => 'columnar',
-                toOp: () => new ops.BooleanLiteralOp(true),
+                toOp: () => new StringLiteralOp('test'),
             }
             expect(isVExpr(obj)).toBe(true)
         })
@@ -173,7 +174,7 @@ describe('isExpr()', () => {
         })
 
         it('does not recognize an Op as an Expr', () => {
-            const op = new ops.StringLiteralOp('hello')
+            const op = ty.lit(42).toOp()
             const result = isVExpr(op)
             expect(result).toBe(false)
         })

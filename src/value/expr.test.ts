@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import * as ty from '../index.js'
 import * as dt from '../datatype.js'
-import * as ops from './ops.js'
 import * as vals from './index.js'
+import { BooleanLiteralOp, IntervalLiteralOp, NullLiteralOp, UuidLiteralOp } from './lit.js'
 
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
@@ -121,7 +121,7 @@ describe('count() factory function', () => {
 
 describe('opToExpr()', () => {
     it('wraps a NullLiteralOp in a NullExpr', () => {
-        const op = new ops.NullLiteralOp()
+        const op = new NullLiteralOp()
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'null' })
         expect(expr.dshape()).toBe('scalar')
@@ -130,7 +130,7 @@ describe('opToExpr()', () => {
     })
 
     it('wraps an IntervalLiteralOp in an IntervalExpr', () => {
-        const op = new ops.IntervalLiteralOp(5)
+        const op = new IntervalLiteralOp(5)
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'interval' })
         expect(expr.dshape()).toBe('scalar')
@@ -139,7 +139,7 @@ describe('opToExpr()', () => {
     })
 
     it('wraps a UuidLiteralOp in a UUIDExpr', () => {
-        const op = new ops.UuidLiteralOp('550e8400-e29b-41d4-a716-446655440000')
+        const op = new UuidLiteralOp('550e8400-e29b-41d4-a716-446655440000')
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'uuid' })
         expect(expr.dshape()).toBe('scalar')
@@ -148,7 +148,7 @@ describe('opToExpr()', () => {
     })
 
     it('wraps a BooleanLiteralOp in a BooleanExpr', () => {
-        const op = new ops.BooleanLiteralOp(true)
+        const op = new BooleanLiteralOp(true)
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'boolean' })
         expect(expr.dshape()).toBe('scalar')

@@ -4,6 +4,7 @@ import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.j
 import * as ops from './ops.js'
 import { IVOp, IVExpr, IsVExprSymbol } from './core.js'
 import * as cmp from './compare.js'
+import * as litOps from './lit.js'
 
 // ---------------------------------------------------------------------------
 // opToExpr — wraps an IVOp in the appropriate Expr subclass
@@ -135,10 +136,10 @@ export class StringExpr<S extends DataShape = DataShape> extends GenericVExpr<dt
         return vOpToVExpr(new ops.LowerOp(this.toOp()))
     }
     contains(pattern: string) {
-        return vOpToVExpr(new ops.ContainsOp(this.toOp(), new ops.StringLiteralOp(pattern)))
+        return vOpToVExpr(new ops.ContainsOp(this.toOp(), new litOps.StringLiteralOp(pattern)))
     }
     startsWith(prefix: string) {
-        return vOpToVExpr(new ops.StartsWithOp(this.toOp(), new ops.StringLiteralOp(prefix)))
+        return vOpToVExpr(new ops.StartsWithOp(this.toOp(), new litOps.StringLiteralOp(prefix)))
     }
 }
 
@@ -242,19 +243,4 @@ export function count(): NumericExpr<dt.DTInt64, 'scalar'> {
  */
 export function sql<T extends DataType, S extends DataShape>(rawSql: string, dtype: T, dshape: S): VExpr<T, S> {
     return vOpToVExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
-}
-
-/**
- * Create a scalar value expression that represents a single literal value, eg `ty.lit(42)` or `ty.lit("hello")`.
- * 
- * The dtype can be inferred from the value, or explicitly provided if needed.
- * 
- * Note how `ty.lit("name")` represents a string literal value, which is different from `myrelation.col("name")`, which represents a reference to a column named "name".
- * 
- * @param value The literal value to use.
- * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
- * @returns A VExpr representing the literal value.
- */
-export function lit<JS extends ops.AcceptableJsVal<DT>, DT extends dt.IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ops.ExplicitOrInferredDtype<JS, DT>, 'scalar'> {
-    return ops.litOp(value, dtype).toExpr()
 }

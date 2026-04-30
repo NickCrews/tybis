@@ -3,6 +3,7 @@ import { expectTypeOf } from 'expect-type'
 import * as ty from '../index.js'
 import * as dt from '../datatype.js'
 import * as ops from './ops.js'
+import { StringLiteralOp } from './lit.js'
 
 describe('String Operations', () => {
     describe('upper', () => {
@@ -15,7 +16,7 @@ describe('String Operations', () => {
         })
 
         it('should work with scalar strings', () => {
-            const scalar = new ops.StringLiteralOp('hello')
+            const scalar = new StringLiteralOp('hello')
             const op = new ops.UpperOp(scalar)
             expect(op.dshape()).toBe('scalar')
             expect(op.dtype()).toEqual({ typecode: 'string' })
@@ -41,7 +42,7 @@ describe('String Operations', () => {
         })
 
         it('should work with scalar strings', () => {
-            const scalar = new ops.StringLiteralOp('HELLO')
+            const scalar = new StringLiteralOp('HELLO')
             const op = new ops.LowerOp(scalar)
             expect(op.dshape()).toBe('scalar')
             expect(op.dtype()).toEqual({ typecode: 'string' })
@@ -60,7 +61,7 @@ describe('String Operations', () => {
     describe('contains', () => {
         it('should have columnar shape when operand is columnar', () => {
             const col = new ops.ColRefOp('email', 'string')
-            const pattern = new ops.StringLiteralOp('gmail')
+            const pattern = new StringLiteralOp('gmail')
             const op = new ops.ContainsOp(col, pattern)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
@@ -68,8 +69,8 @@ describe('String Operations', () => {
         })
 
         it('should have scalar shape when operand is scalar', () => {
-            const str = new ops.StringLiteralOp('hello@gmail.com')
-            const pattern = new ops.StringLiteralOp('gmail')
+            const str = new StringLiteralOp('hello@gmail.com')
+            const pattern = new StringLiteralOp('gmail')
             const op = new ops.ContainsOp(str, pattern)
             expect(op.dshape()).toBe('scalar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
@@ -88,7 +89,7 @@ describe('String Operations', () => {
     describe('startsWith', () => {
         it('should have columnar shape when operand is columnar', () => {
             const col = new ops.ColRefOp('name', 'string')
-            const prefix = new ops.StringLiteralOp('Dr.')
+            const prefix = new StringLiteralOp('Dr.')
             const op = new ops.StartsWithOp(col, prefix)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
@@ -96,8 +97,8 @@ describe('String Operations', () => {
         })
 
         it('should have scalar shape when operand is scalar', () => {
-            const str = new ops.StringLiteralOp('Dr. Smith')
-            const prefix = new ops.StringLiteralOp('Dr.')
+            const str = new StringLiteralOp('Dr. Smith')
+            const prefix = new StringLiteralOp('Dr.')
             const op = new ops.StartsWithOp(str, prefix)
             expect(op.dshape()).toBe('scalar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })

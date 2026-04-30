@@ -15,6 +15,6 @@ export {
     col,
     count,
     sql,
-    lit,
     vOpToVExpr,
 } from './expr.js'
+export { lit } from './lit.js'

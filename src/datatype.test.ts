@@ -7,7 +7,6 @@ import {
     dtype,
 } from './datatype'
 import * as ty from './index.js'
-import * as ops from './value/ops.js'
 
 describe('inferDtype', () => {
     it('infers strings as string type', () => {
@@ -141,7 +140,7 @@ describe('dtype()', () => {
     })
 
     it('accepts an Op and returns its dtype', () => {
-        const result = dtype(new ops.IntLiteralOp(42))
+        const result = dtype(ty.lit(42).toOp())
         expect(result).toEqual({ typecode: 'int', size: 64 })
         // @ts-expect-error TODO: make this work
         expectTypeOf(result).toEqualTypeOf<{ readonly typecode: 'int', readonly size: 64 }>()

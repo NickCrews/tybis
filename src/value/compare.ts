@@ -1,7 +1,7 @@
 import * as dt from "../datatype";
 import * as core from "./core";
-import * as ops from "./ops";
 import { InferDataShape } from "../datashape";
+import { AcceptableJsVal, LiteralValueCoercibleTo, litOp } from "./lit";
 
 /** Given a datatype, what are the datatypes that are comparable to it eg with .eq() */
 export type DtypesComparableTo<T extends dt.DataType> =
@@ -33,7 +33,7 @@ export function isComparable<A extends dt.DataType, B extends dt.DataType>(dtype
 }
 
 export type IntoValueComparableTo<Target extends dt.DataType> =
-    | ops.LiteralValueCoercibleTo<Target>
+    | LiteralValueCoercibleTo<Target>
     | core.IVExpr<DtypesComparableTo<Target>, any>
     | core.IVOp<DtypesComparableTo<Target>, any>
 
@@ -55,8 +55,8 @@ export function coerceToComparable<Target extends dt.DataType, Value extends Int
             throw new Error(`Cannot compare value of type ${JSON.stringify(valueDtype)} to target type ${JSON.stringify(target)}`)
         }
     }
-    return ops.litOp(
-        value as unknown as ops.AcceptableJsVal<Target>,
+    return litOp(
+        value as unknown as AcceptableJsVal<Target>,
         target,
     ) as unknown as core.IVOp<DtypesComparableTo<Target>, InferDataShape<Value>>
 }
