@@ -6,7 +6,7 @@ import { SqlCompiler } from './sql-compiler.js'
 
 const compiler = new SqlCompiler()
 const compileOp = (e: vals.VExpr<any, any>) =>
-    compiler.compileOp(e.toOp() as ops.BuiltinVOp)
+    compiler.compileVOp(e.toOp() as ops.BuiltinVOp)
 
 describe('SqlCompiler value ops (delegates to PRQL)', () => {
     it('null literal', () => {

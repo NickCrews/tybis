@@ -7,8 +7,8 @@ import { PrqlCompiler } from './prql-compiler.js'
 export class SqlCompiler implements Compiler {
     private readonly prqlCompiler = new PrqlCompiler()
 
-    compileOp(op: BuiltinVOp): string {
-        return this.prqlCompiler.compileOp(op)
+    compileVOp(op: BuiltinVOp): string {
+        return this.prqlCompiler.compileVOp(op)
     }
 
     compileROp(node: BuiltinROp): string {
