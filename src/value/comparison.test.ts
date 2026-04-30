@@ -63,6 +63,8 @@ describe('Comparison Operations', () => {
     describe('greater than', () => {
         it('should have basic functionality for gt', () => {
             const q = table.derive(r => ({ is_greater: r.col('f64a').gt(5) }))
+            expect(q.col('is_greater').dtype()).toEqual({ typecode: 'boolean' })
+            expect(q.col('is_greater').dshape()).toBe('columnar')
             expectTypeOf(q.col('is_greater').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_greater').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -73,12 +75,15 @@ describe('Comparison Operations', () => {
             const op = new ops.GtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 
     describe('greater than or equal', () => {
         it('should have basic functionality for gte', () => {
             const q = table.derive(r => ({ is_gte: r.col('f64a').gte(10) }))
+            expect(q.col('is_gte').dtype()).toEqual({ typecode: 'boolean' })
+            expect(q.col('is_gte').dshape()).toBe('columnar')
             expectTypeOf(q.col('is_gte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_gte').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -88,12 +93,16 @@ describe('Comparison Operations', () => {
             const scalar = new ops.FloatLiteralOp(10)
             const op = new ops.GteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 
     describe('less than', () => {
         it('should have basic functionality for lt', () => {
             const q = table.derive(r => ({ is_less: r.col('f64a').lt(20) }))
+            expect(q.col('is_less').dtype()).toEqual({ typecode: 'boolean' })
+            expect(q.col('is_less').dshape()).toBe('columnar')
             expectTypeOf(q.col('is_less').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_less').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -103,12 +112,16 @@ describe('Comparison Operations', () => {
             const scalar = new ops.FloatLiteralOp(20)
             const op = new ops.LtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 
     describe('less than or equal', () => {
         it('should have basic functionality for lte', () => {
             const q = table.derive(r => ({ is_lte: r.col('f64a').lte(20) }))
+            expect(q.col('is_lte').dtype()).toEqual({ typecode: 'boolean' })
+            expect(q.col('is_lte').dshape()).toBe('columnar')
             expectTypeOf(q.col('is_lte').dtype()).toEqualTypeOf<{ typecode: 'boolean' }>()
             expectTypeOf(q.col('is_lte').dshape()).toEqualTypeOf<'columnar'>()
         })
@@ -118,6 +131,8 @@ describe('Comparison Operations', () => {
             const scalar = new ops.FloatLiteralOp(20)
             const op = new ops.LteOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'boolean' })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 })

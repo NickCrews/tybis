@@ -3,34 +3,38 @@ import { expectTypeOf } from 'expect-type'
 import * as ty from '../index.js'
 
 describe('DateTimeExpr', () => {
-    describe('Type Safety', () => {
-        it('should have datetime type', () => {
-            const datetimeCol = ty.col('event_datetime', 'datetime')
-            expectTypeOf(datetimeCol).toMatchTypeOf<ty.IVExpr<{ typecode: 'datetime' }, 'columnar'>>()
-        })
-
-        it('toString() returns StringExpr', () => {
-            const datetimeCol = ty.col('event_datetime', 'datetime')
-            const strExpr = datetimeCol.toString('%Y-%m-%d')
-            expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string' }, 'columnar'>>()
-        })
+    const events = ty.table('events', {
+        id: 'int32',
+        event_datetime: 'datetime',
+        description: 'string',
     })
 
-    describe('Common operations', () => {
-        const events = ty.table('events', {
-            id: 'int32',
-            event_datetime: 'datetime',
-            description: 'string',
-        })
+    it('ty.col() with datetime produces a DateTimeExpr', () => {
+        const datetimeCol = ty.col('event_datetime', 'datetime')
+        expect(datetimeCol.dtype()).toEqual({ typecode: 'datetime' })
+        expect(datetimeCol.dshape()).toBe('columnar')
+        expectTypeOf(datetimeCol).toMatchTypeOf<ty.IVExpr<{ typecode: 'datetime' }, 'columnar'>>()
+    })
 
-        it('eq() comparison constructs an op', () => {
-            const e = events.col('event_datetime').eq(events.col('event_datetime'))
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
-        })
+    it('toString() returns a StringExpr', () => {
+        const datetimeCol = ty.col('event_datetime', 'datetime')
+        const strExpr = datetimeCol.toString('%Y-%m-%d')
+        expect(strExpr.dtype()).toEqual({ typecode: 'string' })
+        expect(strExpr.dshape()).toBe('columnar')
+        expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string' }, 'columnar'>>()
+    })
 
-        it('isNotNull() check constructs an op', () => {
-            const e = events.col('event_datetime').isNotNull()
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
-        })
+    it('eq() comparison constructs a boolean expr', () => {
+        const e = events.col('event_datetime').eq(events.col('event_datetime'))
+        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dshape()).toBe('columnar')
+        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean' }, 'columnar'>>()
+    })
+
+    it('isNotNull() check constructs a boolean expr', () => {
+        const e = events.col('event_datetime').isNotNull()
+        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dshape()).toBe('columnar')
+        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean' }, 'columnar'>>()
     })
 })

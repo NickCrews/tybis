@@ -10,7 +10,25 @@ const penguins = ty.table('penguins', {
     active: 'boolean',
 })
 
-describe('Relation.col() error handling', () => {
+describe('ty.table()', () => {
+    it('builds a Relation with the declared schema', () => {
+        const t = ty.table('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+        expect(t.schema.species).toEqual({ typecode: 'string' })
+        expect(t.schema.year).toEqual({ typecode: 'int', size: 32 })
+        expect(t.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64 })
+        expectTypeOf(t).toMatchTypeOf<ty.Relation<{
+            species: dt.DTString
+            year: dt.DTInt32
+            bill_length_mm: dt.DTFloat64
+        }>>()
+    })
+})
+
+describe('Relation.col()', () => {
     it('throws when accessing a non-existent column with no close match', () => {
         // @ts-expect-error — 'totally_unknown_column' is not in the schema
         expect(() => penguins.col('totally_unknown_column')).toThrow("Column 'totally_unknown_column' does not exist")
@@ -36,6 +54,16 @@ describe('Relation.col() error handling', () => {
         expect(err?.message).toContain("Column 'xyz' does not exist")
         expect(err?.message).not.toContain('Did you mean')
     })
+
+    it('returns an expression typed by the column dtype', () => {
+        const speciesCol = penguins.col('species')
+        expect(speciesCol.dtype()).toEqual({ typecode: 'string' })
+        expectTypeOf(speciesCol).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
+
+        const yearCol = penguins.col('year')
+        expect(yearCol.dtype()).toEqual({ typecode: 'int', size: 32 })
+        expectTypeOf(yearCol).toMatchTypeOf<ty.IVExpr<dt.DTInt32, 'columnar'>>()
+    })
 })
 
 describe('Relation.select()', () => {
@@ -58,9 +86,77 @@ describe('Relation.select()', () => {
             missing: true
         }))).toThrowError("Cannot select 'missing': column does not exist.")
     })
+
+    it('replaces the schema with the selected expressions', () => {
+        const t = ty.table('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+        const result = t.select(r => ({
+            species_alias: r.col('species'),
+            is_recent: r.col('year').gt(2000),
+        }))
+
+        expect(result.schema.species_alias).toEqual({ typecode: 'string' })
+        expect(result.schema.is_recent).toEqual({ typecode: 'boolean' })
+        expect('bill_length_mm' in result.schema).toBe(false)
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species_alias: { typecode: 'string' }
+            is_recent: { typecode: 'boolean' }
+        }>>()
+        expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
+    })
+
+    it('shorthand `true` keeps an existing column', () => {
+        const t = ty.table('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+        const result = t.select(r => ({
+            species: true,
+            is_recent: r.col('year').gt(2000),
+        }))
+
+        expect(result.schema.species).toEqual({ typecode: 'string' })
+        expect(result.schema.is_recent).toEqual({ typecode: 'boolean' })
+        expect('bill_length_mm' in result.schema).toBe(false)
+        expect('year' in result.schema).toBe(false)
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species: { typecode: 'string' }
+            is_recent: { typecode: 'boolean' }
+        }>>()
+        expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
+        expectTypeOf<typeof result['schema']>().not.toHaveProperty('year')
+    })
+
+    it('shorthand `false` drops a column', () => {
+        const t = ty.table('penguins', {
+            species: 'string',
+            year: 'int32',
+            bill_length_mm: 'float64',
+        })
+        const result = t.select(_r => ({
+            species: true,
+            year: false,
+        }))
+
+        expect(result.schema.species).toEqual({ typecode: 'string' })
+        expect('year' in result.schema).toBe(false)
+        expect('bill_length_mm' in result.schema).toBe(false)
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species: { typecode: 'string' }
+        }>>()
+        expectTypeOf<typeof result['schema']>().not.toHaveProperty('year')
+        expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
+    })
 })
 
-describe('Relation.derive() with multiple columns', () => {
+describe('Relation.derive()', () => {
     it('adds multiple derived columns at once', () => {
         const q = penguins.derive(r => ({
             half_bill: r.col('bill_length_mm').div(2),
@@ -68,6 +164,14 @@ describe('Relation.derive() with multiple columns', () => {
         }))
         expect(q.col('half_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(q.col('double_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
+        expectTypeOf(q).toMatchTypeOf<ty.Relation<{
+            species: dt.DTString
+            year: dt.DTInt32
+            bill_length_mm: dt.DTFloat64
+            active: dt.DTBoolean
+            half_bill: dt.DTFloat64
+            double_bill: dt.DTFloat64
+        }>>()
     })
 
     it('overrides an existing column when derive uses same name', () => {
@@ -76,6 +180,27 @@ describe('Relation.derive() with multiple columns', () => {
         }))
         // The schema should now have year as float64 (sum returns float64)
         expect(q.col('year').dtype().typecode).toBe('float')
+        expectTypeOf(q.col('year')).toMatchTypeOf<ty.IVExpr<dt.DTFloat64, 'columnar'>>()
+    })
+
+    it('extends the schema with a new computed column', () => {
+        const t = ty.table('penguins', {
+            species: 'string',
+            bill_length_mm: 'float64',
+        })
+        const result = t.derive(r => ({
+            ratio: r.col('bill_length_mm').div(40),
+        }))
+
+        expect(result.schema.ratio).toEqual({ typecode: 'float', size: 64 })
+        expect(result.schema.species).toEqual({ typecode: 'string' })
+        expect(result.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64 })
+
+        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
+            species: { typecode: 'string' }
+            bill_length_mm: { typecode: 'float', size: 64 }
+            ratio: { typecode: 'float', size: 64 }
+        }>>()
     })
 })
 
@@ -91,35 +216,6 @@ describe('GroupAccessor.agg() validation', () => {
             )
         ).toThrow("Aggregation 'bad' must be a scalar expression")
     })
-})
-
-describe('Relation schema is preserved through operations', () => {
-    it('schema is preserved through filter', () => {
-        const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
-        expect(q.schema).toEqual(penguins.schema)
-    })
-
-    it('schema is preserved through sort', () => {
-        const q = penguins.sort(r => r.col('year'))
-        expect(q.schema).toEqual(penguins.schema)
-    })
-
-    it('schema is preserved through take', () => {
-        const q = penguins.take(5)
-        expect(q.schema).toEqual(penguins.schema)
-    })
-
-    it('schema is updated through derive to add new column', () => {
-        const q = penguins.derive(r => ({
-            ratio: r.col('bill_length_mm').div(r.col('year')),
-        }))
-        expect('ratio' in q.schema).toBe(true)
-        expect(q.schema.ratio.typecode).toBe('float')
-        // Original columns preserved
-        expect('species' in q.schema).toBe(true)
-        expect('bill_length_mm' in q.schema).toBe(true)
-    })
-
     it('group reduces schema to key columns and aggregations', () => {
         const q = penguins.group(
             _r => ({ species: true }),
@@ -129,140 +225,32 @@ describe('Relation schema is preserved through operations', () => {
         expect('n' in q.schema).toBe(true)
         expect('bill_length_mm' in q.schema).toBe(false)
         expect('year' in q.schema).toBe(false)
+        expectTypeOf(q).toMatchTypeOf<ty.Relation<{
+            species: dt.DTString
+            n: dt.DTInt64
+        }>>()
+        expectTypeOf<typeof q['schema']>().not.toHaveProperty('bill_length_mm')
+        expectTypeOf<typeof q['schema']>().not.toHaveProperty('year')
     })
 })
 
-describe('Type Safety', () => {
-    it('should accept an explicit schema', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            year: 'int32',
-            bill_length_mm: 'float64',
-        })
-
-        expectTypeOf(penguins).toMatchTypeOf<ty.Relation<{
-            species: dt.DTString
-            year: dt.DTInt32
-            bill_length_mm: dt.DTFloat64
-        }>>()
+describe('Relation schema is preserved through operations', () => {
+    it('schema is preserved through filter', () => {
+        const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
 
-    it('should track schema through group and agg', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            year: 'int32',
-            bill_length_mm: 'float64',
-        })
-
-        const result = penguins.group(
-            _r => ({ species: true, year: true }),
-            g => g.agg({
-                count: ty.count(),
-                mean_bill: g.col('bill_length_mm').mean(),
-            })
-        )
-
-        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-            year: { typecode: 'int', size: 32 }
-            count: { typecode: 'int', size: 64 }
-            mean_bill: { typecode: 'float', size: 64 }
-        }>>()
+    it('schema is preserved through sort', () => {
+        const q = penguins.sort(r => r.col('year'))
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
 
-    it('should track schema through derive', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            bill_length_mm: 'float64',
-        })
-
-        const result = penguins.derive(r => ({
-            ratio: r.col('bill_length_mm').div(40),
-        }))
-
-        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-            bill_length_mm: { typecode: 'float', size: 64 }
-            ratio: { typecode: 'float', size: 64 }
-        }>>()
+    it('schema is preserved through take', () => {
+        const q = penguins.take(5)
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
 
-    it('should track schema through select', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            year: 'int32',
-            bill_length_mm: 'float64',
-        })
-
-        const result = penguins.select(r => ({
-            species_alias: r.col('species'),
-            is_recent: r.col('year').gt(2000),
-        }))
-
-        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species_alias: { typecode: 'string' }
-            is_recent: { typecode: 'boolean' }
-        }>>()
-
-        // Assert old columns are no longer in schema at compile time
-        type ExpectedSchema = typeof result['schema']
-        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
-    })
-
-    it('should track schema through select shorthand', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            year: 'int32',
-            bill_length_mm: 'float64',
-        })
-
-        const result = penguins.select(r => ({
-            species: true,
-            is_recent: r.col('year').gt(2000),
-        }))
-
-        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-            is_recent: { typecode: 'boolean' }
-        }>>()
-
-        type ExpectedSchema = typeof result['schema']
-        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
-        expectTypeOf<ExpectedSchema>().not.toHaveProperty('year')
-    })
-
-    it('should drop column when false is provided', () => {
-        const penguins = ty.table('penguins', {
-            species: 'string',
-            year: 'int32',
-            bill_length_mm: 'float64',
-        })
-
-        const result = penguins.select(_r => ({
-            species: true,
-            year: false,
-        }))
-
-        expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-        }>>()
-
-        type ExpectedSchema = typeof result['schema']
-        expectTypeOf<ExpectedSchema>().not.toHaveProperty('year')
-        expectTypeOf<ExpectedSchema>().not.toHaveProperty('bill_length_mm')
-    })
-
-    it('string columns should have string methods', () => {
-        const r = ty.table('t', { name: 'string' })
-        const nameCol = r.col('name')
-        expectTypeOf(nameCol.upper()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.lower()).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(nameCol.contains('x')).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
-    })
-
-    it('numeric columns should have comparison methods', () => {
-        const numCol = ty.col('age', 'int32')
-        expectTypeOf(numCol.gt(5)).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
-        expectTypeOf(numCol.div(2)).toMatchTypeOf<ty.IVExpr<dt.DTFloat64, 'columnar'>>()
-    })
 })

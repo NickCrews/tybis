@@ -9,6 +9,7 @@ describe('Numeric Operations', () => {
             const scalar = new ops.FloatLiteralOp(5)
             const op = new ops.AddOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
@@ -17,6 +18,7 @@ describe('Numeric Operations', () => {
             const col = new ops.ColRefOp('x', 'float64')
             const op = new ops.AddOp(scalar, col)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
 
@@ -25,6 +27,7 @@ describe('Numeric Operations', () => {
             const scalar2 = new ops.FloatLiteralOp(10)
             const op = new ops.AddOp(scalar1, scalar2)
             expect(op.dshape()).toBe('scalar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
             expectTypeOf(op.dshape()).toEqualTypeOf<'scalar'>()
         })
 
@@ -33,6 +36,7 @@ describe('Numeric Operations', () => {
             const col2 = new ops.ColRefOp('y', 'float64')
             const op = new ops.AddOp(col1, col2)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
@@ -43,6 +47,8 @@ describe('Numeric Operations', () => {
             const scalar = new ops.FloatLiteralOp(5)
             const op = new ops.SubOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 
@@ -52,6 +58,8 @@ describe('Numeric Operations', () => {
             const scalar = new ops.FloatLiteralOp(2)
             const op = new ops.MulOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 
@@ -61,6 +69,8 @@ describe('Numeric Operations', () => {
             const scalar = new ops.FloatLiteralOp(2)
             const op = new ops.DivOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
+            expect(op.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
         })
     })
 })

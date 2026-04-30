@@ -12,12 +12,15 @@ describe('isNotNull()', () => {
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
     })
 
     it('produces a boolean scalar expr from a scalar literal', () => {
         const e = ty.lit('hello').isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
 
@@ -28,6 +31,15 @@ describe('isNull()', () => {
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
+    })
+
+    it('produces a boolean scalar expr from a scalar literal', () => {
+        const e = ty.lit('hello').isNull()
+        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
 
@@ -37,6 +49,8 @@ describe('min() and max()', () => {
         const e = table.col('score').min()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTFloat64>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 
     it('max() returns a scalar expr with same dtype', () => {
@@ -44,6 +58,8 @@ describe('min() and max()', () => {
         const e = table.col('score').max()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTFloat64>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 
     it('min() on a string column preserves string dtype', () => {
@@ -51,6 +67,8 @@ describe('min() and max()', () => {
         const e = table.col('name').min()
         expect(e.dtype()).toEqual({ typecode: 'string' })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTString>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
 
@@ -60,12 +78,16 @@ describe('BooleanExpr.not()', () => {
         const e = table.col('active').not()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('columnar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
     })
 
     it('preserves scalar shape', () => {
         const e = ty.lit(true).not()
         expect(e.dtype()).toEqual({ typecode: 'boolean' })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
 
@@ -74,12 +96,16 @@ describe('sql() factory function', () => {
         const e = vals.sql('custom_function(x)', { typecode: 'float', size: 64 }, 'columnar')
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
         expect(e.dshape()).toBe('columnar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTFloat64>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
     })
 
     it('creates a scalar raw SQL expr', () => {
         const e = vals.sql('COUNT(*)', { typecode: 'int', size: 64 }, 'scalar')
         expect(e.dtype()).toEqual({ typecode: 'int', size: 64 })
         expect(e.dshape()).toBe('scalar')
+        expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTInt64>()
+        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
 
@@ -99,6 +125,8 @@ describe('opToExpr()', () => {
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'null' })
         expect(expr.dshape()).toBe('scalar')
+        expectTypeOf(expr.dtype()).toEqualTypeOf<dt.DTNull>()
+        expectTypeOf(expr.dshape()).toEqualTypeOf<'scalar'>()
     })
 
     it('wraps an IntervalLiteralOp in an IntervalExpr', () => {
@@ -106,6 +134,8 @@ describe('opToExpr()', () => {
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'interval' })
         expect(expr.dshape()).toBe('scalar')
+        expectTypeOf(expr.dtype()).toEqualTypeOf<dt.DTInterval>()
+        expectTypeOf(expr.dshape()).toEqualTypeOf<'scalar'>()
     })
 
     it('wraps a UuidLiteralOp in a UUIDExpr', () => {
@@ -113,11 +143,16 @@ describe('opToExpr()', () => {
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'uuid' })
         expect(expr.dshape()).toBe('scalar')
+        expectTypeOf(expr.dtype()).toEqualTypeOf<dt.DTUUID>()
+        expectTypeOf(expr.dshape()).toEqualTypeOf<'scalar'>()
     })
 
     it('wraps a BooleanLiteralOp in a BooleanExpr', () => {
         const op = new ops.BooleanLiteralOp(true)
         const expr = vals.vOpToVExpr(op)
         expect(expr.dtype()).toEqual({ typecode: 'boolean' })
+        expect(expr.dshape()).toBe('scalar')
+        expectTypeOf(expr.dtype()).toEqualTypeOf<dt.DTBoolean>()
+        expectTypeOf(expr.dshape()).toEqualTypeOf<'scalar'>()
     })
 })
