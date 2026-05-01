@@ -70,7 +70,7 @@ describe('Relation.select()', () => {
     it('throws an error if no arguments are provided', () => {
         // @ts-expect-error
         expect(() => penguins.select()).toThrowError(
-            "select() requires a callback returning an object map of columns"
+            "select() requires a mapping object or callback"
         )
     })
 
@@ -81,10 +81,30 @@ describe('Relation.select()', () => {
     })
 
     it('throws an error if shorthand is used for a missing column', () => {
-        expect(() => penguins.select(_r => ({
-            // @ts-expect-error
-            missing: true
-        }))).toThrowError("Cannot select 'missing': column does not exist.")
+        // @ts-expect-error throws with plain object
+        expect(() => penguins.select({ missing: true })).toThrowError("Cannot select 'missing': column does not exist.")
+        // @ts-expect-error throws with callback
+        expect(() => penguins.select(_r => ({ missing: true }))).toThrowError("Cannot select 'missing': column does not exist.")
+    })
+
+    it('can select from the existing relation with no callback', () => {
+        const result = penguins.select({ species2: penguins.col('species') })
+        const expectedSchema = {
+            species2: { typecode: 'string' },
+        }
+        expect(result.schema).toEqual(expectedSchema)
+        expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
+    })
+
+    it('does not error early if selecting a column from a different relation (TODO)', () => {
+        const other = ty.table('other', { species: 'string' })
+        // This currently throws an error because the column validator doesn't know to allow columns from other relations, but ideally it should work since the column name is valid and the dtype matches
+        const outcome = penguins.select({ species_from_other: other.col('species') })
+        const expectedSchema = {
+            species_from_other: { typecode: 'string' },
+        }
+        expect(outcome.schema).toEqual(expectedSchema)
+        expectTypeOf(outcome.schema).toMatchTypeOf(expectedSchema)
     })
 
     it('replaces the schema with the selected expressions', () => {
@@ -154,6 +174,34 @@ describe('Relation.select()', () => {
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('year')
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
     })
+
+    it('accepts a direct mapping object without callback', () => {
+        const result = penguins.select({
+            species: true,
+            active: true,
+            year: false, // should be ignored since false means drop
+        })
+        const expectedSchema = {
+            species: { typecode: 'string' },
+            active: { typecode: 'boolean' },
+        }
+        expect(result.schema).toEqual(expectedSchema)
+        expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
+    })
+
+    it('accepts a direct mapping object with expressions', () => {
+        const result = penguins.select({
+            species: true,
+            my_favorite_number: ty.lit(42),
+            year: false, // should be ignored since false means drop
+        })
+        const expectedSchema = {
+            species: { typecode: 'string' },
+            my_favorite_number: { typecode: 'float', size: 64 },
+        }
+        expect(result.schema).toEqual(expectedSchema)
+        expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
+    })
 })
 
 describe('Relation.take()', () => {
@@ -213,6 +261,21 @@ describe('Relation.derive()', () => {
             bill_length_mm: { typecode: 'float', size: 64 }
             ratio: { typecode: 'float', size: 64 }
         }>>()
+    })
+
+    it('accepts a direct mapping object without callback', () => {
+        const result = penguins.derive({
+            fixed_value: ty.lit(42),
+        })
+        const expectedSchema = {
+            species: { typecode: 'string' },
+            year: { typecode: 'int', size: 32 },
+            bill_length_mm: { typecode: 'float', size: 64 },
+            active: { typecode: 'boolean' },
+            fixed_value: { typecode: 'float', size: 64 },
+        }
+        expect(result.schema).toEqual(expectedSchema)
+        expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
     })
 })
 

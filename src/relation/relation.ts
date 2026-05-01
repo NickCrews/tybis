@@ -174,12 +174,13 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /**
      * Add computed columns to each row.
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
+     * @example penguins.derive({ year_offset: lit(2000) })
      */
     derive<D extends Record<string, IVExpr<any, any>>>(
-        cb: (r: RowAccessor<S>) => D
+        input: D | ((r: RowAccessor<S>) => D)
     ): Relation<DeriveSchema<S, D>, DeriveOp<DeriveSchema<S, D>, Record<string, IVOp>>> {
         const accessor = new RowAccessor(this.schema)
-        const derivations = cb(accessor)
+        const derivations = typeof input === 'function' ? input(accessor) : input
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])
 
         return new Relation(new DeriveOp(this._op, pairs)) as any
@@ -188,17 +189,17 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /**
      * Replace existing columns with a new set of expressions.
      * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
-     * @example penguins.select(r => ({ species: true })) // Keep existing column
+     * @example penguins.select({ species: true }) // Keep existing column
      */
     select<D extends SelectInput<S, D>>(
-        cb: (r: RowAccessor<S>) => D
+        input: D | ((r: RowAccessor<S>) => D)
     ): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>> {
-        if (!cb) {
-            throw new Error("select() requires a callback returning an object map of columns. For example: .select(r => ({ species: true }))")
+        if (!input) {
+            throw new Error("select() requires a mapping object or callback. For example: .select({ species: true })")
         }
 
         const accessor = new RowAccessor(this.schema)
-        const selections = cb(accessor)
+        const selections = typeof input === 'function' ? (input as any)(accessor) : input
 
         const pairs: [string, IVOp][] = []
         const newSchema: Record<string, DataType> = {}
