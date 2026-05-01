@@ -1,4 +1,4 @@
-import { type DataType, InferDtype, IntoDtype } from '../datatype.js'
+import { type DataType, IntoDtype } from '../datatype.js'
 import * as dt from '../datatype.js'
 import type { DataShape, InferDataShape } from '../datashape.js'
 import * as ops from './ops.js'
@@ -147,12 +147,12 @@ export class StringExpr<DS extends DataShape = DataShape> extends GenericVExpr<d
         return vOpToVExpr(new ops.StartsWithOp(this.toOp(), op))
     }
 }
-type IntoValueOfType<DT extends IntoDtype, DS extends DataShape = DataShape> =
+type IntoValueOfType<DT extends dt.IntoDtype, DS extends DataShape = DataShape> =
     | AcceptableJsVal<DT>
-    | IVExpr<InferDtype<DT>, DS>
-    | IVOp<InferDtype<DT>, DS, any>
+    | IVExpr<dt.InferDtype<DT>, DS>
+    | IVOp<dt.InferDtype<DT>, DS, any>
 
-function intoValueOfType<TargetDT extends IntoDtype, ArgDS extends DataShape>(value: IntoValueOfType<TargetDT, ArgDS>, targetDtype: TargetDT): IVOp<dt.InferDtype<TargetDT>, InferDataShape<ArgDS>> {
+function intoValueOfType<TargetDT extends dt.IntoDtype, T extends IntoValueOfType<TargetDT, any>>(value: T, targetDtype: TargetDT): IVOp<dt.InferDtype<TargetDT>, InferDataShape<T>> {
     const target = dt.dtype(targetDtype)
     let vop: IVOp<any, any>;
     if (isVOp(value)) {
@@ -164,7 +164,7 @@ function intoValueOfType<TargetDT extends IntoDtype, ArgDS extends DataShape>(va
     }
     const vtype = vop.dtype()
     if (dt.eq(vtype, target)) {
-        return vop
+        return vop as IVOp<dt.InferDtype<TargetDT>, InferDataShape<T>>;
     } else {
         throw new Error(`Expected a value of type ${JSON.stringify(targetDtype)}, but got an IVOp with dtype ${JSON.stringify(vtype)}`)
     }
