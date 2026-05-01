@@ -1,5 +1,8 @@
 # Tybis: The typesafe, portable dataframe library for TypeScript
 
+This is very experimental, probably not even alpha stage.
+Do don't want to rely on this, I'm changing things all the time.
+
 Tybis provides:
 
 - A lazily-executed dataframe API with full compile-time schema tracking.
