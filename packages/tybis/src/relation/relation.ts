@@ -12,7 +12,6 @@ import {
     VExpr,
 } from '../value/expr.js'
 import { PrqlCompiler } from '../compilers/prql-compiler.js'
-import { SqlCompiler } from '../compilers/sql-compiler.js'
 import { suggestColumnName } from '../utils/typo.js'
 
 // ---------------------------------------------------------------------------
@@ -268,11 +267,6 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /** Compile to a PRQL query string. */
     toPrql() {
         return this.compile(new PrqlCompiler())
-    }
-
-    /** Compile to SQL using the PRQL compiler. */
-    toSql() {
-        return this.compile(new SqlCompiler())
     }
 }
 

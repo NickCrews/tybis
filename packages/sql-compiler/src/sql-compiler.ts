@@ -1,8 +1,10 @@
 import { compile, CompileOptions } from 'prqlc'
-import type { Compiler } from './base.js'
-import type { BuiltinVOp } from '../value/ops.js'
-import type { BuiltinROp } from '../relation/index.js'
-import { PrqlCompiler } from './prql-compiler.js'
+import {
+    PrqlCompiler,
+    type BuiltinROp,
+    type BuiltinVOp,
+    type Compiler,
+} from 'tybis'
 
 export class SqlCompiler implements Compiler {
     private readonly prqlCompiler = new PrqlCompiler()

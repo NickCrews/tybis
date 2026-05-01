@@ -24,13 +24,13 @@
     "clsx": "^2.1.0",
     "lucide-react": "^0.363.0",
     "monaco-editor": "^0.47.0",
-    "prqlc": "^0.13.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-syntax-highlighter": "^15.5.0",
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",
-    "tybis": "workspace:*"
+    "tybis": "workspace:*",
+    "tybis-sql-compiler": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -672,6 +672,21 @@ declare class SortExpr {
  */
 declare function count(): NumericExpr<DTInt<64>, "scalar">;
 /**
+ * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
+ * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
+ *
+ * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
+ * and will have no effect at runtime.
+ * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
+ * Use with caution!
+ *
+ * @param rawSql The raw SQL string to use. TODO in the future this should support tagged template literals for better interpolation, eg ty.sql\`DATE_ADD(\${col('my_date')}, INTERVAL 1 DAY)\`
+ * @param dtype The expected data type of the result.
+ * @param dshape The expected data shape of the result.
+ * @returns A VExpr representing the raw SQL expression.
+ */
+declare function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS): VExpr<DT, DS>;
+/**
  * Create a scalar value expression that represents a single literal value, eg \`ty.lit(42)\` or \`ty.lit("hello")\`.
  *
  * The dtype can be inferred from the value, or explicitly provided if needed.
@@ -770,8 +785,6 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     compile(compiler: Compiler<any>): string;
     /** Compile to a PRQL query string. */
     toPrql(): string;
-    /** Compile to SQL using the PRQL compiler. */
-    toSql(): string;
 }
 /**
  * Define a relation backed by a database table or view.
@@ -792,11 +805,5 @@ declare class PrqlCompiler implements Compiler {
     compileROp(node: BuiltinROp): string;
 }
 
-declare class SqlCompiler implements Compiler {
-    private readonly prqlCompiler;
-    compileVOp(op: BuiltinVOp): string;
-    compileROp(node: BuiltinROp): string;
-}
-
-export { type BuiltinROp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, SqlCompiler, type VExpr, col, count, lit, table };
+export { type BuiltinROp, type BuiltinVOp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, type VExpr, col, count, lit, sql, table };
  }`

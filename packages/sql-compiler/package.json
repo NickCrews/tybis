@@ -1,7 +1,7 @@
 {
-  "name": "tybis",
+  "name": "tybis-sql-compiler",
   "version": "0.1.0",
-  "description": "Typesafe, portable dataframe library for TypeScript",
+  "description": "SQL compiler for tybis (compiles tybis IR to SQL via PRQL)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -20,17 +20,20 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "dataframe",
-    "typescript",
-    "ibis"
+    "tybis",
+    "sql",
+    "prql"
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "prqlc": "^0.13.12",
+    "tybis": "workspace:*"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^20.19.39",
     "eslint": "^10.2.1",
-    "expect-type": "^0.19.0",
     "globals": "^17.5.0",
     "tsup": "^8.0.2",
     "typescript": "^5.3.3",

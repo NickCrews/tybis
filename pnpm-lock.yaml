@@ -43,9 +43,6 @@ importers:
       monaco-editor:
         specifier: ^0.47.0
         version: 0.47.0
-      prqlc:
-        specifier: ^0.13.1
-        version: 0.13.12
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -64,6 +61,9 @@ importers:
       tybis:
         specifier: workspace:*
         version: link:../tybis
+      tybis-sql-compiler:
+        specifier: workspace:*
+        version: link:../sql-compiler
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -71,6 +71,9 @@ importers:
       '@types/babel__standalone':
         specifier: ^7.1.7
         version: 7.1.9
+      '@types/node':
+        specifier: ^20.19.39
+        version: 20.19.39
       '@types/react':
         specifier: ^18.2.66
         version: 18.3.28
@@ -126,6 +129,40 @@ importers:
         specifier: ^3.3.0
         version: 3.5.0(vite@5.4.21(@types/node@20.19.39))
 
+  packages/sql-compiler:
+    dependencies:
+      prqlc:
+        specifier: ^0.13.12
+        version: 0.13.12
+      tybis:
+        specifier: workspace:*
+        version: link:../tybis
+    devDependencies:
+      '@eslint/js':
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.2.1(jiti@1.21.7))
+      '@types/node':
+        specifier: ^20.19.39
+        version: 20.19.39
+      eslint:
+        specifier: ^10.2.1
+        version: 10.2.1(jiti@1.21.7)
+      globals:
+        specifier: ^17.5.0
+        version: 17.5.0
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(@swc/core@1.15.18)(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8
+        version: 8.59.1(eslint@10.2.1(jiti@1.21.7))(typescript@5.9.3)
+      vitest:
+        specifier: ^1.2.2
+        version: 1.6.1(@types/node@20.19.39)
+
   packages/tybis:
     devDependencies:
       '@eslint/js':
@@ -155,10 +192,6 @@ importers:
       vitest:
         specifier: ^1.2.2
         version: 1.6.1(@types/node@20.19.39)
-    optionalDependencies:
-      prqlc:
-        specifier: ^0.13.12
-        version: 0.13.12
 
 packages:
 
