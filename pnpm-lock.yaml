@@ -6,41 +6,9 @@ settings:
 
 importers:
 
-  .:
-    devDependencies:
-      '@eslint/js':
-        specifier: ^10.0.1
-        version: 10.0.1(eslint@10.2.1(jiti@1.21.7))
-      '@types/node':
-        specifier: ^20.19.39
-        version: 20.19.39
-      eslint:
-        specifier: ^10.2.1
-        version: 10.2.1(jiti@1.21.7)
-      expect-type:
-        specifier: ^0.19.0
-        version: 0.19.0
-      globals:
-        specifier: ^17.5.0
-        version: 17.5.0
-      tsup:
-        specifier: ^8.0.2
-        version: 8.5.1(@swc/core@1.15.18)(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      typescript-eslint:
-        specifier: ^8
-        version: 8.59.1(eslint@10.2.1(jiti@1.21.7))(typescript@5.9.3)
-      vitest:
-        specifier: ^1.2.2
-        version: 1.6.1(@types/node@20.19.39)
-    optionalDependencies:
-      prqlc:
-        specifier: ^0.13.12
-        version: 0.13.12
+  .: {}
 
-  playground:
+  packages/playground:
     dependencies:
       '@babel/standalone':
         specifier: ^7.24.0
@@ -77,7 +45,7 @@ importers:
         version: 0.47.0
       prqlc:
         specifier: ^0.13.1
-        version: 0.13.10
+        version: 0.13.12
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -95,7 +63,7 @@ importers:
         version: 1.0.7(tailwindcss@3.4.19(tsx@4.21.0))
       tybis:
         specifier: workspace:*
-        version: link:..
+        version: link:../tybis
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -157,6 +125,40 @@ importers:
       vite-plugin-wasm:
         specifier: ^3.3.0
         version: 3.5.0(vite@5.4.21(@types/node@20.19.39))
+
+  packages/tybis:
+    devDependencies:
+      '@eslint/js':
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.2.1(jiti@1.21.7))
+      '@types/node':
+        specifier: ^20.19.39
+        version: 20.19.39
+      eslint:
+        specifier: ^10.2.1
+        version: 10.2.1(jiti@1.21.7)
+      expect-type:
+        specifier: ^0.19.0
+        version: 0.19.0
+      globals:
+        specifier: ^17.5.0
+        version: 17.5.0
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(@swc/core@1.15.18)(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8
+        version: 8.59.1(eslint@10.2.1(jiti@1.21.7))(typescript@5.9.3)
+      vitest:
+        specifier: ^1.2.2
+        version: 1.6.1(@types/node@20.19.39)
+    optionalDependencies:
+      prqlc:
+        specifier: ^0.13.12
+        version: 0.13.12
 
 packages:
 
@@ -2477,9 +2479,6 @@ packages:
 
   property-information@5.6.0:
     resolution: {integrity: sha512-YUHSPk+A30YPv+0Qf8i9Mbfe/C0hdPXk1s1jPVToV8pk8BQtpw10ct89Eo7OWkutrwqvT0eicAxlOg3dOAu8JA==}
-
-  prqlc@0.13.10:
-    resolution: {integrity: sha512-7gueJJ30/PefX1W7mmMc0csxEdsmiZjWVKtH3/RXswj78gD7b/tB5gbrN8KxB6Q6ydxIAKGDISGsw3uoJw1HXA==}
 
   prqlc@0.13.12:
     resolution: {integrity: sha512-4+/3n3apWKZkaCA0I4Q5Sg3F/WldsgSo3jtma0W7Z3ee8rJo9J16yNiiNurKYckaG4VcaXXns50TKXHx3k6VjQ==}
@@ -5323,10 +5322,7 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  prqlc@0.13.10: {}
-
-  prqlc@0.13.12:
-    optional: true
+  prqlc@0.13.12: {}
 
   punycode@2.3.1: {}
 

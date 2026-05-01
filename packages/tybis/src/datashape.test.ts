@@ -1,4 +1,4 @@
-import { highestDataShape, type HighestDataShape } from "../src/datashape";
+import { highestDataShape, type HighestDataShape } from "./datashape";
 import { describe, it, expect, expectTypeOf } from 'vitest'
 
 describe('highestDataShape', () => {

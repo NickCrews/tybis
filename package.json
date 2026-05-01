@@ -1,48 +1,29 @@
 {
-  "name": "tybis",
-  "version": "0.1.0",
-  "description": "Typesafe, portable dataframe library for TypeScript",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+  "name": "tybis-monorepo",
+  "private": true,
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
-    "lint": "eslint . && pnpm --filter tybis-playground lint",
-    "build": "tsup",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit",
+    "lint": "pnpm --recursive run lint",
+    "build": "pnpm --recursive run build",
+    "test": "pnpm --recursive run test",
+    "typecheck": "pnpm --recursive run typecheck",
     "playground": "pnpm --filter tybis-playground dev",
-    "playground:build": "pnpm build && pnpm --filter tybis-playground build",
+    "playground:build": "pnpm --filter tybis build && pnpm --filter tybis-playground build",
     "playground:deploy": "pnpm playground:build && pnpm --filter tybis-playground deploy"
   },
-  "keywords": [
-    "dataframe",
-    "sql",
-    "prql",
-    "typescript",
-    "ibis"
-  ],
-  "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^20.19.39",
-    "eslint": "^10.2.1",
-    "expect-type": "^0.19.0",
-    "globals": "^17.5.0",
-    "tsup": "^8.0.2",
-    "typescript": "^5.3.3",
-    "typescript-eslint": "^8",
-    "vitest": "^1.2.2"
-  },
-  "optionalDependencies": {
-    "prqlc": "^0.13.12"
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "core-js-pure",
+      "workerd"
+    ],
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild",
+      "msw",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

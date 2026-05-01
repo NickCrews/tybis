@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const tybisDistPath = resolve(__dirname, '../../dist/index.d.ts')
+const tybisDistPath = resolve(__dirname, '../../tybis/dist/index.d.ts')
+console.log(`Reading tybis type definitions from: ${tybisDistPath}`)
 const tybisDtsRaw = readFileSync(tybisDistPath, 'utf-8')
 
 const header = `/**

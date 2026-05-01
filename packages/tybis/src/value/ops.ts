@@ -1,5 +1,5 @@
 import { type DataType, type InferDtype, type InferrableJsType } from '../datatype.js'
-import * as dt from '../datatype'
+import * as dt from '../datatype.js'
 import type { DataShape, HighestDataShape, InferDataShape } from '../datashape.js'
 import { highestDataShape } from '../datashape.js'
 import { IVExpr, IVOp, isVExpr, isVOp } from './core.js'

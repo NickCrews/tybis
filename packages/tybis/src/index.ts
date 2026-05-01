@@ -8,4 +8,4 @@ export {
     lit,
     IVExpr,
     VExpr,
-} from './value'
+} from './value/index.js'
