@@ -227,3 +227,16 @@ export function highestDataType<First extends DataType, Rest extends DataType[]>
 
     throw new Error(`Cannot determine highest type for non-numeric types`)
 }
+
+export function eq(a: DataType, b: DataType): boolean {
+    if (a.typecode !== b.typecode) {
+        return false
+    }
+    if (a.typecode === 'int' && b.typecode === 'int') {
+        return a.size === b.size
+    }
+    if (a.typecode === 'float' && b.typecode === 'float') {
+        return a.size === b.size
+    }
+    return true
+}

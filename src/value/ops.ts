@@ -203,14 +203,14 @@ export class LowerOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTStrin
     constructor(readonly operand: IVOp<{ typecode: 'string' }, DS>) { super(dt.DTString(), operand.dshape()) }
 }
 
-export class ContainsOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS, 'scalar']>> {
+export class ContainsOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly kind = 'contains' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS>, readonly pattern: litOps.StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape()) as HighestDataShape<[DS, 'scalar']>) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS1>, readonly pattern: IVOp<{ typecode: 'string' }, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape())) }
 }
 
-export class StartsWithOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS, 'scalar']>> {
+export class StartsWithOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly kind = 'starts_with' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS>, readonly prefix: litOps.StringLiteralOp) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape()) as HighestDataShape<[DS, 'scalar']>) }
+    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS1>, readonly prefix: IVOp<{ typecode: 'string' }, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape())) }
 }
 
 // ---------------------------------------------------------------------------

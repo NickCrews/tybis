@@ -1,10 +1,10 @@
-import { type DataType, IntoDtype } from '../datatype.js'
+import { type DataType, InferDtype, IntoDtype } from '../datatype.js'
 import * as dt from '../datatype.js'
-import type { DataShape } from '../datashape.js'
+import type { DataShape, InferDataShape } from '../datashape.js'
 import * as ops from './ops.js'
-import { IVOp, IVExpr, IsVExprSymbol } from './core.js'
+import { IVOp, IVExpr, IsVExprSymbol, isVExpr } from './core.js'
 import * as cmp from './compare.js'
-import * as litOps from './lit.js'
+import { isVOp } from './core.js'
 import { registerVOpToVExpr } from './base-op.js'
 import { AcceptableJsVal, litOp } from './lit.js'
 
@@ -138,11 +138,35 @@ export class StringExpr<DS extends DataShape = DataShape> extends GenericVExpr<d
     lower() {
         return vOpToVExpr(new ops.LowerOp(this.toOp()))
     }
-    contains(pattern: string) {
-        return vOpToVExpr(new ops.ContainsOp(this.toOp(), new litOps.StringLiteralOp(pattern)))
+    contains<O extends IntoValueOfType<'string', any>>(pattern: O) {
+        const op = intoValueOfType(pattern, { typecode: 'string' })
+        return vOpToVExpr(new ops.ContainsOp(this.toOp(), op))
     }
-    startsWith(prefix: string) {
-        return vOpToVExpr(new ops.StartsWithOp(this.toOp(), new litOps.StringLiteralOp(prefix)))
+    startsWith<O extends IntoValueOfType<'string', any>>(prefix: O) {
+        const op = intoValueOfType(prefix, { typecode: 'string' })
+        return vOpToVExpr(new ops.StartsWithOp(this.toOp(), op))
+    }
+}
+type IntoValueOfType<DT extends IntoDtype, DS extends DataShape = DataShape> =
+    | AcceptableJsVal<DT>
+    | IVExpr<InferDtype<DT>, DS>
+    | IVOp<InferDtype<DT>, DS, any>
+
+function intoValueOfType<TargetDT extends IntoDtype, ArgDS extends DataShape>(value: IntoValueOfType<TargetDT, ArgDS>, targetDtype: TargetDT): IVOp<dt.InferDtype<TargetDT>, InferDataShape<ArgDS>> {
+    const target = dt.dtype(targetDtype)
+    let vop: IVOp<any, any>;
+    if (isVOp(value)) {
+        vop = value;
+    } else if (isVExpr(value)) {
+        vop = value.toOp();
+    } else {
+        vop = litOp(value as any, targetDtype)
+    }
+    const vtype = vop.dtype()
+    if (dt.eq(vtype, target)) {
+        return vop
+    } else {
+        throw new Error(`Expected a value of type ${JSON.stringify(targetDtype)}, but got an IVOp with dtype ${JSON.stringify(vtype)}`)
     }
 }
 

@@ -37,8 +37,8 @@ export class PrqlCompiler implements Compiler {
 
             case 'upper': return `upper ${this.compileVOp(op.operand as BuiltinVOp)}`
             case 'lower': return `lower ${this.compileVOp(op.operand as BuiltinVOp)}`
-            case 'contains': return `contains ${this.compileVOp(op.operand as BuiltinVOp)} ${this.compileVOp(op.pattern)}`
-            case 'starts_with': return `starts_with ${this.compileVOp(op.operand as BuiltinVOp)} ${this.compileVOp(op.prefix)}`
+            case 'contains': return `contains ${this.compileVOp(op.operand as BuiltinVOp)} ${this.compileVOp(op.pattern as BuiltinVOp)}`
+            case 'starts_with': return `starts_with ${this.compileVOp(op.operand as BuiltinVOp)} ${this.compileVOp(op.prefix as BuiltinVOp)}`
 
             // invoice_date | date.to_text "%d/%m/%Y"
             case 'temporal_to_string': return `date.to_text "${op.format}" ${this.compileVOp(op.operand as BuiltinVOp)}`
