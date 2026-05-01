@@ -61,7 +61,7 @@ describe('Numeric Operations', () => {
             expectTypeOf(op3.dtype()).toEqualTypeOf<{ typecode: 'float', size: 64 }>()
         })
 
-        it('should work with expressions', () => {
+        it('should work with columnar expressions', () => {
             const table = ty.table('data', {
                 a: 'float16',
                 b: 'float64',
@@ -71,6 +71,14 @@ describe('Numeric Operations', () => {
             expect(e.dtype()).toEqual({ typecode: 'float', size: 16 })
             expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
             expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'float', size: 16 }>()
+        })
+
+        it('should work with scalar expressions', () => {
+            const e = ty.lit(2).add(ty.lit(3.5))
+            expect(e.dshape()).toBe('scalar')
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
+            expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'float', size: 64 }>()
         })
     })
 
