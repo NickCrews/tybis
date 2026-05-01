@@ -96,7 +96,14 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         /** @internal */ readonly _op: O
     ) { }
 
-    get schema(): S {
+    /**
+     * The schema of the relation, i.e. the mapping of column names to their data types.
+     * @example
+     * const penguins = ty.table('penguins', { species: 'string', bill_length_mm: 'float64' })
+     * penguins.derive({ bill_length_cm: penguins.col('bill_length_mm').div(10) }).schema
+     * // Result: { species: { typecode: 'string' }, bill_length_mm: { typecode: 'float', size: 64 }, bill_length_cm: { typecode: 'float', size: 64 } }
+     */
+    get schema() {
         return this._op.schema()
     }
 
@@ -104,7 +111,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Get a column expression by name.
      * @example penguins.col("bill_length_mm")
      */
-    col<K extends keyof S & string>(name: K): Col<S[K]> {
+    col<K extends keyof S & string>(name: K) {
         return _colWithSchemaCheck(this.schema, name)
     }
 
@@ -112,7 +119,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr) {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
         return new Relation(new FilterOp(this._op, condition.toOp()))
@@ -236,7 +243,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      */
     sort(
         cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
-    ): Relation<S, SortOp<S>> {
+    ) {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
@@ -250,21 +257,21 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number): Relation<S, TakeOp<S>> {
+    take(n: number) {
         return new Relation(new TakeOp(this._op, n))
     }
 
-    compile(compiler: Compiler<any>): string {
+    compile(compiler: Compiler<any>) {
         return compiler.compileROp(this._op as unknown as BuiltinROp)
     }
 
     /** Compile to a PRQL query string. */
-    toPrql(): string {
+    toPrql() {
         return this.compile(new PrqlCompiler())
     }
 
     /** Compile to SQL using the PRQL compiler. */
-    toSql(): string {
+    toSql() {
         return this.compile(new SqlCompiler())
     }
 }
