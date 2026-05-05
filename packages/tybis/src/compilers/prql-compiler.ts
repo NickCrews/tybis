@@ -4,7 +4,7 @@ import {
     type BuiltinVOp, type SortSpec,
 } from '../value/ops.js'
 
-export class PrqlCompiler implements Compiler {
+export class PrqlCompiler implements Compiler<string> {
     compileVOp(op: BuiltinVOp): string {
         const kind = op.kind
         switch (kind) {

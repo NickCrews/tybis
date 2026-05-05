@@ -260,7 +260,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         return new Relation(new TakeOp(this._op, n))
     }
 
-    compile(compiler: Compiler<any>) {
+    compile<R>(compiler: Compiler<R>): R {
         return compiler.compileROp(this._op as unknown as BuiltinROp)
     }
 
