@@ -184,7 +184,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      */
     derive<D extends Record<string, IVExpr<any, any>>>(
         input: D | ((r: RowAccessor<S>) => D)
-    ): Relation<DeriveSchema<S, D>, DeriveOp<DeriveSchema<S, D>, Record<string, IVOp>>> {
+    ): Relation<DeriveSchema<S, D>> {
         const accessor = new RowAccessor(this.schema)
         const derivations = typeof input === 'function' ? input(accessor) : input
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])

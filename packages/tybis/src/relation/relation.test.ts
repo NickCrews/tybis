@@ -238,9 +238,14 @@ describe('Relation.derive()', () => {
         const q = penguins.derive(r => ({
             year: r.col('bill_length_mm').sum(),
         }))
-        // The schema should now have year as float64 (sum returns float64)
-        expect(q.col('year').dtype().typecode).toBe('float')
-        expectTypeOf(q.col('year')).toMatchTypeOf<ty.IVExpr<dt.DTFloat<64>, 'columnar'>>()
+        const expectedSchema = {
+            species: { typecode: 'string', nullable: true },
+            year: { typecode: 'float', size: 64, nullable: true }, // year is now float64 because sum returns float64
+            bill_length_mm: { typecode: 'float', size: 64, nullable: true },
+            active: { typecode: 'boolean', nullable: true },
+        }
+        expect(q.schema).toEqual(expectedSchema)
+        expectTypeOf(q.schema).toMatchTypeOf(expectedSchema)
     })
 
     it('extends the schema with a new computed column', () => {

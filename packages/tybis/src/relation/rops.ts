@@ -40,12 +40,15 @@ export class FilterOp<S extends Schema> extends BaseROp<S, 'filter'> {
     }
 }
 
-export class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<S & { [K in keyof D]: ReturnType<D[K]['dtype']> }, 'derive'> {
+type DeriveOpSchema<S extends Schema, D extends Record<string, IVOp>> =
+    Omit<S, keyof D> & { [K in keyof D]: ReturnType<D[K]['dtype']> }
+
+export class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<DeriveOpSchema<S, D>, 'derive'> {
     readonly kind = 'derive' as const
     constructor(readonly source: IROp<S>, readonly derivations: [string, IVOp][]) {
         super()
     }
-    protected computeSchema(): S & { [K in keyof D]: ReturnType<D[K]['dtype']> } {
+    protected computeSchema(): DeriveOpSchema<S, D> {
         const s = { ...this.source.schema() } as any
         for (const [k, v] of this.derivations) {
             s[k] = v.dtype()
