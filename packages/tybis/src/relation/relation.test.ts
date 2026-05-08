@@ -17,13 +17,13 @@ describe('ty.table()', () => {
             year: 'int32',
             bill_length_mm: 'float64',
         })
-        expect(t.schema.species).toEqual({ typecode: 'string' })
-        expect(t.schema.year).toEqual({ typecode: 'int', size: 32 })
-        expect(t.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64 })
+        expect(t.schema.species).toEqual({ typecode: 'string', nullable: true })
+        expect(t.schema.year).toEqual({ typecode: 'int', size: 32, nullable: true })
+        expect(t.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64, nullable: true })
         expectTypeOf(t).toMatchTypeOf<ty.Relation<{
             species: dt.DTString
-            year: dt.DTInt32
-            bill_length_mm: dt.DTFloat64
+            year: dt.DTInt<32>
+            bill_length_mm: dt.DTFloat<64>
         }>>()
     })
 })
@@ -57,12 +57,12 @@ describe('Relation.col()', () => {
 
     it('returns an expression typed by the column dtype', () => {
         const speciesCol = penguins.col('species')
-        expect(speciesCol.dtype()).toEqual({ typecode: 'string' })
+        expect(speciesCol.dtype()).toEqual({ typecode: 'string', nullable: true })
         expectTypeOf(speciesCol).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
 
         const yearCol = penguins.col('year')
-        expect(yearCol.dtype()).toEqual({ typecode: 'int', size: 32 })
-        expectTypeOf(yearCol).toMatchTypeOf<ty.IVExpr<dt.DTInt32, 'columnar'>>()
+        expect(yearCol.dtype()).toEqual({ typecode: 'int', size: 32, nullable: true })
+        expectTypeOf(yearCol).toMatchTypeOf<ty.IVExpr<dt.DTInt<32>, 'columnar'>>()
     })
 })
 
@@ -90,7 +90,7 @@ describe('Relation.select()', () => {
     it('can select from the existing relation with no callback', () => {
         const result = penguins.select({ species2: penguins.col('species') })
         const expectedSchema = {
-            species2: { typecode: 'string' },
+            species2: { typecode: 'string', nullable: true },
         }
         expect(result.schema).toEqual(expectedSchema)
         expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
@@ -101,7 +101,7 @@ describe('Relation.select()', () => {
         // This currently throws an error because the column validator doesn't know to allow columns from other relations, but ideally it should work since the column name is valid and the dtype matches
         const outcome = penguins.select({ species_from_other: other.col('species') })
         const expectedSchema = {
-            species_from_other: { typecode: 'string' },
+            species_from_other: { typecode: 'string', nullable: true },
         }
         expect(outcome.schema).toEqual(expectedSchema)
         expectTypeOf(outcome.schema).toMatchTypeOf(expectedSchema)
@@ -118,13 +118,13 @@ describe('Relation.select()', () => {
             is_recent: r.col('year').gt(2000),
         }))
 
-        expect(result.schema.species_alias).toEqual({ typecode: 'string' })
-        expect(result.schema.is_recent).toEqual({ typecode: 'boolean' })
+        expect(result.schema.species_alias).toEqual({ typecode: 'string', nullable: true })
+        expect(result.schema.is_recent).toEqual({ typecode: 'boolean', nullable: true })
         expect('bill_length_mm' in result.schema).toBe(false)
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species_alias: { typecode: 'string' }
-            is_recent: { typecode: 'boolean' }
+            species_alias: { typecode: 'string', nullable: boolean }
+            is_recent: { typecode: 'boolean', nullable: boolean }
         }>>()
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
     })
@@ -140,14 +140,14 @@ describe('Relation.select()', () => {
             is_recent: r.col('year').gt(2000),
         }))
 
-        expect(result.schema.species).toEqual({ typecode: 'string' })
-        expect(result.schema.is_recent).toEqual({ typecode: 'boolean' })
+        expect(result.schema.species).toEqual({ typecode: 'string', nullable: true })
+        expect(result.schema.is_recent).toEqual({ typecode: 'boolean', nullable: true })
         expect('bill_length_mm' in result.schema).toBe(false)
         expect('year' in result.schema).toBe(false)
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-            is_recent: { typecode: 'boolean' }
+            species: { typecode: 'string', nullable: boolean }
+            is_recent: { typecode: 'boolean', nullable: boolean }
         }>>()
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('year')
@@ -164,12 +164,12 @@ describe('Relation.select()', () => {
             year: false,
         }))
 
-        expect(result.schema.species).toEqual({ typecode: 'string' })
+        expect(result.schema.species).toEqual({ typecode: 'string', nullable: true })
         expect('year' in result.schema).toBe(false)
         expect('bill_length_mm' in result.schema).toBe(false)
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
+            species: { typecode: 'string', nullable: boolean }
         }>>()
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('year')
         expectTypeOf<typeof result['schema']>().not.toHaveProperty('bill_length_mm')
@@ -182,8 +182,8 @@ describe('Relation.select()', () => {
             year: false, // should be ignored since false means drop
         })
         const expectedSchema = {
-            species: { typecode: 'string' },
-            active: { typecode: 'boolean' },
+            species: { typecode: 'string', nullable: true },
+            active: { typecode: 'boolean', nullable: true },
         }
         expect(result.schema).toEqual(expectedSchema)
         expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
@@ -196,8 +196,8 @@ describe('Relation.select()', () => {
             year: false, // should be ignored since false means drop
         })
         const expectedSchema = {
-            species: { typecode: 'string' },
-            my_favorite_number: { typecode: 'float', size: 64 },
+            species: { typecode: 'string', nullable: true },
+            my_favorite_number: { typecode: 'float', size: 64, nullable: true },
         }
         expect(result.schema).toEqual(expectedSchema)
         expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
@@ -222,15 +222,15 @@ describe('Relation.derive()', () => {
             half_bill: r.col('bill_length_mm').div(2),
             double_bill: r.col('bill_length_mm').mul(2),
         }))
-        expect(q.col('half_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
-        expect(q.col('double_bill').dtype()).toEqual({ typecode: 'float', size: 64 })
+        expect(q.col('half_bill').dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
+        expect(q.col('double_bill').dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
         expectTypeOf(q).toMatchTypeOf<ty.Relation<{
             species: dt.DTString
-            year: dt.DTInt32
-            bill_length_mm: dt.DTFloat64
+            year: dt.DTInt<32>
+            bill_length_mm: dt.DTFloat<64>
             active: dt.DTBoolean
-            half_bill: dt.DTFloat64
-            double_bill: dt.DTFloat64
+            half_bill: dt.DTFloat<64>
+            double_bill: dt.DTFloat<64>
         }>>()
     })
 
@@ -240,7 +240,7 @@ describe('Relation.derive()', () => {
         }))
         // The schema should now have year as float64 (sum returns float64)
         expect(q.col('year').dtype().typecode).toBe('float')
-        expectTypeOf(q.col('year')).toMatchTypeOf<ty.IVExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('year')).toMatchTypeOf<ty.IVExpr<dt.DTFloat<64>, 'columnar'>>()
     })
 
     it('extends the schema with a new computed column', () => {
@@ -252,14 +252,14 @@ describe('Relation.derive()', () => {
             ratio: r.col('bill_length_mm').div(40),
         }))
 
-        expect(result.schema.ratio).toEqual({ typecode: 'float', size: 64 })
-        expect(result.schema.species).toEqual({ typecode: 'string' })
-        expect(result.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64 })
+        expect(result.schema.ratio).toEqual({ typecode: 'float', size: 64, nullable: true })
+        expect(result.schema.species).toEqual({ typecode: 'string', nullable: true })
+        expect(result.schema.bill_length_mm).toEqual({ typecode: 'float', size: 64, nullable: true })
 
         expectTypeOf(result).toMatchTypeOf<ty.Relation<{
-            species: { typecode: 'string' }
-            bill_length_mm: { typecode: 'float', size: 64 }
-            ratio: { typecode: 'float', size: 64 }
+            species: { typecode: 'string', nullable: boolean }
+            bill_length_mm: { typecode: 'float', size: 64, nullable: boolean }
+            ratio: { typecode: 'float', size: 64, nullable: boolean }
         }>>()
     })
 
@@ -268,11 +268,11 @@ describe('Relation.derive()', () => {
             fixed_value: ty.lit(42),
         })
         const expectedSchema = {
-            species: { typecode: 'string' },
-            year: { typecode: 'int', size: 32 },
-            bill_length_mm: { typecode: 'float', size: 64 },
-            active: { typecode: 'boolean' },
-            fixed_value: { typecode: 'float', size: 64 },
+            species: { typecode: 'string', nullable: true },
+            year: { typecode: 'int', size: 32, nullable: true },
+            bill_length_mm: { typecode: 'float', size: 64, nullable: true },
+            active: { typecode: 'boolean', nullable: true },
+            fixed_value: { typecode: 'float', size: 64, nullable: true },
         }
         expect(result.schema).toEqual(expectedSchema)
         expectTypeOf(result.schema).toMatchTypeOf(expectedSchema)
@@ -302,7 +302,7 @@ describe('GroupAccessor.agg() validation', () => {
         expect('year' in q.schema).toBe(false)
         expectTypeOf(q).toMatchTypeOf<ty.Relation<{
             species: dt.DTString
-            n: dt.DTInt64
+            n: dt.DTInt<64>
         }>>()
         expectTypeOf<typeof q['schema']>().not.toHaveProperty('bill_length_mm')
         expectTypeOf<typeof q['schema']>().not.toHaveProperty('year')

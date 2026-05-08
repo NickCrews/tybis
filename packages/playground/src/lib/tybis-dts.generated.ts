@@ -69,132 +69,106 @@ interface IVExpr<DT extends DataType = DataType, DS extends DataShape = DataShap
 
 interface DTNull {
     typecode: 'null';
+    nullable: boolean;
 }
-declare function DTNull(): DTNull;
+declare function DTNull(opts?: {
+    nullable?: boolean;
+}): DTNull;
 interface DTString {
     typecode: 'string';
+    nullable: boolean;
 }
-declare function DTString(): DTString;
+declare function DTString(opts?: {
+    nullable?: boolean;
+}): DTString;
 interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> {
     typecode: 'int';
     size: S;
+    nullable: boolean;
 }
-declare function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTInt<S>;
-interface DTInt8 {
-    typecode: 'int';
-    size: 8;
-}
-declare function DTInt8(): DTInt8;
-interface DTInt16 {
-    typecode: 'int';
-    size: 16;
-}
-declare function DTInt16(): DTInt16;
-interface DTInt32 {
-    typecode: 'int';
-    size: 32;
-}
-declare function DTInt32(): DTInt32;
-interface DTInt64 {
-    typecode: 'int';
-    size: 64;
-}
-declare function DTInt64(): DTInt64;
+declare function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S, opts?: {
+    nullable?: boolean;
+}): DTInt<S>;
 interface DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> {
     typecode: 'float';
     size: S;
+    nullable: boolean;
 }
-declare function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTFloat<S>;
-interface DTFloat8 {
-    typecode: 'float';
-    size: 8;
-}
-declare function DTFloat8(): DTFloat8;
-interface DTFloat16 {
-    typecode: 'float';
-    size: 16;
-}
-declare function DTFloat16(): DTFloat16;
-interface DTFloat32 {
-    typecode: 'float';
-    size: 32;
-}
-declare function DTFloat32(): DTFloat32;
-interface DTFloat64 {
-    typecode: 'float';
-    size: 64;
-}
-declare function DTFloat64(): DTFloat64;
+declare function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S, opts?: {
+    nullable?: boolean;
+}): DTFloat<S>;
 interface DTBoolean {
     typecode: 'boolean';
+    nullable: boolean;
 }
-declare function DTBoolean(): DTBoolean;
+declare function DTBoolean(opts?: {
+    nullable?: boolean;
+}): DTBoolean;
 interface DTDate {
     typecode: 'date';
+    nullable: boolean;
 }
-declare function DTDate(): DTDate;
+declare function DTDate(opts?: {
+    nullable?: boolean;
+}): DTDate;
 interface DTTime {
     typecode: 'time';
+    nullable: boolean;
 }
-declare function DTTime(): DTTime;
+declare function DTTime(opts?: {
+    nullable?: boolean;
+}): DTTime;
 interface DTDateTime {
     typecode: 'datetime';
+    nullable: boolean;
 }
-declare function DTDateTime(): DTDateTime;
+declare function DTDateTime(opts?: {
+    nullable?: boolean;
+}): DTDateTime;
 interface DTInterval {
     typecode: 'interval';
+    nullable: boolean;
 }
-declare function DTInterval(): DTInterval;
+declare function DTInterval(opts?: {
+    nullable?: boolean;
+}): DTInterval;
 interface DTUUID {
     typecode: 'uuid';
+    nullable: boolean;
 }
-declare function DTUUID(): DTUUID;
+declare function DTUUID(opts?: {
+    nullable?: boolean;
+}): DTUUID;
+interface DTCustom {
+    typecode: 'custom';
+    meta: unknown;
+    nullable: boolean;
+}
+declare function DTCustom(meta: unknown, opts?: {
+    nullable?: boolean;
+}): DTCustom;
 type NumericDataType = DTInt | DTFloat;
-type DataType = DTNull | DTString | DTInt | DTFloat | DTBoolean | DTDate | DTTime | DTDateTime | DTInterval | DTUUID;
-type DTypeShorthands = DataType['typecode'] | 'int8' | 'int16' | 'int32' | 'int64' | 'float8' | 'float16' | 'float32' | 'float64';
-type InferDtypeFromShorthand<S extends DTypeShorthands> = S extends 'null' ? DTNull : S extends 'string' ? DTString : S extends 'int' ? {
-    typecode: 'int';
-    size: 64;
-} : S extends 'int8' ? {
-    typecode: 'int';
-    size: 8;
-} : S extends 'int16' ? {
-    typecode: 'int';
-    size: 16;
-} : S extends 'int32' ? {
-    typecode: 'int';
-    size: 32;
-} : S extends 'int64' ? {
-    typecode: 'int';
-    size: 64;
-} : S extends 'float' ? {
-    typecode: 'float';
-    size: 64;
-} : S extends 'float8' ? {
-    typecode: 'float';
-    size: 8;
-} : S extends 'float16' ? {
-    typecode: 'float';
-    size: 16;
-} : S extends 'float32' ? {
-    typecode: 'float';
-    size: 32;
-} : S extends 'float64' ? {
-    typecode: 'float';
-    size: 64;
-} : S extends 'boolean' ? DTBoolean : S extends 'date' ? DTDate : S extends 'time' ? DTTime : S extends 'datetime' ? DTDateTime : S extends 'interval' ? DTInterval : S extends 'uuid' ? DTUUID : never;
+type DataType = DTNull | DTString | DTInt | DTFloat | DTBoolean | DTDate | DTTime | DTDateTime | DTInterval | DTUUID | DTCustom;
+type DTypeShorthands = Exclude<DataType['typecode'], 'custom'> | 'int8' | 'int16' | 'int32' | 'int64' | 'float8' | 'float16' | 'float32' | 'float64';
+type InferDtypeFromShorthand<S extends DTypeShorthands> = S extends 'null' ? DTNull : S extends 'string' ? DTString : S extends 'int' ? DTInt<64> : S extends 'int8' ? DTInt<8> : S extends 'int16' ? DTInt<16> : S extends 'int32' ? DTInt<32> : S extends 'int64' ? DTInt<64> : S extends 'float' ? DTFloat<64> : S extends 'float8' ? DTFloat<8> : S extends 'float16' ? DTFloat<16> : S extends 'float32' ? DTFloat<32> : S extends 'float64' ? DTFloat<64> : S extends 'boolean' ? DTBoolean : S extends 'date' ? DTDate : S extends 'time' ? DTTime : S extends 'datetime' ? DTDateTime : S extends 'interval' ? DTInterval : S extends 'uuid' ? DTUUID : never;
+type JSTypeFromDtype<DT extends DataType> = DT extends {
+    nullable: false;
+} ? NonNullableJSTypeFromDtype<DT> : NonNullableJSTypeFromDtype<DT> | null;
+type NonNullableJSTypeFromDtype<DT extends DataType> = DT extends DTString ? string : DT extends DTInt ? number : DT extends DTFloat ? number : DT extends DTBoolean ? boolean : DT extends DTDate ? Date : DT extends DTTime ? Date : DT extends DTDateTime ? Date : DT extends DTInterval ? string : DT extends DTUUID ? string : DT extends DTNull ? null : DT extends DTCustom ? unknown : never;
 type InferrableJsType = string | number | boolean | Date | null;
 /** Given a JS type, what DataType will be inferred? */
 type InferDtypeFromJs<JS extends InferrableJsType> = JS extends string ? DTString : JS extends number ? DTFloat<64> : JS extends boolean ? DTBoolean : JS extends Date ? DTDateTime : JS extends null ? DTNull : never;
 type IntoDtype = DataType | DTypeShorthands | IVExpr<DataType, any> | IVOp<DataType, any, any>;
 type InferDtype<DT extends IntoDtype> = DT extends DataType ? DT : DT extends DTypeShorthands ? InferDtypeFromShorthand<DT> : DT extends IVExpr<infer D, any> ? D : DT extends IVOp<infer D, any, any> ? D : never;
-type HighestDataType<DTs extends DataType[]> = DTs extends [] ? never : DTFloat64 extends DTs[number] ? DTFloat64 : DTFloat32 extends DTs[number] ? DTFloat32 : DTFloat16 extends DTs[number] ? DTFloat16 : DTFloat8 extends DTs[number] ? DTFloat8 : DTInt64 extends DTs[number] ? DTInt64 : DTInt32 extends DTs[number] ? DTInt32 : DTInt16 extends DTs[number] ? DTInt16 : DTInt8 extends DTs[number] ? DTInt8 : never;
+declare function dtype<T extends IntoDtype>(thing: T): InferDtype<T>;
+type HighestDataType<DTs extends DataType[]> = DTs extends [] ? never : DTFloat<64> extends DTs[number] ? DTFloat<64> : DTFloat<32> extends DTs[number] ? DTFloat<32> : DTFloat<16> extends DTs[number] ? DTFloat<16> : DTFloat<8> extends DTs[number] ? DTFloat<8> : DTInt<64> extends DTs[number] ? DTInt<64> : DTInt<32> extends DTs[number] ? DTInt<32> : DTInt<16> extends DTs[number] ? DTInt<16> : DTInt<8> extends DTs[number] ? DTInt<8> : never;
 
 type Schema = Record<string, DataType>;
 type IntoSchema = Schema | Record<string, IntoDtype>;
 type InferSchema<T extends IntoSchema> = T extends Schema ? T : T extends Record<string, IntoDtype> ? {
     [K in keyof T]: InferDtype<T[K]>;
 } : never;
+declare function schema<T extends IntoSchema>(s: T): InferSchema<T>;
 
 declare const IsROpSymbol: unique symbol;
 /**
@@ -294,7 +268,19 @@ declare class TimeLiteralOp extends BaseOp<DTTime, 'scalar'> {
     constructor(raw: IntoTimeLiteralValue);
 }
 type IntoIntervalLiteralValue = number;
+declare class IntervalLiteralOp extends BaseOp<DTInterval, 'scalar'> {
+    readonly raw: IntoIntervalLiteralValue;
+    readonly kind: "interval_literal";
+    readonly value: number;
+    constructor(raw: IntoIntervalLiteralValue);
+}
 type IntoUuidLiteralValue = string;
+declare class UuidLiteralOp extends BaseOp<DTUUID, 'scalar'> {
+    readonly raw: IntoUuidLiteralValue;
+    readonly kind: "uuid_literal";
+    readonly value: string;
+    constructor(raw: IntoUuidLiteralValue);
+}
 type LiteralValueCoercibleTo<DT extends DataType> = DT extends DTInt ? IntoIntLiteralValue : DT extends DTFloat ? IntoFloatLiteralValue : DT extends DTString ? IntoStringLiteralValue : DT extends DTBoolean ? IntoBooleanLiteralValue : DT extends DTDateTime ? IntoDatetimeLiteralValue : DT extends DTDate ? IntoDateLiteralValue : DT extends DTTime ? IntoTimeLiteralValue : DT extends DTInterval ? IntoIntervalLiteralValue : DT extends DTUUID ? IntoUuidLiteralValue : never;
 type AcceptableJsVal<DT extends IntoDtype | undefined = undefined> = DT extends IntoDtype ? LiteralValueCoercibleTo<InferDtype<DT>> : InferrableJsType;
 type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends IntoDtype | undefined> = DT extends IntoDtype ? InferDtype<DT> : InferDtypeFromJs<JS>;
@@ -410,63 +396,42 @@ declare class SumOp<DT extends DataType = DataType> extends BaseOp<DT, 'scalar'>
     readonly kind: "sum";
     constructor(operand: IVOp<DT, any>);
 }
-declare class MeanOp extends BaseOp<DTFloat64, 'scalar'> {
+declare class MeanOp extends BaseOp<DTFloat<64>, 'scalar'> {
     readonly operand: IVOp<any, any>;
     readonly kind: "mean";
     constructor(operand: IVOp<any, any>);
 }
 declare class UpperOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
-    readonly operand: IVOp<{
-        typecode: 'string';
-    }, DS>;
+    readonly operand: IVOp<DTString, DS>;
     readonly kind: "upper";
-    constructor(operand: IVOp<{
-        typecode: 'string';
-    }, DS>);
+    constructor(operand: IVOp<DTString, DS>);
 }
 declare class LowerOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
-    readonly operand: IVOp<{
-        typecode: 'string';
-    }, DS>;
+    readonly operand: IVOp<DTString, DS>;
     readonly kind: "lower";
-    constructor(operand: IVOp<{
-        typecode: 'string';
-    }, DS>);
+    constructor(operand: IVOp<DTString, DS>);
 }
 declare class ContainsOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
-    readonly operand: IVOp<{
-        typecode: 'string';
-    }, DS1>;
-    readonly pattern: IVOp<{
-        typecode: 'string';
-    }, DS2>;
+    readonly operand: IVOp<DTString, DS1>;
+    readonly pattern: IVOp<DTString, DS2>;
     readonly kind: "contains";
-    constructor(operand: IVOp<{
-        typecode: 'string';
-    }, DS1>, pattern: IVOp<{
-        typecode: 'string';
-    }, DS2>);
+    constructor(operand: IVOp<DTString, DS1>, pattern: IVOp<DTString, DS2>);
 }
 declare class StartsWithOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
-    readonly operand: IVOp<{
-        typecode: 'string';
-    }, DS1>;
-    readonly prefix: IVOp<{
-        typecode: 'string';
-    }, DS2>;
+    readonly operand: IVOp<DTString, DS1>;
+    readonly prefix: IVOp<DTString, DS2>;
     readonly kind: "starts_with";
-    constructor(operand: IVOp<{
-        typecode: 'string';
-    }, DS1>, prefix: IVOp<{
-        typecode: 'string';
-    }, DS2>);
+    constructor(operand: IVOp<DTString, DS1>, prefix: IVOp<DTString, DS2>);
 }
 type TemporalDataType = {
     typecode: 'date';
+    nullable: boolean;
 } | {
     typecode: 'time';
+    nullable: boolean;
 } | {
     typecode: 'datetime';
+    nullable: boolean;
 };
 declare class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
     readonly operand: IVOp<TemporalDataType, DS>;
@@ -479,7 +444,7 @@ declare class SortSpec {
     readonly direction: 'asc' | 'desc';
     constructor(op: IVOp<any, any>, direction: 'asc' | 'desc');
 }
-type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | RawSqlOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
+type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IntervalLiteralOp | UuidLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | RawSqlOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
 
 declare abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
     [IsROpSymbol]: true;
@@ -497,13 +462,9 @@ declare class FromOp<S extends Schema> extends BaseROp<S, 'from'> {
 }
 declare class FilterOp<S extends Schema> extends BaseROp<S, 'filter'> {
     readonly source: IROp<S>;
-    readonly condition: IVOp<{
-        typecode: 'boolean';
-    }>;
+    readonly condition: IVOp<DTBoolean>;
     readonly kind: "filter";
-    constructor(source: IROp<S>, condition: IVOp<{
-        typecode: 'boolean';
-    }>);
+    constructor(source: IROp<S>, condition: IVOp<DTBoolean>);
     protected computeSchema(): S;
 }
 declare class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<S & {
@@ -548,41 +509,17 @@ declare class TakeOp<S extends Schema> extends BaseROp<S, 'take'> {
 }
 type BuiltinROp = FromOp<any> | FilterOp<any> | DeriveOp<any, any> | SelectOp<any> | GroupOp<any> | SortOp<any> | TakeOp<any>;
 
-interface Compiler<V extends IVOp<any, any, string> = BuiltinVOp, R = BuiltinROp> {
-    compileVOp(op: V): string;
-    compileROp(op: R): string;
+interface VCompiler<Result, Accepts extends IVOp = IVOp> {
+    compileVOp(op: Accepts): Result;
+}
+interface RCompiler<Result, Accepts extends IROp = IROp> {
+    compileROp(op: Accepts): Result;
+}
+interface Compiler<VResult, RResult, VAccepts extends IVOp = IVOp, RAccepts extends IROp = IROp> extends VCompiler<VResult, VAccepts>, RCompiler<RResult, RAccepts> {
 }
 
 /** Given a datatype, what are the datatypes that are comparable to it eg with .eq() */
-type DtypesComparableTo<DT extends DataType> = DT extends {
-    typecode: 'string';
-} ? {
-    typecode: 'string';
-} : DT extends NumericDataType ? NumericDataType : DT extends {
-    typecode: 'boolean';
-} ? {
-    typecode: 'boolean';
-} : DT extends {
-    typecode: 'date';
-} ? {
-    typecode: 'date';
-} : DT extends {
-    typecode: 'time';
-} ? {
-    typecode: 'time';
-} : DT extends {
-    typecode: 'datetime';
-} ? {
-    typecode: 'datetime';
-} : DT extends {
-    typecode: 'uuid';
-} ? {
-    typecode: 'uuid';
-} : DT extends {
-    typecode: 'interval';
-} ? {
-    typecode: 'interval';
-} : never;
+type DtypesComparableTo<DT extends DataType> = DT extends DTString ? DTString : DT extends NumericDataType ? NumericDataType : DT extends DTBoolean ? DTBoolean : DT extends DTDate ? DTDate : DT extends DTTime ? DTTime : DT extends DTDateTime ? DTDateTime : DT extends DTUUID ? DTUUID : DT extends DTInterval ? DTInterval : never;
 type IntoValueComparableTo<TargetDT extends DataType> = LiteralValueCoercibleTo<TargetDT> | IVExpr<DtypesComparableTo<TargetDT>, any> | IVOp<DtypesComparableTo<TargetDT>, any>;
 
 type VExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> = DT extends {
@@ -623,17 +560,15 @@ declare class GenericVExpr<DT extends DataType = DataType, DS extends DataShape 
     desc(): SortExpr;
     asc(): SortExpr;
 }
-declare class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<{
-    typecode: 'null';
-}, DS> {
+declare class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<DTNull, DS> {
 }
 declare class NumericExpr<DT extends NumericDataType = NumericDataType, DS extends DataShape = DataShape> extends GenericVExpr<DT, DS> {
-    add<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat64 : DTFloat32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat32 : DTFloat16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat16 : DTFloat8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat8 : DTInt64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt64 : DTInt32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt32 : DTInt16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt16 : DTInt8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt8 : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
-    sub<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat64 : DTFloat32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat32 : DTFloat16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat16 : DTFloat8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat8 : DTInt64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt64 : DTInt32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt32 : DTInt16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt16 : DTInt8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt8 : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
-    mul<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat64 : DTFloat32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat32 : DTFloat16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat16 : DTFloat8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat8 : DTInt64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt64 : DTInt32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt32 : DTInt16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt16 : DTInt8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt8 : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
-    div<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat64 : DTFloat32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat32 : DTFloat16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat16 : DTFloat8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat8 : DTInt64 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt64 : DTInt32 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt32 : DTInt16 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt16 : DTInt8 extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt8 : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    add<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<64> : DTFloat<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<32> : DTFloat<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<16> : DTFloat<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<8> : DTInt<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<64> : DTInt<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<32> : DTInt<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<16> : DTInt<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<8> : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    sub<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<64> : DTFloat<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<32> : DTFloat<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<16> : DTFloat<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<8> : DTInt<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<64> : DTInt<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<32> : DTInt<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<16> : DTInt<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<8> : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    mul<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<64> : DTFloat<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<32> : DTFloat<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<16> : DTFloat<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<8> : DTInt<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<64> : DTInt<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<32> : DTInt<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<16> : DTInt<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<8> : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    div<O extends number | IVExpr<NumericDataType, any>>(other: O): VExpr<DTFloat<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<64> : DTFloat<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<32> : DTFloat<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<16> : DTFloat<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTFloat<8> : DTInt<64> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<64> : DTInt<32> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<32> : DTInt<16> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<16> : DTInt<8> extends DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never) ? (DT | (O extends InferrableJsType ? InferDtypeFromJs<O> : O extends IntoDtype ? InferDtype<O> : never)) & DTInt<8> : never, "columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
     sum(): VExpr<DT, "scalar">;
-    mean(): NumericExpr<DTFloat64, "scalar">;
+    mean(): NumericExpr<DTFloat<64>, "scalar">;
 }
 declare class StringExpr<DS extends DataShape = DataShape> extends GenericVExpr<DTString, DS> {
     upper(): StringExpr<DS>;
@@ -749,7 +684,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<Schema, FilterOp<S>>;
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>>;
     /**
      * Group rows by key columns and apply aggregations.
      * @example
@@ -776,15 +711,15 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * @example penguins.sort(r => r.col("count").desc())
      * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
      */
-    sort(cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<Schema, SortOp<S>>;
+    sort(cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<S, SortOp<S>>;
     /**
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number): Relation<Schema, TakeOp<S>>;
-    compile(compiler: Compiler<any>): string;
+    take(n: number): Relation<S, TakeOp<S>>;
+    compile<R>(compiler: RCompiler<R, O>): R;
     /** Compile to a PRQL query string. */
-    toPrql(): string;
+    toPrql(this: Relation<S, BuiltinROp>): string;
 }
 /**
  * Define a relation backed by a database table or view.
@@ -799,11 +734,14 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
  */
 declare function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
 
-declare class PrqlCompiler implements Compiler {
-    compileVOp(op: BuiltinVOp): string;
+type SupportedPrqlVops = Exclude<BuiltinVOp, {
+    kind: 'interval_literal';
+}>;
+declare class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, BuiltinROp> {
+    compileVOp(op: SupportedPrqlVops): string;
     compileSortKey(spec: SortSpec): string;
     compileROp(node: BuiltinROp): string;
 }
 
-export { type BuiltinROp, type BuiltinVOp, type Compiler, type IROp, type IVExpr, type InferSchema, PrqlCompiler, Relation, type Schema, type VExpr, col, count, lit, sql, table };
+export { type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataType, type IROp, type IVExpr, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, sql, table };
  }`

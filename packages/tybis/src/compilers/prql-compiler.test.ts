@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import * as ty from '../index.js'
 import * as vals from '../value/index.js'
-import * as ops from '../value/ops.js'
-import { PrqlCompiler } from './prql-compiler.js'
+import { PrqlCompiler, type SupportedPrqlVops } from './prql-compiler.js'
 
 const compiler = new PrqlCompiler()
-const compile = (e: vals.VExpr<any, any>) => compiler.compileVOp(e.toOp() as ops.BuiltinVOp)
+const compile = (e: vals.VExpr<any, any>) => compiler.compileVOp(e.toOp() as SupportedPrqlVops)
 
 describe('PrqlCompiler value ops', () => {
   describe('literals', () => {
@@ -58,7 +57,7 @@ describe('PrqlCompiler value ops', () => {
     })
 
     it('sql() compiles to a PRQL s-string', () => {
-      const e = vals.sql('my_udf(col)', { typecode: 'string' }, 'columnar')
+      const e = vals.sql('my_udf(col)', { typecode: 'string', nullable: true }, 'columnar')
       expect(compile(e)).toBe('s"my_udf(col)"')
     })
   })
@@ -592,7 +591,7 @@ describe('PrqlCompiler — sql() raw expressions', () => {
   it('raw SQL inside derive', () => {
     const t = ty.table('data', { x: 'float64' })
     const q = t.derive(() => ({
-      custom: vals.sql('x * 2 + 1', { typecode: 'float', size: 64 }, 'columnar')
+      custom: vals.sql('x * 2 + 1', { typecode: 'float', size: 64, nullable: true }, 'columnar')
     }))
     expect(q.toPrql()).toMatchInlineSnapshot(`
           "from data

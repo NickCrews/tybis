@@ -1,7 +1,7 @@
 {
   "name": "tybis-sql-compiler",
   "version": "0.1.0",
-  "description": "SQL compiler for tybis (compiles tybis IR to SQL via PRQL)",
+  "description": "Pure-TypeScript SQL compiler for tybis (DuckDB, Postgres, MySQL, SQLite)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -27,7 +27,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "prqlc": "^0.13.12",
     "tybis": "workspace:*"
   },
   "devDependencies": {

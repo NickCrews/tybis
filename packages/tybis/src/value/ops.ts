@@ -48,7 +48,7 @@ export class IsNullOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTBool
 
 export class CountOp extends BaseOp<dt.DTInt<64>, 'scalar'> {
     readonly kind = 'count' as const
-    constructor() { super(dt.DTInt64(), 'scalar') }
+    constructor() { super(dt.DTInt(64), 'scalar') }
 }
 export class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
     readonly kind = 'raw_sql' as const
@@ -183,9 +183,9 @@ export class SumOp<DT extends DataType = DataType> extends BaseOp<DT, 'scalar'> 
     constructor(readonly operand: IVOp<DT, any>) { super(operand.dtype(), 'scalar') }
 }
 
-export class MeanOp extends BaseOp<dt.DTFloat64, 'scalar'> {
+export class MeanOp extends BaseOp<dt.DTFloat<64>, 'scalar'> {
     readonly kind = 'mean' as const
-    constructor(readonly operand: IVOp<any, any>) { super(dt.DTFloat64(), 'scalar') }
+    constructor(readonly operand: IVOp<any, any>) { super(dt.DTFloat(64), 'scalar') }
 }
 
 
@@ -195,29 +195,29 @@ export class MeanOp extends BaseOp<dt.DTFloat64, 'scalar'> {
 
 export class UpperOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTString, DS> {
     readonly kind = 'upper' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS>) { super(dt.DTString(), operand.dshape()) }
+    constructor(readonly operand: IVOp<dt.DTString, DS>) { super(dt.DTString(), operand.dshape()) }
 }
 
 export class LowerOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTString, DS> {
     readonly kind = 'lower' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS>) { super(dt.DTString(), operand.dshape()) }
+    constructor(readonly operand: IVOp<dt.DTString, DS>) { super(dt.DTString(), operand.dshape()) }
 }
 
 export class ContainsOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly kind = 'contains' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS1>, readonly pattern: IVOp<{ typecode: 'string' }, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape())) }
+    constructor(readonly operand: IVOp<dt.DTString, DS1>, readonly pattern: IVOp<dt.DTString, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), pattern.dshape())) }
 }
 
 export class StartsWithOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly kind = 'starts_with' as const
-    constructor(readonly operand: IVOp<{ typecode: 'string' }, DS1>, readonly prefix: IVOp<{ typecode: 'string' }, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape())) }
+    constructor(readonly operand: IVOp<dt.DTString, DS1>, readonly prefix: IVOp<dt.DTString, DS2>) { super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape())) }
 }
 
 // ---------------------------------------------------------------------------
 // Date ops
 // ---------------------------------------------------------------------------
 
-type TemporalDataType = { typecode: 'date' } | { typecode: 'time' } | { typecode: 'datetime' }
+type TemporalDataType = { typecode: 'date', nullable: boolean } | { typecode: 'time', nullable: boolean } | { typecode: 'datetime', nullable: boolean }
 
 export class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseOp<dt.DTString, DS> {
     readonly kind = 'temporal_to_string' as const
@@ -245,6 +245,8 @@ export type BuiltinVOp =
     | litOps.DatetimeLiteralOp
     | litOps.DateLiteralOp
     | litOps.TimeLiteralOp
+    | litOps.IntervalLiteralOp
+    | litOps.UuidLiteralOp
     // column reference
     | ColRefOp
     // generic

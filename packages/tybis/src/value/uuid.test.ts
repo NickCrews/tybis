@@ -13,14 +13,14 @@ describe('UUIDExpr', () => {
 
     it('ty.col() with uuid produces a UUIDExpr', () => {
         const uuidCol = ty.col('id', "uuid")
-        expect(uuidCol.dtype()).toEqual({ typecode: 'uuid' })
+        expect(uuidCol.dtype()).toEqual({ typecode: 'uuid', nullable: true })
         expect(uuidCol.dshape()).toBe('columnar')
         expectTypeOf(uuidCol).toMatchTypeOf<vals.UUIDExpr<'columnar'>>()
     })
 
     it('isNotNull() returns a boolean columnar expr', () => {
         const e = users.col('id').isNotNull()
-        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
     })
@@ -31,7 +31,7 @@ describe('UUIDExpr', () => {
             user_id: "uuid",
         })
         const e = orders.col('user_id').eq(orders.col('order_id'))
-        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
     })
@@ -44,8 +44,8 @@ describe('UUIDExpr', () => {
                 max_id: g.col('id').max(),
             })
         )
-        expect(q.col('min_id').dtype()).toEqual({ typecode: 'uuid' })
-        expect(q.col('max_id').dtype()).toEqual({ typecode: 'uuid' })
+        expect(q.col('min_id').dtype()).toEqual({ typecode: 'uuid', nullable: true })
+        expect(q.col('max_id').dtype()).toEqual({ typecode: 'uuid', nullable: true })
         expectTypeOf(q.col('min_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
         expectTypeOf(q.col('max_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
     })

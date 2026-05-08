@@ -256,6 +256,8 @@ export function litOp<JS extends AcceptableJsVal<DT>, DT extends dt.IntoDtype | 
             return new IntervalLiteralOp(value as IntoIntervalLiteralValue) as unknown as R
         case 'uuid':
             return new UuidLiteralOp(value as IntoUuidLiteralValue) as unknown as R
+        case 'custom':
+            throw new Error(`Cannot create literal of custom dtype`)
         default:
             throw new Error(`Unsupported JS value type: ${tc satisfies never}`)
     }

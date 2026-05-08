@@ -21,10 +21,10 @@ describe('Group aggregation', () => {
             })
         )
         expectTypeOf(q.col('species')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(q.col('count')).toEqualTypeOf<ty.VExpr<dt.DTInt64, 'columnar'>>()
-        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
-        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('count')).toEqualTypeOf<ty.VExpr<dt.DTInt<64>, 'columnar'>>()
+        expectTypeOf(q.col('mean_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat<64>, 'columnar'>>()
+        expectTypeOf(q.col('max_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat<64>, 'columnar'>>()
+        expectTypeOf(q.col('sum_bill')).toEqualTypeOf<ty.VExpr<dt.DTFloat<64>, 'columnar'>>()
     })
 
     it('should support renames and expressions in keys', () => {
@@ -36,7 +36,7 @@ describe('Group aggregation', () => {
             g => g.agg({ count: ty.count() })
         )
         expectTypeOf(q.col('kind')).toEqualTypeOf<ty.VExpr<dt.DTString, 'columnar'>>()
-        expectTypeOf(q.col('decade')).toEqualTypeOf<ty.VExpr<dt.DTFloat64, 'columnar'>>()
+        expectTypeOf(q.col('decade')).toEqualTypeOf<ty.VExpr<dt.DTFloat<64>, 'columnar'>>()
     })
 
     it('should throw runtime and type error when passing columnar expression to agg()', () => {

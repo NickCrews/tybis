@@ -1,6 +1,6 @@
 import * as Babel from '@babel/standalone'
 import * as ty from 'tybis'
-import { SqlCompiler } from 'tybis-sql-compiler'
+import { DuckDbSqlCompiler } from 'tybis-sql-compiler'
 
 export type PreviewResult =
   | { kind: 'ok'; prql: string; sql: string | null; sqlError: string | null }
@@ -65,7 +65,7 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
     }
   }
 
-  const rel = captured as ty.Relation
+  const rel = captured as ty.Relation<ty.Schema, ty.BuiltinROp>
 
   let prql: string
   try {
@@ -77,7 +77,7 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
   let sql: string | null = null
   let sqlError: string | null = null
   try {
-    sql = rel.compile(new SqlCompiler())
+    sql = rel.compile(new DuckDbSqlCompiler()).sql
   } catch (err) {
     sqlError = String(err)
   }

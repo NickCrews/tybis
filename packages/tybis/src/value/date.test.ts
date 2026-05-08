@@ -11,30 +11,30 @@ describe('DateExpr', () => {
 
     it('ty.col() with date produces a DateExpr', () => {
         const dateCol = ty.col('event_date', 'date')
-        expect(dateCol.dtype()).toEqual({ typecode: 'date' })
+        expect(dateCol.dtype()).toEqual({ typecode: 'date', nullable: true })
         expect(dateCol.dshape()).toBe('columnar')
-        expectTypeOf(dateCol).toMatchTypeOf<ty.IVExpr<{ typecode: 'date' }, 'columnar'>>()
+        expectTypeOf(dateCol).toMatchTypeOf<ty.IVExpr<{ typecode: 'date', nullable: boolean }, 'columnar'>>()
     })
 
     it('toString() returns a StringExpr', () => {
         const dateCol = ty.col('event_date', 'date')
         const strExpr = dateCol.toString('%Y-%m-%d')
-        expect(strExpr.dtype()).toEqual({ typecode: 'string' })
+        expect(strExpr.dtype()).toEqual({ typecode: 'string', nullable: true })
         expect(strExpr.dshape()).toBe('columnar')
-        expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string' }, 'columnar'>>()
+        expectTypeOf(strExpr).toMatchTypeOf<ty.IVExpr<{ typecode: 'string', nullable: boolean }, 'columnar'>>()
     })
 
     it('eq() comparison constructs a boolean expr', () => {
         const e = events.col('event_date').eq(events.col('event_date'))
-        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
-        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean' }, 'columnar'>>()
+        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()
     })
 
     it('isNotNull() check constructs a boolean expr', () => {
         const e = events.col('event_date').isNotNull()
-        expect(e.dtype()).toEqual({ typecode: 'boolean' })
+        expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
-        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean' }, 'columnar'>>()
+        expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()
     })
 })

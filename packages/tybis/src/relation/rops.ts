@@ -1,6 +1,7 @@
 import { type Schema } from './schema.js'
 import { IROp, IsROpSymbol } from './irop.js'
 import { IVOp } from '../value/core.js'
+import type { DTBoolean } from '../datatype.js'
 import type { SortSpec } from '../value/ops.js'
 
 export abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
@@ -31,7 +32,7 @@ export class FromOp<S extends Schema> extends BaseROp<S, 'from'> {
 
 export class FilterOp<S extends Schema> extends BaseROp<S, 'filter'> {
     readonly kind = 'filter' as const
-    constructor(readonly source: IROp<S>, readonly condition: IVOp<{ typecode: 'boolean' }>) {
+    constructor(readonly source: IROp<S>, readonly condition: IVOp<DTBoolean>) {
         super()
     }
     protected computeSchema(): S {

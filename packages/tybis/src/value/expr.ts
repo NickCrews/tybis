@@ -26,17 +26,18 @@ export type VExpr<DT extends DataType = DataType, DS extends DataShape = DataSha
 
 export function vOpToVExpr<DT extends DataType, DS extends DataShape>(op: IVOp<DT, DS>): VExpr<DT, DS> {
     const d = op.dtype()
-    if (d.typecode === 'null') return new NullExpr(op as IVOp<{ typecode: 'null' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'string') return new StringExpr(op as IVOp<{ typecode: 'string' }, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'null') return new NullExpr(op as IVOp<dt.DTNull, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'string') return new StringExpr(op as IVOp<dt.DTString, DS>) as VExpr<DT, DS>
     if (d.typecode === 'int') return new NumericExpr(op as IVOp<dt.NumericDataType, DS>) as VExpr<DT, DS>
     if (d.typecode === 'float') return new NumericExpr(op as IVOp<dt.NumericDataType, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'boolean') return new BooleanExpr(op as IVOp<{ typecode: 'boolean' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'date') return new DateExpr(op as IVOp<{ typecode: 'date' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'time') return new TimeExpr(op as IVOp<{ typecode: 'time' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'datetime') return new DateTimeExpr(op as IVOp<{ typecode: 'datetime' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'uuid') return new UUIDExpr(op as IVOp<{ typecode: 'uuid' }, DS>) as VExpr<DT, DS>
-    if (d.typecode === 'interval') return new IntervalExpr(op as IVOp<{ typecode: 'interval' }, DS>) as VExpr<DT, DS>
-    throw new Error(`Unsupported dtype in opToExpr: ${(d satisfies never)}`)
+    if (d.typecode === 'boolean') return new BooleanExpr(op as IVOp<dt.DTBoolean, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'date') return new DateExpr(op as IVOp<dt.DTDate, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'time') return new TimeExpr(op as IVOp<dt.DTTime, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'datetime') return new DateTimeExpr(op as IVOp<dt.DTDateTime, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'uuid') return new UUIDExpr(op as IVOp<dt.DTUUID, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'interval') return new IntervalExpr(op as IVOp<dt.DTInterval, DS>) as VExpr<DT, DS>
+    if (d.typecode === 'custom') return new GenericVExpr(op) as VExpr<DT, DS>
+    throw new Error(`Unsupported dtype in opToExpr: ${((d as never) satisfies never)}`)
 }
 registerVOpToVExpr(vOpToVExpr)
 
@@ -98,7 +99,7 @@ export class GenericVExpr<DT extends DataType = DataType, DS extends DataShape =
     }
 }
 
-export class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<{ typecode: 'null' }, DS> {
+export class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<dt.DTNull, DS> {
     // no methods yet, but could add null-specific things here if desired
 }
 
@@ -139,11 +140,11 @@ export class StringExpr<DS extends DataShape = DataShape> extends GenericVExpr<d
         return vOpToVExpr(new ops.LowerOp(this.toOp()))
     }
     contains<O extends IntoValueOfType<'string', any>>(pattern: O) {
-        const op = intoValueOfType(pattern, { typecode: 'string' })
+        const op = intoValueOfType(pattern, dt.DTString())
         return vOpToVExpr(new ops.ContainsOp(this.toOp(), op))
     }
     startsWith<O extends IntoValueOfType<'string', any>>(prefix: O) {
-        const op = intoValueOfType(prefix, { typecode: 'string' })
+        const op = intoValueOfType(prefix, dt.DTString())
         return vOpToVExpr(new ops.StartsWithOp(this.toOp(), op))
     }
 }
