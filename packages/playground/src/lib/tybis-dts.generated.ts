@@ -467,16 +467,15 @@ declare class FilterOp<S extends Schema> extends BaseROp<S, 'filter'> {
     constructor(source: IROp<S>, condition: IVOp<DTBoolean>);
     protected computeSchema(): S;
 }
-declare class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<S & {
+type DeriveOpSchema<S extends Schema, D extends Record<string, IVOp>> = Omit<S, keyof D> & {
     [K in keyof D]: ReturnType<D[K]['dtype']>;
-}, 'derive'> {
+};
+declare class DeriveOp<S extends Schema, D extends Record<string, IVOp>> extends BaseROp<DeriveOpSchema<S, D>, 'derive'> {
     readonly source: IROp<S>;
     readonly derivations: [string, IVOp][];
     readonly kind: "derive";
     constructor(source: IROp<S>, derivations: [string, IVOp][]);
-    protected computeSchema(): S & {
-        [K in keyof D]: ReturnType<D[K]['dtype']>;
-    };
+    protected computeSchema(): DeriveOpSchema<S, D>;
 }
 declare class SelectOp<S extends Schema> extends BaseROp<S, 'select'> {
     readonly source: IROp<any>;
@@ -699,7 +698,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
      * @example penguins.derive({ year_offset: lit(2000) })
      */
-    derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: RowAccessor<S>) => D)): Relation<DeriveSchema<S, D>, DeriveOp<DeriveSchema<S, D>, Record<string, IVOp>>>;
+    derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: RowAccessor<S>) => D)): Relation<DeriveSchema<S, D>>;
     /**
      * Replace existing columns with a new set of expressions.
      * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
