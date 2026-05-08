@@ -1,8 +1,8 @@
 import { type DataType } from '../datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IROp } from './irop.js'
-import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, type BuiltinROp } from './rops.js'
-import type { Compiler } from '../compilers/base.js'
+import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, BuiltinROp } from './rops.js'
+import type { RCompiler } from '../compilers/base.js'
 import { type IVOp, type IVExpr } from '../value/core.js'
 import { SortSpec } from '../value/ops.js'
 import {
@@ -260,12 +260,12 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         return new Relation(new TakeOp(this._op, n))
     }
 
-    compile(compiler: Compiler<any>) {
-        return compiler.compileROp(this._op as unknown as BuiltinROp)
+    compile<R>(compiler: RCompiler<R, O>): R {
+        return compiler.compileROp(this._op)
     }
 
     /** Compile to a PRQL query string. */
-    toPrql() {
+    toPrql(this: Relation<S, BuiltinROp>) {
         return this.compile(new PrqlCompiler())
     }
 }
