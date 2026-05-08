@@ -5,14 +5,14 @@ import { AcceptableJsVal, LiteralValueCoercibleTo, litOp } from "./lit";
 
 /** Given a datatype, what are the datatypes that are comparable to it eg with .eq() */
 export type DtypesComparableTo<DT extends dt.DataType> =
-    DT extends { typecode: 'string' } ? { typecode: 'string' } :
+    DT extends dt.DTString ? dt.DTString :
     DT extends dt.NumericDataType ? dt.NumericDataType :
-    DT extends { typecode: 'boolean' } ? { typecode: 'boolean' } :
-    DT extends { typecode: 'date' } ? { typecode: 'date' } :
-    DT extends { typecode: 'time' } ? { typecode: 'time' } :
-    DT extends { typecode: 'datetime' } ? { typecode: 'datetime' } :
-    DT extends { typecode: 'uuid' } ? { typecode: 'uuid' } :
-    DT extends { typecode: 'interval' } ? { typecode: 'interval' } :
+    DT extends dt.DTBoolean ? dt.DTBoolean :
+    DT extends dt.DTDate ? dt.DTDate :
+    DT extends dt.DTTime ? dt.DTTime :
+    DT extends dt.DTDateTime ? dt.DTDateTime :
+    DT extends dt.DTUUID ? dt.DTUUID :
+    DT extends dt.DTInterval ? dt.DTInterval :
     never
 
 export type IsComparable<DT1 extends dt.DataType, DT2 extends dt.DataType> =

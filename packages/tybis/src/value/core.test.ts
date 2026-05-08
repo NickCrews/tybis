@@ -12,7 +12,7 @@ describe('isOp()', () => {
         })
 
         it('returns false for objects with IsOpSymbol = false', () => {
-            const fakeOp = { [IsVOpSymbol]: false, kind: 'fake', dtype: () => ({ typecode: 'float', size: 64 }), dshape: () => 'scalar' }
+            const fakeOp = { [IsVOpSymbol]: false, kind: 'fake', dtype: () => ({ typecode: 'float', size: 64, nullable: true }), dshape: () => 'scalar' }
             expect(isVOp(fakeOp)).toBe(false)
         })
     })
@@ -21,7 +21,7 @@ describe('isOp()', () => {
         it('returns true for objects with kind, valid dtype(), valid dshape()', () => {
             const obj = {
                 kind: 'fake_op',
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'scalar',
             }
             expect(isVOp(obj)).toBe(true)
@@ -29,7 +29,7 @@ describe('isOp()', () => {
 
         it('returns false when kind is missing', () => {
             const obj = {
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'scalar',
             }
             expect(isVOp(obj)).toBe(false)
@@ -47,7 +47,7 @@ describe('isOp()', () => {
         it('returns false when dshape() returns an invalid shape', () => {
             const obj = {
                 kind: 'fake',
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'invalid_shape',
             }
             expect(isVOp(obj)).toBe(false)
@@ -99,7 +99,7 @@ describe('isExpr()', () => {
         it('returns false for objects with IsExprSymbol = false', () => {
             const fakeExpr = {
                 [IsVExprSymbol]: false,
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'scalar',
             }
             expect(isVExpr(fakeExpr)).toBe(false)
@@ -109,7 +109,7 @@ describe('isExpr()', () => {
     describe('fallback duck-type detection', () => {
         it('returns false for objects with valid dtype() and valid dshape() but missing toOp()', () => {
             const obj = {
-                dtype: () => ({ typecode: 'boolean' }),
+                dtype: () => ({ typecode: 'boolean', nullable: true }),
                 dshape: () => 'columnar',
             }
             expect(isVExpr(obj)).toBe(false)
@@ -117,7 +117,7 @@ describe('isExpr()', () => {
 
         it('returns true for objects with valid dtype(), valid dshape(), and toOp()', () => {
             const obj = {
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'columnar',
                 toOp: () => new StringLiteralOp('test'),
             }
@@ -134,7 +134,7 @@ describe('isExpr()', () => {
 
         it('returns false when dshape() returns an invalid shape', () => {
             const obj = {
-                dtype: () => ({ typecode: 'string' }),
+                dtype: () => ({ typecode: 'string', nullable: true }),
                 dshape: () => 'wrong',
             }
             expect(isVExpr(obj)).toBe(false)

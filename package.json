@@ -10,7 +10,7 @@
     "test": "pnpm --recursive run test",
     "typecheck": "pnpm --recursive run typecheck",
     "playground": "pnpm --filter tybis-playground dev",
-    "playground:build": "pnpm --filter tybis build && pnpm --filter tybis-playground build",
+    "playground:build": "pnpm build && pnpm --filter tybis-playground build",
     "playground:deploy": "pnpm playground:build && pnpm --filter tybis-playground deploy"
   },
   "pnpm": {

@@ -102,7 +102,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * penguins.derive({ bill_length_cm: penguins.col('bill_length_mm').div(10) }).schema
      * // Result: { species: { typecode: 'string' }, bill_length_mm: { typecode: 'float', size: 64 }, bill_length_cm: { typecode: 'float', size: 64 } }
      */
-    get schema() {
+    get schema(): S {
         return this._op.schema()
     }
 
@@ -118,7 +118,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Filter rows using a boolean expression.
      * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr) {
+    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
         const accessor = new RowAccessor(this.schema)
         const condition = cb(accessor)
         return new Relation(new FilterOp(this._op, condition.toOp()))
@@ -242,7 +242,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      */
     sort(
         cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
-    ) {
+    ): Relation<S, SortOp<S>> {
         const accessor = new RowAccessor(this.schema)
         const result = cb(accessor)
         const keysList = Array.isArray(result) ? result : [result]
@@ -256,7 +256,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Take the first n rows.
      * @example penguins.take(10)
      */
-    take(n: number) {
+    take(n: number): Relation<S, TakeOp<S>> {
         return new Relation(new TakeOp(this._op, n))
     }
 
@@ -264,6 +264,10 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
         return compiler.compileROp(this._op)
     }
 
+    // TODO: we should adjust our type system so that
+    // a ROp keeps track of which ROps and VOps it contains.
+    // This is because PrqlCompiler can only compile a subset of possible ROps and VOps,
+    // and so we only want to allow compiling to PRQL if the relation's operations are all supported by PrqlCompiler.
     /** Compile to a PRQL query string. */
     toPrql(this: Relation<S, BuiltinROp>) {
         return this.compile(new PrqlCompiler())

@@ -1,41 +1,27 @@
 import { type IVExpr, type IVOp, isVExpr, isVOp } from "./value/core"
 
-export interface DTNull { typecode: 'null' }
-export function DTNull(): DTNull { return { typecode: 'null' } }
-export interface DTString { typecode: 'string' }
-export function DTString(): DTString { return { typecode: 'string' } }
-export interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'int', size: S }
-export function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTInt<S> { return { typecode: 'int', size } }
-export interface DTInt8 { typecode: 'int', size: 8 }
-export function DTInt8(): DTInt8 { return { typecode: 'int', size: 8 } }
-export interface DTInt16 { typecode: 'int', size: 16 }
-export function DTInt16(): DTInt16 { return { typecode: 'int', size: 16 } }
-export interface DTInt32 { typecode: 'int', size: 32 }
-export function DTInt32(): DTInt32 { return { typecode: 'int', size: 32 } }
-export interface DTInt64 { typecode: 'int', size: 64 }
-export function DTInt64(): DTInt64 { return { typecode: 'int', size: 64 } }
-export interface DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'float', size: S }
-export function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S): DTFloat<S> { return { typecode: 'float', size } }
-export interface DTFloat8 { typecode: 'float', size: 8 }
-export function DTFloat8(): DTFloat8 { return { typecode: 'float', size: 8 } }
-export interface DTFloat16 { typecode: 'float', size: 16 }
-export function DTFloat16(): DTFloat16 { return { typecode: 'float', size: 16 } }
-export interface DTFloat32 { typecode: 'float', size: 32 }
-export function DTFloat32(): DTFloat32 { return { typecode: 'float', size: 32 } }
-export interface DTFloat64 { typecode: 'float', size: 64 }
-export function DTFloat64(): DTFloat64 { return { typecode: 'float', size: 64 } }
-export interface DTBoolean { typecode: 'boolean' }
-export function DTBoolean(): DTBoolean { return { typecode: 'boolean' } }
-export interface DTDate { typecode: 'date' }
-export function DTDate(): DTDate { return { typecode: 'date' } }
-export interface DTTime { typecode: 'time' }
-export function DTTime(): DTTime { return { typecode: 'time' } }
-export interface DTDateTime { typecode: 'datetime' }
-export function DTDateTime(): DTDateTime { return { typecode: 'datetime' } }
-export interface DTInterval { typecode: 'interval' }
-export function DTInterval(): DTInterval { return { typecode: 'interval' } }
-export interface DTUUID { typecode: 'uuid' }
-export function DTUUID(): DTUUID { return { typecode: 'uuid' } }
+export interface DTNull { typecode: 'null', nullable: boolean }
+export function DTNull(opts?: { nullable?: boolean }): DTNull { return { typecode: 'null', nullable: opts?.nullable ?? true } }
+export interface DTString { typecode: 'string', nullable: boolean }
+export function DTString(opts?: { nullable?: boolean }): DTString { return { typecode: 'string', nullable: opts?.nullable ?? true } }
+export interface DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'int', size: S, nullable: boolean }
+export function DTInt<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S, opts?: { nullable?: boolean }): DTInt<S> { return { typecode: 'int', size, nullable: opts?.nullable ?? true } }
+export interface DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64> { typecode: 'float', size: S, nullable: boolean }
+export function DTFloat<S extends 8 | 16 | 32 | 64 = 8 | 16 | 32 | 64>(size: S, opts?: { nullable?: boolean }): DTFloat<S> { return { typecode: 'float', size, nullable: opts?.nullable ?? true } }
+export interface DTBoolean { typecode: 'boolean', nullable: boolean }
+export function DTBoolean(opts?: { nullable?: boolean }): DTBoolean { return { typecode: 'boolean', nullable: opts?.nullable ?? true } }
+export interface DTDate { typecode: 'date', nullable: boolean }
+export function DTDate(opts?: { nullable?: boolean }): DTDate { return { typecode: 'date', nullable: opts?.nullable ?? true } }
+export interface DTTime { typecode: 'time', nullable: boolean }
+export function DTTime(opts?: { nullable?: boolean }): DTTime { return { typecode: 'time', nullable: opts?.nullable ?? true } }
+export interface DTDateTime { typecode: 'datetime', nullable: boolean }
+export function DTDateTime(opts?: { nullable?: boolean }): DTDateTime { return { typecode: 'datetime', nullable: opts?.nullable ?? true } }
+export interface DTInterval { typecode: 'interval', nullable: boolean }
+export function DTInterval(opts?: { nullable?: boolean }): DTInterval { return { typecode: 'interval', nullable: opts?.nullable ?? true } }
+export interface DTUUID { typecode: 'uuid', nullable: boolean }
+export function DTUUID(opts?: { nullable?: boolean }): DTUUID { return { typecode: 'uuid', nullable: opts?.nullable ?? true } }
+export interface DTCustom { typecode: 'custom', meta: unknown, nullable: boolean }
+export function DTCustom(meta: unknown, opts?: { nullable?: boolean }): DTCustom { return { typecode: 'custom', meta, nullable: opts?.nullable ?? true } }
 
 export type NumericDataType = DTInt | DTFloat
 
@@ -50,9 +36,10 @@ export type DataType =
     | DTDateTime
     | DTInterval
     | DTUUID
+    | DTCustom
 
 type DTypeShorthands =
-    | DataType['typecode']
+    | Exclude<DataType['typecode'], 'custom'>
     | 'int8' | 'int16' | 'int32' | 'int64'
     | 'float8' | 'float16' | 'float32' | 'float64'
 
@@ -78,6 +65,8 @@ export function isValidDataType(datatype: any): datatype is DataType {
             return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
         case 'float':
             return datatype.size === 8 || datatype.size === 16 || datatype.size === 32 || datatype.size === 64
+        case 'custom':
+            return 'meta' in datatype
         default: {
             const _exhaustiveCheck = typecode satisfies never
             return false
@@ -89,16 +78,16 @@ export function isValidDataType(datatype: any): datatype is DataType {
 type InferDtypeFromShorthand<S extends DTypeShorthands> =
     S extends 'null' ? DTNull
     : S extends 'string' ? DTString
-    : S extends 'int' ? { typecode: 'int', size: 64 }
-    : S extends 'int8' ? { typecode: 'int', size: 8 }
-    : S extends 'int16' ? { typecode: 'int', size: 16 }
-    : S extends 'int32' ? { typecode: 'int', size: 32 }
-    : S extends 'int64' ? { typecode: 'int', size: 64 }
-    : S extends 'float' ? { typecode: 'float', size: 64 }
-    : S extends 'float8' ? { typecode: 'float', size: 8 }
-    : S extends 'float16' ? { typecode: 'float', size: 16 }
-    : S extends 'float32' ? { typecode: 'float', size: 32 }
-    : S extends 'float64' ? { typecode: 'float', size: 64 }
+    : S extends 'int' ? DTInt<64>
+    : S extends 'int8' ? DTInt<8>
+    : S extends 'int16' ? DTInt<16>
+    : S extends 'int32' ? DTInt<32>
+    : S extends 'int64' ? DTInt<64>
+    : S extends 'float' ? DTFloat<64>
+    : S extends 'float8' ? DTFloat<8>
+    : S extends 'float16' ? DTFloat<16>
+    : S extends 'float32' ? DTFloat<32>
+    : S extends 'float64' ? DTFloat<64>
     : S extends 'boolean' ? DTBoolean
     : S extends 'date' ? DTDate
     : S extends 'time' ? DTTime
@@ -109,32 +98,37 @@ type InferDtypeFromShorthand<S extends DTypeShorthands> =
 
 function dtypeFromShorthand<T extends DTypeShorthands>(typecode: T): InferDtypeFromShorthand<T> {
     switch (typecode) {
-        case 'int': return { typecode: 'int', size: 64 } as InferDtypeFromShorthand<T>
-        case 'int8': return { typecode: 'int', size: 8 } as InferDtypeFromShorthand<T>
-        case 'int16': return { typecode: 'int', size: 16 } as InferDtypeFromShorthand<T>
-        case 'int32': return { typecode: 'int', size: 32 } as InferDtypeFromShorthand<T>
-        case 'int64': return { typecode: 'int', size: 64 } as InferDtypeFromShorthand<T>
+        case 'int': return { typecode: 'int', size: 64, nullable: true } as InferDtypeFromShorthand<T>
+        case 'int8': return { typecode: 'int', size: 8, nullable: true } as InferDtypeFromShorthand<T>
+        case 'int16': return { typecode: 'int', size: 16, nullable: true } as InferDtypeFromShorthand<T>
+        case 'int32': return { typecode: 'int', size: 32, nullable: true } as InferDtypeFromShorthand<T>
+        case 'int64': return { typecode: 'int', size: 64, nullable: true } as InferDtypeFromShorthand<T>
 
-        case 'float': return { typecode: 'float', size: 64 } as InferDtypeFromShorthand<T>
-        case 'float8': return { typecode: 'float', size: 8 } as InferDtypeFromShorthand<T>
-        case 'float16': return { typecode: 'float', size: 16 } as InferDtypeFromShorthand<T>
-        case 'float32': return { typecode: 'float', size: 32 } as InferDtypeFromShorthand<T>
-        case 'float64': return { typecode: 'float', size: 64 } as InferDtypeFromShorthand<T>
+        case 'float': return { typecode: 'float', size: 64, nullable: true } as InferDtypeFromShorthand<T>
+        case 'float8': return { typecode: 'float', size: 8, nullable: true } as InferDtypeFromShorthand<T>
+        case 'float16': return { typecode: 'float', size: 16, nullable: true } as InferDtypeFromShorthand<T>
+        case 'float32': return { typecode: 'float', size: 32, nullable: true } as InferDtypeFromShorthand<T>
+        case 'float64': return { typecode: 'float', size: 64, nullable: true } as InferDtypeFromShorthand<T>
 
-        case 'null': return { typecode: 'null' } as InferDtypeFromShorthand<T>
-        case 'string': return { typecode: 'string' } as InferDtypeFromShorthand<T>
-        case 'boolean': return { typecode: 'boolean' } as InferDtypeFromShorthand<T>
-        case 'date': return { typecode: 'date' } as InferDtypeFromShorthand<T>
-        case 'time': return { typecode: 'time' } as InferDtypeFromShorthand<T>
-        case 'datetime': return { typecode: 'datetime' } as InferDtypeFromShorthand<T>
-        case 'interval': return { typecode: 'interval' } as InferDtypeFromShorthand<T>
-        case 'uuid': return { typecode: 'uuid' } as InferDtypeFromShorthand<T>
+        case 'null': return { typecode: 'null', nullable: true } as InferDtypeFromShorthand<T>
+        case 'string': return { typecode: 'string', nullable: true } as InferDtypeFromShorthand<T>
+        case 'boolean': return { typecode: 'boolean', nullable: true } as InferDtypeFromShorthand<T>
+        case 'date': return { typecode: 'date', nullable: true } as InferDtypeFromShorthand<T>
+        case 'time': return { typecode: 'time', nullable: true } as InferDtypeFromShorthand<T>
+        case 'datetime': return { typecode: 'datetime', nullable: true } as InferDtypeFromShorthand<T>
+        case 'interval': return { typecode: 'interval', nullable: true } as InferDtypeFromShorthand<T>
+        case 'uuid': return { typecode: 'uuid', nullable: true } as InferDtypeFromShorthand<T>
         default:
             throw new Error(`Unsupported typecode in dtypeFromShorthand: ${typecode satisfies never}`)
     }
 }
 
 export type JSTypeFromDtype<DT extends DataType> =
+    DT extends { nullable: false }
+    ? NonNullableJSTypeFromDtype<DT>
+    : NonNullableJSTypeFromDtype<DT> | null
+
+type NonNullableJSTypeFromDtype<DT extends DataType> =
     DT extends DTString ? string
     : DT extends DTInt ? number
     : DT extends DTFloat ? number
@@ -145,6 +139,7 @@ export type JSTypeFromDtype<DT extends DataType> =
     : DT extends DTInterval ? string
     : DT extends DTUUID ? string
     : DT extends DTNull ? null
+    : DT extends DTCustom ? unknown
     : never
 
 export type InferrableJsType = string | number | boolean | Date | null
@@ -160,11 +155,11 @@ export type InferDtypeFromJs<JS extends InferrableJsType> =
 
 /** Given a JS value, infer the DataType of it */
 export function inferDtypeFromJs<JS extends InferrableJsType>(value: JS): InferDtypeFromJs<JS> {
-    if (value === null) return { typecode: 'null' } as InferDtypeFromJs<JS>
-    if (typeof value === 'string') return { typecode: 'string' } as InferDtypeFromJs<JS>
-    if (typeof value === 'boolean') return { typecode: 'boolean' } as InferDtypeFromJs<JS>
-    if (typeof value === 'number') return { typecode: 'float', size: 64 } as InferDtypeFromJs<JS>
-    if (value instanceof Date) return { typecode: 'datetime' } as InferDtypeFromJs<JS>
+    if (value === null) return { typecode: 'null', nullable: true } as InferDtypeFromJs<JS>
+    if (typeof value === 'string') return { typecode: 'string', nullable: true } as InferDtypeFromJs<JS>
+    if (typeof value === 'boolean') return { typecode: 'boolean', nullable: true } as InferDtypeFromJs<JS>
+    if (typeof value === 'number') return { typecode: 'float', size: 64, nullable: true } as InferDtypeFromJs<JS>
+    if (value instanceof Date) return { typecode: 'datetime', nullable: true } as InferDtypeFromJs<JS>
     throw new Error(`Cannot infer dtype for value: ${value}`)
 }
 
@@ -177,7 +172,10 @@ export type InferDtype<DT extends IntoDtype> =
     never
 
 export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
-    if (isValidDataType(thing)) return thing as InferDtype<T>
+    if (isValidDataType(thing)) {
+        if ('nullable' in thing) return thing as InferDtype<T>
+        return Object.assign({}, thing as object, { nullable: true }) as InferDtype<T>
+    }
     if (typeof thing === 'string') return dtypeFromShorthand(thing as DTypeShorthands) as InferDtype<T>
     if (typeof thing === 'object' && thing !== null) {
         if (isVExpr(thing)) return thing.dtype() as InferDtype<T>
@@ -189,14 +187,14 @@ export function dtype<T extends IntoDtype>(thing: T): InferDtype<T> {
 
 export type HighestDataType<DTs extends DataType[]> =
     DTs extends [] ? never :
-    DTFloat64 extends DTs[number] ? DTFloat64 :
-    DTFloat32 extends DTs[number] ? DTFloat32 :
-    DTFloat16 extends DTs[number] ? DTFloat16 :
-    DTFloat8 extends DTs[number] ? DTFloat8 :
-    DTInt64 extends DTs[number] ? DTInt64 :
-    DTInt32 extends DTs[number] ? DTInt32 :
-    DTInt16 extends DTs[number] ? DTInt16 :
-    DTInt8 extends DTs[number] ? DTInt8 :
+    DTFloat<64> extends DTs[number] ? DTFloat<64> :
+    DTFloat<32> extends DTs[number] ? DTFloat<32> :
+    DTFloat<16> extends DTs[number] ? DTFloat<16> :
+    DTFloat<8> extends DTs[number] ? DTFloat<8> :
+    DTInt<64> extends DTs[number] ? DTInt<64> :
+    DTInt<32> extends DTs[number] ? DTInt<32> :
+    DTInt<16> extends DTs[number] ? DTInt<16> :
+    DTInt<8> extends DTs[number] ? DTInt<8> :
     never
 
 export function highestDataType<First extends DataType, Rest extends DataType[]>(dtype1: First, ...rest: Rest): HighestDataType<[First, ...Rest]> {

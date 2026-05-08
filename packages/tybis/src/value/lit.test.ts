@@ -8,7 +8,7 @@ describe('lit()', () => {
         it("lit(null)", () => {
             const e = ty.lit(null)
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTNull, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'null' })
+            expect(e.dtype()).toEqual({ typecode: 'null', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
     })
@@ -17,28 +17,28 @@ describe('lit()', () => {
         it("lit('hello')", () => {
             const e = ty.lit('hello')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit('hello', 'string')", () => {
             const e = ty.lit('hello', 'string')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit(54, 'string')", () => {
             const e = ty.lit(54, 'string')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit(new Date('2024-01-15T00:00:00.000Z'), 'string')", () => {
             const e = ty.lit(new Date('2024-01-15T00:00:00.000Z'), 'string')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTString, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'string' })
+            expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
     })
@@ -46,22 +46,22 @@ describe('lit()', () => {
     describe('int', () => {
         it('lit(42)', () => {
             const e = ty.lit(42)
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('lit(42, "int32")', () => {
             const e = ty.lit(42, 'int32')
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'int', size: 32 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'int', size: 32, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('lit("42", "int32")', () => {
             const e = ty.lit("42", 'int32')
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'int', size: 32 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'int', size: 32, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'int', size: 32, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -79,29 +79,29 @@ describe('lit()', () => {
     describe('float', () => {
         it('lit(3.14)', () => {
             const e = ty.lit(3.14)
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('lit(42, "float")', () => {
             const e = ty.lit(42, 'float')
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('lit("42", "float")', () => {
             const e = ty.lit("42", 'float')
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it('lit("NaN", "float")', () => {
             const e = ty.lit("NaN", 'float')
-            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64 }, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'float', size: 64 })
+            expectTypeOf(e).toEqualTypeOf<ty.VExpr<{ typecode: 'float', size: 64, nullable: boolean }, 'scalar'>>()
+            expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -115,28 +115,28 @@ describe('lit()', () => {
         it('lit(true)', () => {
             const e = ty.lit(true)
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit('true', 'boolean')", () => {
             const e = ty.lit('true', 'boolean')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit(0, 'boolean')", () => {
             const e = ty.lit(0, 'boolean')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit(null, 'boolean')", () => {
             const e = ty.lit(null, 'boolean')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTBoolean, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'boolean' })
+            expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
@@ -150,28 +150,28 @@ describe('lit()', () => {
         it("lit(new Date('2024-01-15T12:34:56.000Z'))", () => {
             const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'))
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDateTime, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'datetime' })
+            expect(e.dtype()).toEqual({ typecode: 'datetime', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit(new Date('2024-01-15T12:34:56.000Z'), 'date')", () => {
             const e = ty.lit(new Date('2024-01-15T12:34:56.000Z'), 'date')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDate, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'date' })
+            expect(e.dtype()).toEqual({ typecode: 'date', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit('2024-01-15', 'date')", () => {
             const e = ty.lit('2024-01-15', 'date')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDate, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'date' })
+            expect(e.dtype()).toEqual({ typecode: 'date', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 
         it("lit('2024-01-15T12:34:56.000Z', 'datetime')", () => {
             const e = ty.lit('2024-01-15T12:34:56.000Z', 'datetime')
             expectTypeOf(e).toEqualTypeOf<ty.VExpr<dt.DTDateTime, 'scalar'>>()
-            expect(e.dtype()).toEqual({ typecode: 'datetime' })
+            expect(e.dtype()).toEqual({ typecode: 'datetime', nullable: true })
             expect(e.dshape()).toBe('scalar')
         })
 

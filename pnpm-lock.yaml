@@ -131,9 +131,6 @@ importers:
 
   packages/sql-compiler:
     dependencies:
-      prqlc:
-        specifier: ^0.13.12
-        version: 0.13.12
       tybis:
         specifier: workspace:*
         version: link:../tybis
@@ -2512,9 +2509,6 @@ packages:
 
   property-information@5.6.0:
     resolution: {integrity: sha512-YUHSPk+A30YPv+0Qf8i9Mbfe/C0hdPXk1s1jPVToV8pk8BQtpw10ct89Eo7OWkutrwqvT0eicAxlOg3dOAu8JA==}
-
-  prqlc@0.13.12:
-    resolution: {integrity: sha512-4+/3n3apWKZkaCA0I4Q5Sg3F/WldsgSo3jtma0W7Z3ee8rJo9J16yNiiNurKYckaG4VcaXXns50TKXHx3k6VjQ==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -5354,8 +5348,6 @@ snapshots:
   property-information@5.6.0:
     dependencies:
       xtend: 4.0.2
-
-  prqlc@0.13.12: {}
 
   punycode@2.3.1: {}
 
