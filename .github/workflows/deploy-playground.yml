@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'playground/**'
-      - 'src/**'
+      - 'packages/playground/**'
+      - 'packages/tybis/src/**'
+      - 'packages/sql-compiler/src/**'
       - '.github/workflows/deploy-playground.yml'
   workflow_dispatch:
 
@@ -17,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -25,9 +26,9 @@ jobs:
           version: 10
 
       - name: Set up Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: 20
           cache: pnpm
 
       - name: Install dependencies
@@ -36,21 +37,15 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build tybis library
+      - name: Build
         run: pnpm build
-        working-directory: .
-
-      - name: Build playground
-        run: pnpm build
-        working-directory: playground
         env:
-          # Set to your GitHub repo name, e.g. /tybis/
           VITE_BASE: /tybis/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./playground/dist
+          publish_dir: ./packages/playground/dist
           publish_branch: gh-pages
           force_orphan: true
