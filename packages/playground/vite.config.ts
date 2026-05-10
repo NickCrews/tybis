@@ -22,7 +22,4 @@ export default defineConfig({
   worker: {
     plugins: () => [wasm(), topLevelAwait()],
   },
-  optimizeDeps: {
-    exclude: ['prqlc'],
-  },
 })

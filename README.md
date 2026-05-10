@@ -10,7 +10,7 @@ Tybis provides:
 - A clean, chainable expression system inspired by [PRQL](https://prql-lang.org/).
   The expression tree is a public API, you can inspect and transform it as you want, eg add your own optimization or rewrite rules!
   All of the above is in vanilla, dependency-free typescript. Deploy anywhere!
-- SQL and PRQL generation via the optional [prqlc](https://www.npmjs.com/package/prqlc) compiler.
+- Compilation of an expression to SQL or PRQL using pure, dependency-free typescript.
   TODO is to also provide clients to natively execute expressions on a real backend,
   eg duckdb or postgres.
 - Escape hatches when we can't provide the functionality you need.
