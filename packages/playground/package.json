@@ -6,7 +6,7 @@
   "scripts": {
     "generate-types": "node scripts/generate-types.ts",
     "dev": "pnpm generate-types && vite",
-    "build": "pnpm generate-types && tsc -b && vite build",
+    "build": "pnpm --filter ../tybis build && pnpm generate-types && tsc -b && vite build",
     "preview": "vite preview",
     "deploy": "pnpm build && gh-pages -d dist",
     "lint": "eslint .",
