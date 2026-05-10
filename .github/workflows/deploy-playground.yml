@@ -33,7 +33,7 @@ jobs:
         run: pnpm lint
 
       - name: Build playground
-        run: pnpm --filter packages/playground build
+        run: pnpm --filter ./packages/playground build
         env:
           # Set to your GitHub repo name, e.g. /tybis/
           VITE_BASE: /tybis/
