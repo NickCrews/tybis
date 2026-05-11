@@ -718,7 +718,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     take(n: number): Relation<S, TakeOp<S>>;
     compile<R>(compiler: RCompiler<R, O>): R;
     /** Compile to a PRQL query string. */
-    toPrql(this: Relation<S, BuiltinROp>): string;
+    toPrql(): unknown;
 }
 /**
  * Define a relation backed by a database table or view.
@@ -742,5 +742,5 @@ declare class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops
     compileROp(node: BuiltinROp): string;
 }
 
-export { type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataType, type IROp, type IVExpr, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, sql, table };
+export { type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, sql, table };
  }`

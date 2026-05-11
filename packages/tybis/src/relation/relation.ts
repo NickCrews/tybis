@@ -1,7 +1,7 @@
 import { type DataType } from '../datatype.js'
 import { schema, type Schema, type InferSchema, type IntoSchema } from './schema.js'
 import type { IROp } from './irop.js'
-import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp, BuiltinROp } from './rops.js'
+import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp } from './rops.js'
 import type { RCompiler } from '../compilers/base.js'
 import { type IVOp, type IVExpr } from '../value/core.js'
 import { SortSpec } from '../value/ops.js'
@@ -269,8 +269,8 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     // This is because PrqlCompiler can only compile a subset of possible ROps and VOps,
     // and so we only want to allow compiling to PRQL if the relation's operations are all supported by PrqlCompiler.
     /** Compile to a PRQL query string. */
-    toPrql(this: Relation<S, BuiltinROp>) {
-        return this.compile(new PrqlCompiler())
+    toPrql() {
+        return this.compile(new PrqlCompiler() as any)
     }
 }
 

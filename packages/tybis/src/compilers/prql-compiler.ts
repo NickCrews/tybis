@@ -5,8 +5,8 @@ import {
 } from '../value/ops.js'
 
 export type SupportedPrqlVops = Exclude<BuiltinVOp, { kind: 'interval_literal' }> // PRQL doesn't support interval literals (at least for now)
-
-export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, BuiltinROp> {
+export type SupportedPrqlROps = BuiltinROp
+export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, SupportedPrqlROps> {
     compileVOp(op: SupportedPrqlVops): string {
         const kind = op.kind
         switch (kind) {
@@ -63,19 +63,19 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
 
-    compileROp(node: BuiltinROp): string {
+    compileROp(node: SupportedPrqlROps): string {
         switch (node.kind) {
             case 'from':
                 return `from ${node.name}`
             case 'filter':
-                return `${this.compileROp(node.source as BuiltinROp)}\nfilter ${this.compileVOp(node.condition as SupportedPrqlVops)}`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\nfilter ${this.compileVOp(node.condition as SupportedPrqlVops)}`
             case 'derive': {
                 const dervs = node.derivations.map(([k, v]) => `  ${k} = ${this.compileVOp(v as SupportedPrqlVops)}`).join(',\n')
-                return `${this.compileROp(node.source as BuiltinROp)}\nderive {\n${dervs}\n}`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\nderive {\n${dervs}\n}`
             }
             case 'select': {
                 const sels = node.selections.map(([k, v]) => `  ${k} = ${this.compileVOp(v as SupportedPrqlVops)}`).join(',\n')
-                return `${this.compileROp(node.source as BuiltinROp)}\nselect {\n${sels}\n}`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\nselect {\n${sels}\n}`
             }
             case 'group': {
                 const keys = node.keys.map(([k, v]) => {
@@ -83,14 +83,14 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
                     return compiled === k ? k : `${k} = ${compiled}`
                 }).join(', ')
                 const aggs = node.aggregations.map(([k, v]) => `    ${k} = ${this.compileVOp(v as SupportedPrqlVops)}`).join(',\n')
-                return `${this.compileROp(node.source as BuiltinROp)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
             }
             case 'sort': {
                 const keys = node.keys.map(k => this.compileSortKey(k)).join(', ')
-                return `${this.compileROp(node.source as BuiltinROp)}\nsort {${keys}}`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\nsort {${keys}}`
             }
             case 'take':
-                return `${this.compileROp(node.source as BuiltinROp)}\ntake ${node.n}`
+                return `${this.compileROp(node.source as SupportedPrqlROps)}\ntake ${node.n}`
             default: throw new Error(`Unhandled IR node: ${(node satisfies never) as any}`)
         }
     }

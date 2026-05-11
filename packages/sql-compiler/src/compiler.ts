@@ -3,6 +3,8 @@ import {
     type BuiltinVOp,
     type Compiler,
     type Schema,
+    type IVOp,
+    type IROp,
 } from 'tybis'
 
 // SortSpec and IVOp aren't re-exported from `tybis` root; use a structural type.
@@ -91,7 +93,7 @@ export function closeLevel(ctx: PlannerCtx, sourceSchema: Schema): string {
 // Abstract base compiler
 // ---------------------------------------------------------------------------
 
-export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, BuiltinVOp, BuiltinROp> {
+export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, IROp> {
     abstract readonly vHandlers: VOpHandlers<SqlCompiler>
     abstract readonly rHandlers: ROpPlanHandlers<SqlCompiler>
 
