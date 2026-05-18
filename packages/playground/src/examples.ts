@@ -43,14 +43,14 @@ const penguins = ty.table('penguins', {
 })
 
 const bySpecies = penguins
-  .groupBy(r => ({ species: true }))
+  .groupBy({ species: true })
   .agg(g => ({
     count: ty.count(),
     avg_bill: g.bill_length_mm.mean(),
     avg_mass: g.body_mass_g.mean(),
     max_mass: g.body_mass_g.max(),
   }))
-  .sort(r => r.avg_mass.desc())
+  .sort({ avg_mass: 'desc' })
 
 preview(bySpecies)
 `,
@@ -70,7 +70,7 @@ const penguins = ty.table('penguins', {
 
 const result = penguins
   .filter(r => r.bill_length_mm.gt(40))
-  .groupBy(r => ({ species: true, year: true }))
+  .groupBy({ species: true, year: true })
   .agg(g => ({
     count: ty.count(),
     mean_bill: g.bill_length_mm.mean(),
@@ -81,7 +81,7 @@ const result = penguins
     count: true,
     mean_bill_cm: r.mean_bill.div(10), // Rename and transform
   }))
-  .sort(r => r.count.desc())
+  .sort({ count: 'desc' })
   .take(10)
 
 preview(result)
@@ -106,13 +106,13 @@ const orders = ty.table('orders', {
 const topCustomers = orders
   .filter(r => r.is_paid.eq(true))
   .filter(r => r.amount.gt(50))
-  .groupBy(r => ({ customer_id: true }))
+  .groupBy({ customer_id: true })
   .agg(g => ({
     order_count: ty.count(),
     total_spent: g.amount.sum(),
     max_order:   g.amount.max(),
   }))
-  .sort(r => r.total_spent.desc())
+  .sort({ total_spent: 'desc' })
   .take(20)
 
 preview(topCustomers)
@@ -136,7 +136,7 @@ const enriched = products
     price_dollars: r.price_cents.div(100),
     revenue_cents: r.price_cents.mul(r.quantity),
   }))
-  .sort(r => r.revenue_cents.desc())
+  .sort({ revenue_cents: 'desc' })
 
 preview(enriched)
 `,
@@ -157,13 +157,13 @@ const events = ty.table('events', {
 })
 
 const withExtract = events
-  .derive(() => ({
+  .derive({
     // Pull the year out using a raw SQL expression
     year: tysql.sql("EXTRACT(YEAR FROM occurred_at)", { typecode: 'int', size: 32, nullable: true }, 'columnar'),
-  }))
-  .groupBy(r => ({ event_name: true, year: true }))
+  })
+  .groupBy({ event_name: true, year: true })
   .agg({ n: ty.count() })
-  .sort(r => r.n.desc())
+  .sort({ n: 'desc' })
 
 preview(withExtract)
 `,

@@ -23,7 +23,6 @@ I will probably hold off on working on this further until I see if we could join
 ```typescript
 import * as ty from 'tybis'
 import { toSql } from 'tybis-sql-compiler'
-import { toPrql } from 'tybis-prql-compiler'
 
 const penguins = ty.table('penguins', {
     species: 'string',
@@ -32,34 +31,30 @@ const penguins = ty.table('penguins', {
 })
 
 const result = penguins
-    .filter(r => r.bill_length_mm.gt(40))
-    .groupBy(r => ({ species: true, year: true }))
+    .filter(r => r.year.eq(2018).or(r.year.ge(2024)))
+    .groupBy({ species: true, year: true })
     .agg(g => ({
         count: ty.count(),
         mean_bill: g.bill_length_mm.mean(),
     }))
-    .sort(r => r.count.desc())
+    .filter(r => r.mean_bill.le(47))
+    .sort({ count: 'desc' })
     .take(10)
 
 console.log(toSql(result).sql)
-// SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill
-// FROM penguins
-// WHERE bill_length_mm > 40
-// GROUP BY species, year
-// ORDER BY count DESC
-// LIMIT 10
-
-console.log(toPrql(result))
-// from penguins
-// filter bill_length_mm > 40
-// group {species, year} (
-//   aggregate {
-//     count = count this,
-//     mean_bill = average bill_length_mm
-//   }
-// )
-// sort {-count}
-// take 10
+// WITH _cte_0 AS (
+//    SELECT
+//      "species",
+//      "year",
+//       COUNT(*) AS "count",
+//       AVG("bill_length_mm") AS "mean_bill"
+//    FROM "penguins"
+//    WHERE ("year" = 2018) OR ("year" > 2024)
+//    GROUP BY "species", "year"
+// ) SELECT * FROM _cte_0
+//   WHERE "mean_bill" <= 47
+//   ORDER BY "count" DESC
+//   LIMIT 10
 ```
 
 Tybis does NOT:
@@ -100,25 +95,46 @@ These are designed to closely mirror the apache arrow datatypes.
 
 In the future I plan to add arrays, structs, and maps.
 
-### `.select(r => computations)`
+### `.select(selections)`
 
 Analogous to sql SELECT.
 
+If you just need to pick (or drop) existing columns, use the plain-object form:
+
+```typescript
+orders.select({
+    order_id: true,   // keep
+    amount: true,     // keep
+    customer_id: false, // explicitly drop (any column not mentioned is also dropped)
+})
+```
+
+Use the callback form when you need to compute new column values from
+column expressions:
+
 ```typescript
 orders.select(r => ({
-    n: tybis.count(),
+    n: ty.count(),
     amount_usd: r.amount.div(100),
     transaction_date: true, // keep the existing "transaction_date" column
-    will_be_dropped: false, // this will be explicityl dropped
+    will_be_dropped: false, // explicitly dropped
     constantly_42: ty.lit(42), // all rows filled with `42`
     constantly_true: ty.lit(true), // all rows filled with `true`
 }))
 ```
 
-### `.derive(r => computations)`
+### `.derive(derivations)`
 
-Add or overwrite computed columns to each row.
-This is like .select(), but keeps around the existing columns.
+Add or overwrite computed columns on each row.
+Like `.select()`, but keeps the existing columns.
+
+If your derivation doesn't reference existing columns, use the plain-object form:
+
+```typescript
+orders.derive({ year_offset: ty.lit(2000) })
+```
+
+Use the callback form to compute new columns from column expressions:
 
 ```typescript
 orders.derive(r => ({
@@ -136,9 +152,17 @@ orders.filter(r => r.is_paid.eq(true))
 orders.filter(r => r.amount.gt(50).and(r.is_paid.eq(true)))
 ```
 
-### `.sort(r => key | keys)`
+### `.sort(keys)`
 
-Sort rows. Use `.desc()` for descending, `.asc()` or a bare column for ascending.
+Sort rows. The plain-object form takes column names mapped to `'asc'`,
+`'desc'`, or `{ dir, nulls }`. Insertion order determines sort priority.
+
+```typescript
+orders.sort({ amount: 'desc' })
+orders.sort({ customer_id: 'asc', amount: { dir: 'desc', nulls: 'last' } })
+```
+
+Use the callback form for sort keys derived from column expressions:
 
 ```typescript
 orders.sort(r => r.amount.desc())
@@ -153,18 +177,30 @@ Return only the first `n` rows.
 orders.take(100)
 ```
 
-### `.groupBy(keys).agg(transform)`
+### `.groupBy(keys).agg(aggregations)`
 
 Group rows by key columns and apply aggregations. `groupBy` returns a `GroupedRelation`; call `.agg(...)` on it to reduce to one row per group.
 
+If you're grouping by existing columns, use the plain-object form:
+
 ```typescript
 orders
-    .groupBy(r => ({ customer_id: true }))
+    .groupBy({ customer_id: true })
     .agg(g => ({
         order_count: ty.count(),
         total_spent: g.amount.sum(),
         max_order: g.amount.max(),
     }))
+// A relation with columns customer_id, order_count, total_spent, and max_order 
+```
+
+Use the callback form when you need to compute grouping keys from column expressions:
+
+```typescript
+orders
+    .groupBy(r => ({ decade: r.year.div(10) }))
+    .agg(g => ({ order_count: ty.count() }))
+// A relation with columns decade and order_count
 ```
 
 ### `count()`

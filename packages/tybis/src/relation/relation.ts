@@ -102,6 +102,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * @example
      * const penguins = ty.table('penguins', { species: 'string', bill_length_mm: 'float64' })
      * penguins.derive(r => ({ bill_length_cm: r.bill_length_mm.div(10) })).schema
+     * // Result: { species: 'string', bill_length_mm: 'float64', bill_length_cm: 'float64' }
      */
     get schema(): S {
         return this._op.schema()
@@ -118,10 +119,19 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
-     * @example penguins.groupBy({ species: true, year: true })
+     *
+     * Use the plain-object form to group by existing columns.
      * @example
+     * ```
+     * penguins.groupBy({ species: true, year: true })
+     * ```
+     *
+     * Use the callback form when you need to compute derived keys, eg turning the `year` column into a decade:
+     * @example
+     * ```
      * penguins.groupBy(r => ({ kind: r.species, decade: r.year.div(10) }))
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
+     * ```
      */
     groupBy<K extends SelectInput<S, K>>(
         input: K & (keyof K extends never ? "At least one grouping key is required" : K),
@@ -162,8 +172,19 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Add computed columns to each row.
-     * @example penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
-     * @example penguins.derive({ year_offset: lit(2000) })
+     *
+     * Use the plain-object form for simple derivations that don't reference existing columns,
+     * for example constant values:
+     * @example
+     * ```
+     * penguins.derive({ year_offset: ty.lit(2000) })
+     * ```
+     * 
+     * Use the callback form when you need to compute new column values from existing columns:     
+     * @example
+     * ```
+     * penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
+     * ```
      */
     derive<D extends Record<string, IVExpr<any, any>>>(
         input: D | ((r: Cols<S>) => D)
@@ -175,9 +196,19 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     }
 
     /**
-     * Replace existing columns with a new set of expressions.
-     * @example penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
-     * @example penguins.select({ species: true }) // Keep existing column
+     * Select a subset of columns, optionally computing new ones.
+     *
+     * Use the plain-object form to pick (or drop) existing columns by name:
+     * @example
+     * ```
+     * penguins.select({ species: true, island: true, bill_length_mm: false })
+     * ```
+     * 
+     * Use the callback form when you need to compute new values from existing columns:
+     * @example
+     * ```
+     * penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
+     * ```
      */
     select<D extends SelectInput<S, D>>(
         input: D | ((r: Cols<S>) => D)
@@ -220,7 +251,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * Sort rows by one or more keys.
      *
      * Plain-object form keys are column names; values are `'asc'`, `'desc'`,
-     * or `{ dir, nulls? }`. Insertion order determines sort priority.
+     * or `{ dir, nulls? }`.
      *
      * @example penguins.sort({ year: 'desc' })
      * @example penguins.sort({ species: 'asc', year: { dir: 'desc', nulls: 'last' } })
@@ -300,7 +331,7 @@ export class GroupedRelation<S extends Schema, KS extends Schema> {
     /**
      * Aggregate the group with a record of scalar expressions.
      * @example
-     * penguins.groupBy(r => ({ species: true }))
+     * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
     agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
