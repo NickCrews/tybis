@@ -27,7 +27,7 @@ export function registerVOpToVExpr(fn: any) {
  *     }
  * }
  * 
- * // usage: new StartsWithOp(lit('hello').toOp(), mytable.col('mycol').toOp())
+ * // usage: new StartsWithOp(lit('hello').toOp(), mytable.cols.mycol.toOp())
  * ```
  * 
  * But it could also have been implemented without extending `BaseVOp`, like this:
@@ -48,7 +48,7 @@ export function registerVOpToVExpr(fn: any) {
  *     }
  * }
  * 
- * // usage: startsWith(lit('hello').toOp(), mytable.col('mycol').toOp())
+ * // usage: startsWith(lit('hello').toOp(), mytable.cols.mycol.toOp())
  * ```
 */
 export abstract class BaseVOp<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVOp<DT, DS> {

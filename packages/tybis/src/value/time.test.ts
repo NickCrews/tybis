@@ -26,14 +26,14 @@ describe('TimeExpr', () => {
     })
 
     it('eq() comparison constructs a boolean expr', () => {
-        const e = logs.col('mytime').eq(logs.col('mytime2'))
+        const e = logs.cols.mytime.eq(logs.cols.mytime2)
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()
     })
 
     it('isNotNull() check constructs a boolean expr', () => {
-        const e = logs.col('mytime').isNotNull()
+        const e = logs.cols.mytime.isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()

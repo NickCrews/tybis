@@ -13,7 +13,7 @@ const t = ty.table('users', {
 })
 
 describe('Placeholder style', () => {
-  const q = t.filter(r => r.col('name').eq('alice'))
+  const q = t.filter(r => r.name.eq('alice'))
   it('DuckDB uses $N', () => {
     expect(q.compile(new DuckDbSqlCompiler())).toMatchInlineSnapshot(`
           {
@@ -57,7 +57,7 @@ describe('Placeholder style', () => {
 })
 
 describe('contains() — per-dialect functions', () => {
-  const q = t.filter(r => r.col('bio').contains('hello'))
+  const q = t.filter(r => r.bio.contains('hello'))
   it('DuckDB → contains()', () => {
     expect(q.compile(new DuckDbSqlCompiler())).toMatchInlineSnapshot(`
           {
@@ -101,7 +101,7 @@ describe('contains() — per-dialect functions', () => {
 })
 
 describe('starts_with() — per-dialect functions', () => {
-  const q = t.filter(r => r.col('name').startsWith('al'))
+  const q = t.filter(r => r.name.startsWith('al'))
   it('DuckDB → starts_with()', () => {
     expect(q.compile(new DuckDbSqlCompiler())).toMatchInlineSnapshot(`
           {
@@ -147,7 +147,7 @@ describe('starts_with() — per-dialect functions', () => {
 })
 
 describe('temporal_to_string() — per-dialect functions', () => {
-  const q = t.derive(r => ({ d: r.col('created').toString('%Y-%m-%d') }))
+  const q = t.derive(r => ({ d: r.created.toString('%Y-%m-%d') }))
   it('DuckDB → strftime()', () => {
     expect(q.compile(new DuckDbSqlCompiler())).toMatchInlineSnapshot(`
           {

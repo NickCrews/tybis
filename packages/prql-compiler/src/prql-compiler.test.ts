@@ -77,7 +77,7 @@ describe('PrqlCompiler relation ops', () => {
   })
 
   it('filter', () => {
-    const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+    const q = penguins.filter(r => r.bill_length_mm.gt(40))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           filter bill_length_mm > 40"
@@ -85,13 +85,12 @@ describe('PrqlCompiler relation ops', () => {
   })
 
   it('group + agg', () => {
-    const q = penguins.group(
-      _r => ({ species: true, year: true }),
-      g => g.agg({
+    const q = penguins
+      .groupBy(_r => ({ species: true, year: true }))
+      .agg(g => ({
         count: ty.count(),
-        mean_bill: g.col('bill_length_mm').mean(),
-      })
-    )
+        mean_bill: g.bill_length_mm.mean(),
+      }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           group {species, year} (
@@ -104,7 +103,7 @@ describe('PrqlCompiler relation ops', () => {
   })
 
   it('sort descending', () => {
-    const q = penguins.sort(r => r.col('bill_length_mm').desc())
+    const q = penguins.sort(r => r.bill_length_mm.desc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {-bill_length_mm}"
@@ -121,8 +120,8 @@ describe('PrqlCompiler relation ops', () => {
 
   it('select', () => {
     const q = penguins.select(r => ({
-      species: r.col('species'),
-      half_bill: r.col('bill_length_mm').div(2),
+      species: r.species,
+      half_bill: r.bill_length_mm.div(2),
       one: ty.lit(1),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
@@ -160,7 +159,7 @@ describe('PrqlCompiler relation ops', () => {
 
   it('derive a computed column', () => {
     const q = penguins.derive(r => ({
-      ratio: r.col('bill_length_mm').div(40),
+      ratio: r.bill_length_mm.div(40),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
@@ -172,15 +171,13 @@ describe('PrqlCompiler relation ops', () => {
 
   it('chained operations', () => {
     const q = penguins
-      .filter(_r => _r.col('bill_length_mm').gt(40))
-      .group(
-        _r => ({ species: true, year: true }),
-        g => g.agg({
-          count: ty.count(),
-          mean_bill: g.col('bill_length_mm').mean(),
-        })
-      )
-      .sort(_r => _r.col('count').desc())
+      .filter(_r => _r.bill_length_mm.gt(40))
+      .groupBy(_r => ({ species: true, year: true }))
+      .agg(g => ({
+        count: ty.count(),
+        mean_bill: g.bill_length_mm.mean(),
+      }))
+      .sort(_r => _r.count.desc())
       .take(10)
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
@@ -205,8 +202,8 @@ describe('PrqlCompiler — derive', () => {
       bill_length_mm: 'float64',
     })
     const q = penguins.derive(r => ({
-      half_bill: r.col('bill_length_mm').div(2),
-      double_bill: r.col('bill_length_mm').mul(2),
+      half_bill: r.bill_length_mm.div(2),
+      double_bill: r.bill_length_mm.mul(2),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
@@ -226,7 +223,7 @@ describe('PrqlCompiler — sort', () => {
   })
 
   it('asc()', () => {
-    const q = penguins.sort(r => r.col('bill_length_mm').asc())
+    const q = penguins.sort(r => r.bill_length_mm.asc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {bill_length_mm}"
@@ -234,7 +231,7 @@ describe('PrqlCompiler — sort', () => {
   })
 
   it('bare column (default ascending)', () => {
-    const q = penguins.sort(r => r.col('year'))
+    const q = penguins.sort(r => r.year)
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {year}"
@@ -242,7 +239,7 @@ describe('PrqlCompiler — sort', () => {
   })
 
   it('multiple keys with mixed asc/desc', () => {
-    const q = penguins.sort(r => [r.col('species'), r.col('bill_length_mm').desc()])
+    const q = penguins.sort(r => [r.species, r.bill_length_mm.desc()])
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {species, -bill_length_mm}"
@@ -250,7 +247,7 @@ describe('PrqlCompiler — sort', () => {
   })
 
   it('multiple ascending keys', () => {
-    const q = penguins.sort(r => [r.col('species').asc(), r.col('year').asc()])
+    const q = penguins.sort(r => [r.species.asc(), r.year.asc()])
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {species, year}"
@@ -258,7 +255,7 @@ describe('PrqlCompiler — sort', () => {
   })
 
   it('multiple descending keys', () => {
-    const q = penguins.sort(r => [r.col('species').desc(), r.col('year').desc()])
+    const q = penguins.sort(r => [r.species.desc(), r.year.desc()])
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           sort {-species, -year}"
@@ -274,7 +271,7 @@ describe('PrqlCompiler — comparison ops', () => {
   })
 
   it('eq', () => {
-    const q = table.derive(r => ({ is_five: r.col('f64a').eq(5) }))
+    const q = table.derive(r => ({ is_five: r.f64a.eq(5) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
@@ -284,7 +281,7 @@ describe('PrqlCompiler — comparison ops', () => {
   })
 
   it('gt', () => {
-    const q = table.derive(r => ({ is_greater: r.col('f64a').gt(5) }))
+    const q = table.derive(r => ({ is_greater: r.f64a.gt(5) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
@@ -294,7 +291,7 @@ describe('PrqlCompiler — comparison ops', () => {
   })
 
   it('gte', () => {
-    const q = table.derive(r => ({ is_gte: r.col('f64a').gte(10) }))
+    const q = table.derive(r => ({ is_gte: r.f64a.gte(10) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
@@ -304,7 +301,7 @@ describe('PrqlCompiler — comparison ops', () => {
   })
 
   it('lt', () => {
-    const q = table.derive(r => ({ is_less: r.col('f64a').lt(20) }))
+    const q = table.derive(r => ({ is_less: r.f64a.lt(20) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
@@ -314,7 +311,7 @@ describe('PrqlCompiler — comparison ops', () => {
   })
 
   it('lte', () => {
-    const q = table.derive(r => ({ is_lte: r.col('f64a').lte(20) }))
+    const q = table.derive(r => ({ is_lte: r.f64a.lte(20) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
@@ -325,7 +322,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('and / combined comparisons', () => {
     const q = table.filter(r =>
-      r.col('f64a').gt(10).and(r.col('f64b').lt(20))
+      r.f64a.gt(10).and(r.f64b.lt(20))
     )
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
@@ -335,7 +332,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('or', () => {
     const q = table.filter(r =>
-      r.col('f64a').gt(100).or(r.col('f64b').lt(5))
+      r.f64a.gt(100).or(r.f64b.lt(5))
     )
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
@@ -345,7 +342,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('not', () => {
     const t = ty.table('data', { active: 'boolean' })
-    const q = t.filter(r => r.col('active').not())
+    const q = t.filter(r => r.active.not())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           filter !(active)"
@@ -354,7 +351,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('not chained with and', () => {
     const t = ty.table('data', { a: 'boolean', b: 'boolean' })
-    const q = t.filter(r => r.col('a').not().and(r.col('b')))
+    const q = t.filter(r => r.a.not().and(r.b))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           filter (!(a)) && (b)"
@@ -363,7 +360,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('isNotNull in a filter', () => {
     const t = ty.table('data', { name: 'string' })
-    const q = t.filter(r => r.col('name').isNotNull())
+    const q = t.filter(r => r.name.isNotNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           filter name != null"
@@ -372,7 +369,7 @@ describe('PrqlCompiler — comparison ops', () => {
 
   it('isNull in a filter', () => {
     const t = ty.table('data', { name: 'string' })
-    const q = t.filter(r => r.col('name').isNull())
+    const q = t.filter(r => r.name.isNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           filter name == null"
@@ -387,7 +384,7 @@ describe('PrqlCompiler — numeric ops', () => {
   })
 
   it('addition columnar + scalar', () => {
-    const q = table.derive(r => ({ result: r.col('x').add(5) }))
+    const q = table.derive(r => ({ result: r.x.add(5) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from nums
           derive {
@@ -397,7 +394,7 @@ describe('PrqlCompiler — numeric ops', () => {
   })
 
   it('addition columnar + columnar', () => {
-    const q = table.derive(r => ({ result: r.col('x').add(r.col('y')) }))
+    const q = table.derive(r => ({ result: r.x.add(r.y) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from nums
           derive {
@@ -407,7 +404,7 @@ describe('PrqlCompiler — numeric ops', () => {
   })
 
   it('subtraction', () => {
-    const q = table.derive(r => ({ result: r.col('x').sub(r.col('y')) }))
+    const q = table.derive(r => ({ result: r.x.sub(r.y) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from nums
           derive {
@@ -417,7 +414,7 @@ describe('PrqlCompiler — numeric ops', () => {
   })
 
   it('multiplication', () => {
-    const q = table.derive(r => ({ result: r.col('x').mul(2) }))
+    const q = table.derive(r => ({ result: r.x.mul(2) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from nums
           derive {
@@ -427,7 +424,7 @@ describe('PrqlCompiler — numeric ops', () => {
   })
 
   it('division', () => {
-    const q = table.derive(r => ({ result: r.col('x').div(r.col('y')) }))
+    const q = table.derive(r => ({ result: r.x.div(r.y) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from nums
           derive {
@@ -444,7 +441,7 @@ describe('PrqlCompiler — string ops', () => {
   })
 
   it('upper', () => {
-    const q = table.derive(r => ({ name_upper: r.col('name').upper() }))
+    const q = table.derive(r => ({ name_upper: r.name.upper() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           derive {
@@ -454,7 +451,7 @@ describe('PrqlCompiler — string ops', () => {
   })
 
   it('lower', () => {
-    const q = table.derive(r => ({ name_lower: r.col('name').lower() }))
+    const q = table.derive(r => ({ name_lower: r.name.lower() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           derive {
@@ -464,7 +461,7 @@ describe('PrqlCompiler — string ops', () => {
   })
 
   it('contains', () => {
-    const q = table.filter(r => r.col('email').contains('gmail'))
+    const q = table.filter(r => r.email.contains('gmail'))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           filter contains email "gmail""
@@ -472,7 +469,7 @@ describe('PrqlCompiler — string ops', () => {
   })
 
   it('startsWith', () => {
-    const q = table.filter(r => r.col('name').startsWith('Dr.'))
+    const q = table.filter(r => r.name.startsWith('Dr.'))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           filter starts_with name "Dr.""
@@ -481,7 +478,7 @@ describe('PrqlCompiler — string ops', () => {
 
   it('chained string operations', () => {
     const q = table.derive(r => ({
-      normalized: r.col('name').lower().upper()
+      normalized: r.name.lower().upper()
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
@@ -493,8 +490,8 @@ describe('PrqlCompiler — string ops', () => {
 
   it('combined contains and startsWith', () => {
     const q = table.filter(r =>
-      r.col('email').contains('gmail').and(
-        r.col('name').startsWith('A')
+      r.email.contains('gmail').and(
+        r.name.startsWith('A')
       )
     )
     expect(toPrql(q)).toMatchInlineSnapshot(`
@@ -511,15 +508,14 @@ describe('PrqlCompiler — aggregation ops', () => {
       year: 'int32',
       bill_length_mm: 'float64',
     })
-    const q = penguins.group(
-      _r => ({ species: true }),
-      g => g.agg({
+    const q = penguins
+      .groupBy(_r => ({ species: true }))
+      .agg(g => ({
         count: ty.count(),
-        mean_bill: g.col('bill_length_mm').mean(),
-        max_bill: g.col('bill_length_mm').max(),
-        sum_bill: g.col('bill_length_mm').sum(),
-      })
-    )
+        mean_bill: g.bill_length_mm.mean(),
+        max_bill: g.bill_length_mm.max(),
+        sum_bill: g.bill_length_mm.sum(),
+      }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           group {species} (
@@ -539,13 +535,12 @@ describe('PrqlCompiler — aggregation ops', () => {
       year: 'int32',
       bill_length_mm: 'float64',
     })
-    const q = penguins.group(
-      r => ({
-        kind: r.col('species'),
-        decade: r.col('year').div(10)
-      }),
-      g => g.agg({ count: ty.count() })
-    )
+    const q = penguins
+      .groupBy(r => ({
+        kind: r.species,
+        decade: r.year.div(10),
+      }))
+      .agg({ count: ty.count() })
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
           group {kind = species, decade = year / 10} (
@@ -558,10 +553,9 @@ describe('PrqlCompiler — aggregation ops', () => {
 
   it('max in group agg', () => {
     const t = ty.table('data', { category: 'string', score: 'float64' })
-    const q = t.group(
-      _r => ({ category: true }),
-      g => g.agg({ max_score: g.col('score').max() })
-    )
+    const q = t
+      .groupBy(_r => ({ category: true }))
+      .agg(g => ({ max_score: g.score.max() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           group {category} (
@@ -574,10 +568,9 @@ describe('PrqlCompiler — aggregation ops', () => {
 
   it('min in group agg', () => {
     const t = ty.table('data', { category: 'string', score: 'float64' })
-    const q = t.group(
-      _r => ({ category: true }),
-      g => g.agg({ min_score: g.col('score').min() })
-    )
+    const q = t
+      .groupBy(_r => ({ category: true }))
+      .agg(g => ({ min_score: g.score.min() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           group {category} (
@@ -608,7 +601,7 @@ describe('PrqlCompiler — lit usage in queries', () => {
   const t = ty.table('tbl', { x: 'float64', name: 'string' })
 
   it('lit in eq filter', () => {
-    const q = t.filter(r => r.col('name').eq(ty.lit('alice')))
+    const q = t.filter(r => r.name.eq(ty.lit('alice')))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from tbl
           filter name == "alice""
@@ -616,7 +609,7 @@ describe('PrqlCompiler — lit usage in queries', () => {
   })
 
   it('lit in gt filter', () => {
-    const q = t.filter(r => r.col('x').gt(ty.lit(10)))
+    const q = t.filter(r => r.x.gt(ty.lit(10)))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from tbl
           filter x > 10"
@@ -632,7 +625,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       description: 'string',
     })
     const q = events.derive(r => ({
-      formatted_date: r.col('event_date').toString('%Y-%m-%d'),
+      formatted_date: r.event_date.toString('%Y-%m-%d'),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
@@ -649,7 +642,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       description: 'string',
     })
     const q = events.derive(r => ({
-      formatted_date: r.col('event_datetime').toString('%Y-%m-%d'),
+      formatted_date: r.event_datetime.toString('%Y-%m-%d'),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
@@ -666,7 +659,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       message: 'string',
     })
     const q = logs.derive(r => ({
-      formatted_time: r.col('mytime').toString('%H:%M:%S'),
+      formatted_time: r.mytime.toString('%H:%M:%S'),
     }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from logs
@@ -681,7 +674,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_date: 'date',
     })
-    const q = events.filter(r => r.col('event_date').eq(r.col('event_date')))
+    const q = events.filter(r => r.event_date.eq(r.event_date))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           filter event_date == event_date"
@@ -693,7 +686,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_date: 'date',
     })
-    const q = events.filter(r => r.col('event_date').isNotNull())
+    const q = events.filter(r => r.event_date.isNotNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           filter event_date != null"
@@ -705,7 +698,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_date: 'date',
     })
-    const q = events.sort(r => r.col('event_date').desc())
+    const q = events.sort(r => r.event_date.desc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           sort {-event_date}"
@@ -717,7 +710,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_datetime: 'datetime',
     })
-    const q = events.filter(r => r.col('event_datetime').eq(r.col('event_datetime')))
+    const q = events.filter(r => r.event_datetime.eq(r.event_datetime))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           filter event_datetime == event_datetime"
@@ -729,7 +722,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_datetime: 'datetime',
     })
-    const q = events.filter(r => r.col('event_datetime').isNotNull())
+    const q = events.filter(r => r.event_datetime.isNotNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           filter event_datetime != null"
@@ -741,7 +734,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       event_datetime: 'datetime',
     })
-    const q = events.sort(r => r.col('event_datetime').desc())
+    const q = events.sort(r => r.event_datetime.desc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from events
           sort {-event_datetime}"
@@ -754,7 +747,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       mytime: 'time',
       mytime2: 'time',
     })
-    const q = logs.filter(r => r.col('mytime').eq(r.col('mytime2')))
+    const q = logs.filter(r => r.mytime.eq(r.mytime2))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from logs
           filter mytime == mytime2"
@@ -766,7 +759,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       mytime: 'time',
     })
-    const q = logs.filter(r => r.col('mytime').isNotNull())
+    const q = logs.filter(r => r.mytime.isNotNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from logs
           filter mytime != null"
@@ -778,7 +771,7 @@ describe('PrqlCompiler — date / datetime / time toString', () => {
       id: 'int32',
       mytime: 'time',
     })
-    const q = logs.sort(r => r.col('mytime').asc())
+    const q = logs.sort(r => r.mytime.asc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from logs
           sort {mytime}"
@@ -798,7 +791,7 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('filter by uuid equality', () => {
-    const q = users.filter(r => r.col('id').eq(r.col('id')))
+    const q = users.filter(r => r.id.eq(r.id))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           filter id == id"
@@ -806,7 +799,7 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('filter by uuid isNotNull', () => {
-    const q = users.filter(r => r.col('id').isNotNull())
+    const q = users.filter(r => r.id.isNotNull())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           filter id != null"
@@ -814,7 +807,7 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('sort by uuid', () => {
-    const q = users.sort(r => r.col('id').asc())
+    const q = users.sort(r => r.id.asc())
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           sort {id}"
@@ -822,10 +815,9 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('group by uuid', () => {
-    const q = users.group(
-      _r => ({ id: true }),
-      g => g.agg({ count: ty.count() })
-    )
+    const q = users
+      .groupBy(_r => ({ id: true }))
+      .agg({ count: ty.count() })
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           group {id} (
@@ -837,7 +829,7 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('derive with uuid column', () => {
-    const q = users.derive(r => ({ user_id: r.col('id') }))
+    const q = users.derive(r => ({ user_id: r.id }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           derive {
@@ -851,7 +843,7 @@ describe('PrqlCompiler — uuid', () => {
       order_id: "uuid",
       user_id: "uuid",
     })
-    const q = orders.filter(r => r.col('user_id').eq(r.col('order_id')))
+    const q = orders.filter(r => r.user_id.eq(r.order_id))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from orders
           filter user_id == order_id"
@@ -859,13 +851,12 @@ describe('PrqlCompiler — uuid', () => {
   })
 
   it('min/max over uuid in group agg', () => {
-    const q = users.group(
-      _r => ({ name: true }),
-      g => g.agg({
-        min_id: g.col('id').min(),
-        max_id: g.col('id').max(),
-      })
-    )
+    const q = users
+      .groupBy(_r => ({ name: true }))
+      .agg(g => ({
+        min_id: g.id.min(),
+        max_id: g.id.max(),
+      }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users
           group {name} (
@@ -884,8 +875,8 @@ describe('PrqlCompiler — uuid', () => {
       created_at: "date",
     })
     const q = relationships.filter(r =>
-      r.col('follower_id').isNotNull()
-        .and(r.col('following_id').isNotNull())
+      r.follower_id.isNotNull()
+        .and(r.following_id.isNotNull())
     )
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from relationships
@@ -899,10 +890,9 @@ describe('PrqlCompiler — uuid', () => {
       following_id: "uuid",
       created_at: "date",
     })
-    const q = relationships.group(
-      _r => ({ follower_id: true, following_id: true }),
-      g => g.agg({ count: ty.count() })
-    )
+    const q = relationships
+      .groupBy(_r => ({ follower_id: true, following_id: true }))
+      .agg({ count: ty.count() })
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from relationships
           group {follower_id, following_id} (
@@ -921,7 +911,7 @@ describe('Relation.compile() with explicit PrqlCompiler', () => {
       year: 'int32',
       bill_length_mm: 'float64',
     })
-    const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+    const q = penguins.filter(r => r.bill_length_mm.gt(40))
     expect(q.compile(new PrqlCompiler())).toMatchInlineSnapshot(`
           "from penguins
           filter bill_length_mm > 40"

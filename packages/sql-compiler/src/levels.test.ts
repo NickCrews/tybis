@@ -13,7 +13,7 @@ const penguins = ty.table('penguins', {
 
 describe('Level-boundary planner rules', () => {
     it('FROM + FILTER -> single SELECT', () => {
-        const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+        const q = penguins.filter(r => r.bill_length_mm.gt(40))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -24,8 +24,8 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + FILTER + GROUP -> single SELECT (filter before group is allowed)', () => {
         const q = penguins
-            .filter(r => r.col('bill_length_mm').gt(40))
-            .group(_r => ({ species: true }), g => g.agg({ cnt: ty.count() }))
+            .filter(r => r.bill_length_mm.gt(40))
+            .groupBy(_r => ({ species: true })).agg({ cnt: ty.count() })
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -36,8 +36,8 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + GROUP + FILTER -> CTE chain (filter after group needs new level)', () => {
         const q = penguins
-            .group(_r => ({ species: true }), g => g.agg({ cnt: ty.count() }))
-            .filter(r => r.col('cnt').gt(10))
+            .groupBy(_r => ({ species: true })).agg({ cnt: ty.count() })
+            .filter(r => r.cnt.gt(10))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -48,8 +48,8 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + DERIVE + GROUP -> CTE chain (group after derive)', () => {
         const q = penguins
-            .derive(r => ({ bl_cm: r.col('bill_length_mm').div(10) }))
-            .group(_r => ({ species: true }), g => g.agg({ avg_cm: g.col('bl_cm').mean() }))
+            .derive(r => ({ bl_cm: r.bill_length_mm.div(10) }))
+            .groupBy(_r => ({ species: true })).agg(g => ({ avg_cm: g.bl_cm.mean() }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -60,7 +60,7 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + DERIVE -> single SELECT with star + derived col', () => {
         const q = penguins.derive(r => ({
-            bl_cm: r.col('bill_length_mm').div(10),
+            bl_cm: r.bill_length_mm.div(10),
         }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
@@ -73,7 +73,7 @@ describe('Level-boundary planner rules', () => {
     it('FROM + DERIVE shadowing existing column -> explicit listing', () => {
         const q = penguins.derive(r => ({
             // Replace the existing `bill_length_mm` column.
-            bill_length_mm: r.col('bill_length_mm').div(10),
+            bill_length_mm: r.bill_length_mm.div(10),
         }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
@@ -85,8 +85,8 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + GROUP + SORT + TAKE -> single SELECT', () => {
         const q = penguins
-            .group(_r => ({ species: true }), g => g.agg({ cnt: ty.count() }))
-            .sort(r => r.col('cnt').desc())
+            .groupBy(_r => ({ species: true })).agg({ cnt: ty.count() })
+            .sort(r => r.cnt.desc())
             .take(5)
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
@@ -98,9 +98,9 @@ describe('Level-boundary planner rules', () => {
 
     it('FROM + SORT + TAKE + SORT -> CTE chain (second sort is new level)', () => {
         const q = penguins
-            .sort(r => r.col('bill_length_mm'))
+            .sort(r => r.bill_length_mm)
             .take(100)
-            .sort(r => r.col('species'))
+            .sort(r => r.species)
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -122,7 +122,7 @@ describe('Level-boundary planner rules', () => {
     it('FROM + SELECT + DERIVE -> CTE chain (derive after select needs new level)', () => {
         const q = penguins
             .select(_r => ({ species: true, bill_length_mm: true }))
-            .derive(r => ({ bl_cm: r.col('bill_length_mm').div(10) }))
+            .derive(r => ({ bl_cm: r.bill_length_mm.div(10) }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -134,7 +134,7 @@ describe('Level-boundary planner rules', () => {
     it('FROM + SELECT + FILTER -> CTE chain (filter after select needs new level)', () => {
         const q = penguins
             .select(_r => ({ species: true, bill_length_mm: true }))
-            .filter(r => r.col('bill_length_mm').gt(40))
+            .filter(r => r.bill_length_mm.gt(40))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -145,9 +145,9 @@ describe('Level-boundary planner rules', () => {
 
     it('three-level CTE chain', () => {
         const q = penguins
-            .group(_r => ({ species: true }), g => g.agg({ cnt: ty.count() }))
-            .filter(r => r.col('cnt').gt(10))
-            .group(_r => ({ species: true }), g => g.agg({ tot: (g.col('cnt') as any).sum() }))
+            .groupBy(_r => ({ species: true })).agg({ cnt: ty.count() })
+            .filter(r => r.cnt.gt(10))
+            .groupBy(_r => ({ species: true })).agg(g => ({ tot: (g.cnt as any).sum() }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],

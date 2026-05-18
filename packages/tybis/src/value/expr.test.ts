@@ -8,7 +8,7 @@ import { BooleanLiteralOp, IntervalLiteralOp, NullLiteralOp, UuidLiteralOp } fro
 describe('isNotNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
         const table = ty.table('data', { name: 'string', x: 'float64' })
-        const e = table.col('name').isNotNull()
+        const e = table.cols.name.isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
@@ -27,7 +27,7 @@ describe('isNotNull()', () => {
 describe('isNull()', () => {
     it('produces a boolean columnar expr from a columnar column', () => {
         const table = ty.table('data', { name: 'string', x: 'float64' })
-        const e = table.col('name').isNull()
+        const e = table.cols.name.isNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()
@@ -46,7 +46,7 @@ describe('isNull()', () => {
 describe('min() and max()', () => {
     it('min() returns a scalar expr with same dtype', () => {
         const table = ty.table('data', { score: 'float64' })
-        const e = table.col('score').min()
+        const e = table.cols.score.min()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
         expect(e.dshape()).toBe('scalar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTFloat<64>>()
@@ -55,7 +55,7 @@ describe('min() and max()', () => {
 
     it('max() returns a scalar expr with same dtype', () => {
         const table = ty.table('data', { score: 'float64' })
-        const e = table.col('score').max()
+        const e = table.cols.score.max()
         expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
         expect(e.dshape()).toBe('scalar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTFloat<64>>()
@@ -64,7 +64,7 @@ describe('min() and max()', () => {
 
     it('min() on a string column preserves string dtype', () => {
         const table = ty.table('data', { name: 'string' })
-        const e = table.col('name').min()
+        const e = table.cols.name.min()
         expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
         expect(e.dshape()).toBe('scalar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTString>()
@@ -75,7 +75,7 @@ describe('min() and max()', () => {
 describe('BooleanExpr.not()', () => {
     it('produces a boolean expr with same shape', () => {
         const table = ty.table('data', { active: 'boolean' })
-        const e = table.col('active').not()
+        const e = table.cols.active.not()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e.dtype()).toEqualTypeOf<dt.DTBoolean>()

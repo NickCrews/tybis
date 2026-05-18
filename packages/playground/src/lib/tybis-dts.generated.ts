@@ -14,7 +14,7 @@ type InferDataShape<T extends IntoDataShape> = T extends DataShape ? T : T exten
 declare const IsVOpSymbol: unique symbol;
 declare const IsVExprSymbol: unique symbol;
 /**
- * An IVOp is an interface for a value-op, for example \`add(5, relation.col('height_cm'))\`.
+ * An IVOp is an interface for a value-op, for example \`add(5, relation.cols.height_cm)\`.
  *
  * An IVop represent either a scalar or columnar value with a known DataType.
  * An implementation of IVOp must have the following properties:
@@ -203,6 +203,47 @@ interface IROp<S extends Schema = Schema, K extends string = string> {
     [IsROpSymbol]?: boolean;
 }
 
+/** A base class that you can use as a utility for defining custom {@link IVOp}s.
+ *
+ * Note that you don't NEED to extend this class to create a custom IVOp,
+ * this class is just sometimes a useful shortcut.
+ * For example, the builtin string \`StartsWithOp\` is currently implemented as follows:
+ *
+ * \`\`\`ts
+ * export class StartsWithOp<
+ *     DS1 extends DataShape = DataShape,
+ *     DS2 extends DataShape = DataShape
+ * > extends BaseVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
+ *     readonly kind = 'starts_with' as const
+ *     constructor(readonly operand: IVOp<dt.DTString, DS1>, readonly prefix: IVOp<dt.DTString, DS2>) {
+ *        super(dt.DTBoolean(), highestDataShape(operand.dshape(), prefix.dshape()))
+ *     }
+ * }
+ *
+ * // usage: new StartsWithOp(lit('hello').toOp(), mytable.cols.mycol.toOp())
+ * \`\`\`
+ *
+ * But it could also have been implemented without extending \`BaseVOp\`, like this:
+ *
+ * \`\`\`ts
+ * export function startsWith<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape>(
+ *     operand: IVOp<dt.DTString, DS1>,
+ *     prefix: IVOp<dt.DTString, DS2>
+ * ): IVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
+ *     return {
+ *         [IsVOpSymbol]: true as const,
+ *         kind: 'starts_with' as const,
+ *         operand,
+ *         prefix,
+ *         dtype() { return dt.DTBoolean() },
+ *         dshape() { return highestDataShape(operand.dshape(), prefix.dshape()) },
+ *         getName() { return this.kind }
+ *     }
+ * }
+ *
+ * // usage: startsWith(lit('hello').toOp(), mytable.cols.mycol.toOp())
+ * \`\`\`
+*/
 declare abstract class BaseVOp<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVOp<DT, DS> {
     [IsVOpSymbol]: true;
     abstract readonly kind: string;
@@ -606,7 +647,7 @@ declare function count(): NumericExpr<DTInt<64>, "scalar">;
  *
  * The dtype can be inferred from the value, or explicitly provided if needed.
  *
- * Note how \`ty.lit("name")\` represents a string literal value, which is different from \`myrelation.col("name")\`, which represents a reference to a column named "name".
+ * Note how \`ty.lit("name")\` represents a string literal value, which is different from \`myrelation.cols.name\`, which represents a reference to a column named "name".
  *
  * @param value The literal value to use.
  * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.
@@ -615,22 +656,16 @@ declare function count(): NumericExpr<DTInt<64>, "scalar">;
 declare function lit<JS extends AcceptableJsVal<DT>, DT extends IntoDtype | undefined = undefined>(value: JS, dtype?: DT): VExpr<ExplicitOrInferredDtype<JS, DT>, "scalar">;
 
 type Col<DT extends DataType = DataType> = VExpr<DT, 'columnar'>;
-declare class RowAccessor<S extends Schema> {
-    private readonly _schema;
-    constructor(_schema: S);
-    col<K extends keyof S & string>(name: K): Col<S[K]>;
-}
-/** Result of calling g.agg({...}) inside a group() callback. */
-declare class GroupResult<A extends Record<string, IVExpr<any, 'scalar'>>> {
-    readonly aggregations: A;
-    constructor(aggregations: A);
-}
-declare class GroupAccessor<S extends Schema> {
-    private readonly _schema;
-    constructor(_schema: S);
-    col<K extends keyof S & string>(name: K): Col<S[K]>;
-    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(aggregations: A): GroupResult<A>;
-}
+/**
+ * A flat namespace of column expressions for a given schema.
+ *
+ * \`cols.species\` returns a columnar expression for the \`species\` column.
+ * Bracket access (\`cols["first name"]\`) works for column names that aren't valid identifiers.
+ * Accessing an unknown column throws an error (with a typo suggestion when applicable).
+ */
+type Cols<S extends Schema> = {
+    readonly [K in keyof S & string]: Col<S[K]>;
+};
 type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
     [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never;
 };
@@ -645,59 +680,75 @@ type SelectSchema<S extends Schema, D> = {
 };
 declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /** @internal */ readonly _op: O;
+    /**
+     * A flat namespace of every column in the relation as a property.
+     * @example penguins.cols.bill_length_mm.mean()
+     * @example penguins.cols["first name"]  // bracket access for non-identifier names
+     */
+    readonly cols: Cols<S>;
     constructor(
     /** @internal */ _op: O);
     /**
      * The schema of the relation, i.e. the mapping of column names to their data types.
      * @example
      * const penguins = ty.table('penguins', { species: 'string', bill_length_mm: 'float64' })
-     * penguins.derive({ bill_length_cm: penguins.col('bill_length_mm').div(10) }).schema
-     * // Result: { species: { typecode: 'string' }, bill_length_mm: { typecode: 'float', size: 64 }, bill_length_cm: { typecode: 'float', size: 64 } }
+     * penguins.derive(r => ({ bill_length_cm: r.bill_length_mm.div(10) })).schema
      */
     get schema(): S;
     /**
-     * Get a column expression by name.
-     * @example penguins.col("bill_length_mm")
-     */
-    col<K extends keyof S & string>(name: K): VExpr<S[K], "columnar">;
-    /**
      * Filter rows using a boolean expression.
-     * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
+     * @example penguins.filter(r => r.bill_length_mm.gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>>;
+    filter(cb: (r: Cols<S>) => BooleanExpr): Relation<S, FilterOp<S>>;
     /**
-     * Group rows by key columns and apply aggregations.
+     * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
      * @example
-     * penguins.group(
-     *   r => ({ species: true, year: true }),
-     *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
-     * )
+     * penguins.groupBy(r => ({ species: true, year: true }))
+     *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
-    group<K extends SelectInput<S, K>, A extends Record<string, IVExpr<any, 'scalar'>>>(keys: (r: RowAccessor<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K), transform: (g: GroupAccessor<S>) => GroupResult<A>): Relation<SelectSchema<S, K> & AggResultSchema<A>, GroupOp<SelectSchema<S, K> & AggResultSchema<A>>>;
+    groupBy<K extends SelectInput<S, K>>(keys: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
     /**
      * Add computed columns to each row.
-     * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
+     * @example penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
      * @example penguins.derive({ year_offset: lit(2000) })
      */
-    derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: RowAccessor<S>) => D)): Relation<DeriveSchema<S, D>>;
+    derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: Cols<S>) => D)): Relation<DeriveSchema<S, D>>;
     /**
      * Replace existing columns with a new set of expressions.
-     * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
+     * @example penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
      * @example penguins.select({ species: true }) // Keep existing column
      */
-    select<D extends SelectInput<S, D>>(input: D | ((r: RowAccessor<S>) => D)): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
+    select<D extends SelectInput<S, D>>(input: D | ((r: Cols<S>) => D)): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
     /**
      * Sort rows by one or more keys.
-     * @example penguins.sort(r => r.col("count").desc())
-     * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
+     * @example penguins.sort(r => r.count.desc())
+     * @example penguins.sort(r => [r.species, r.year.desc()])
      */
-    sort(cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<S, SortOp<S>>;
+    sort(cb: (r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<S, SortOp<S>>;
     /**
      * Take the first n rows.
      * @example penguins.take(10)
      */
     take(n: number): Relation<S, TakeOp<S>>;
     compile<R>(compiler: RCompiler<R, O>): R;
+}
+/**
+ * The result of calling {@link Relation.groupBy}. Use {@link GroupedRelation.agg}
+ * to produce a new aggregated {@link Relation}.
+ */
+declare class GroupedRelation<S extends Schema, KS extends Schema> {
+    private readonly _source;
+    private readonly _keyPairs;
+    /** @internal */ readonly _keySchema: KS;
+    constructor(_source: Relation<S>, _keyPairs: [string, IVOp][], 
+    /** @internal */ _keySchema: KS);
+    /**
+     * Aggregate the group with a record of scalar expressions.
+     * @example
+     * penguins.groupBy(r => ({ species: true }))
+     *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
+     */
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A | ((r: Cols<S>) => A)): Relation<KS & AggResultSchema<A>, GroupOp<KS & AggResultSchema<A>>>;
 }
 /**
  * Define a relation backed by a database table or view.

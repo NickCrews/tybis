@@ -28,41 +28,48 @@ describe('ty.table()', () => {
     })
 })
 
-describe('Relation.col()', () => {
+describe('Relation.cols', () => {
     it('throws when accessing a non-existent column with no close match', () => {
         // @ts-expect-error — 'totally_unknown_column' is not in the schema
-        expect(() => penguins.col('totally_unknown_column')).toThrow("Column 'totally_unknown_column' does not exist")
+        expect(() => penguins.cols.totally_unknown_column).toThrow("Column 'totally_unknown_column' does not exist")
     })
 
     it('throws with a typo suggestion when a close column exists', () => {
         // @ts-expect-error — 'spcies' is not in the schema
-        expect(() => penguins.col('spcies')).toThrow("Did you mean 'species'?")
+        expect(() => penguins.cols.spcies).toThrow("Did you mean 'species'?")
     })
 
     it('throws with a typo suggestion in filter callback', () => {
         expect(() =>
             // @ts-expect-error — 'yeer' is not in the schema
-            penguins.filter(r => r.col('yeer').gt(2000))
+            penguins.filter(r => r.yeer.gt(2000))
         ).toThrow("Did you mean 'year'?")
     })
 
     it('throws without suggestion for completely unrelated column', () => {
         const err = (() => {
             // @ts-expect-error — 'xyz' is not in the schema
-            try { penguins.col('xyz') } catch (e) { return e as Error }
+            try { const _ = penguins.cols.xyz } catch (e) { return e as Error }
         })()
         expect(err?.message).toContain("Column 'xyz' does not exist")
         expect(err?.message).not.toContain('Did you mean')
     })
 
     it('returns an expression typed by the column dtype', () => {
-        const speciesCol = penguins.col('species')
+        const speciesCol = penguins.cols.species
         expect(speciesCol.dtype()).toEqual({ typecode: 'string', nullable: true })
         expectTypeOf(speciesCol).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
 
-        const yearCol = penguins.col('year')
+        const yearCol = penguins.cols.year
         expect(yearCol.dtype()).toEqual({ typecode: 'int', size: 32, nullable: true })
         expectTypeOf(yearCol).toMatchTypeOf<ty.IVExpr<dt.DTInt<32>, 'columnar'>>()
+    })
+
+    it('supports bracket access for non-identifier column names', () => {
+        const oddTable = ty.table('odd', { 'first name': 'string' })
+        const c = oddTable.cols['first name']
+        expect(c.dtype()).toEqual({ typecode: 'string', nullable: true })
+        expectTypeOf(c).toMatchTypeOf<ty.IVExpr<dt.DTString, 'columnar'>>()
     })
 })
 
@@ -88,7 +95,7 @@ describe('Relation.select()', () => {
     })
 
     it('can select from the existing relation with no callback', () => {
-        const result = penguins.select({ species2: penguins.col('species') })
+        const result = penguins.select({ species2: penguins.cols.species })
         const expectedSchema = {
             species2: { typecode: 'string', nullable: true },
         }
@@ -99,7 +106,7 @@ describe('Relation.select()', () => {
     it('does not error early if selecting a column from a different relation (TODO)', () => {
         const other = ty.table('other', { species: 'string' })
         // This currently throws an error because the column validator doesn't know to allow columns from other relations, but ideally it should work since the column name is valid and the dtype matches
-        const outcome = penguins.select({ species_from_other: other.col('species') })
+        const outcome = penguins.select({ species_from_other: other.cols.species })
         const expectedSchema = {
             species_from_other: { typecode: 'string', nullable: true },
         }
@@ -114,8 +121,8 @@ describe('Relation.select()', () => {
             bill_length_mm: 'float64',
         })
         const result = t.select(r => ({
-            species_alias: r.col('species'),
-            is_recent: r.col('year').gt(2000),
+            species_alias: r.species,
+            is_recent: r.year.gt(2000),
         }))
 
         expect(result.schema.species_alias).toEqual({ typecode: 'string', nullable: true })
@@ -137,7 +144,7 @@ describe('Relation.select()', () => {
         })
         const result = t.select(r => ({
             species: true,
-            is_recent: r.col('year').gt(2000),
+            is_recent: r.year.gt(2000),
         }))
 
         expect(result.schema.species).toEqual({ typecode: 'string', nullable: true })
@@ -219,11 +226,11 @@ describe('Relation.take()', () => {
 describe('Relation.derive()', () => {
     it('adds multiple derived columns at once', () => {
         const q = penguins.derive(r => ({
-            half_bill: r.col('bill_length_mm').div(2),
-            double_bill: r.col('bill_length_mm').mul(2),
+            half_bill: r.bill_length_mm.div(2),
+            double_bill: r.bill_length_mm.mul(2),
         }))
-        expect(q.col('half_bill').dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
-        expect(q.col('double_bill').dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
+        expect(q.cols.half_bill.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
+        expect(q.cols.double_bill.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
         expectTypeOf(q).toMatchTypeOf<ty.Relation<{
             species: dt.DTString
             year: dt.DTInt<32>
@@ -236,7 +243,7 @@ describe('Relation.derive()', () => {
 
     it('overrides an existing column when derive uses same name', () => {
         const q = penguins.derive(r => ({
-            year: r.col('bill_length_mm').sum(),
+            year: r.bill_length_mm.sum(),
         }))
         const expectedSchema = {
             species: { typecode: 'string', nullable: true },
@@ -254,7 +261,7 @@ describe('Relation.derive()', () => {
             bill_length_mm: 'float64',
         })
         const result = t.derive(r => ({
-            ratio: r.col('bill_length_mm').div(40),
+            ratio: r.bill_length_mm.div(40),
         }))
 
         expect(result.schema.ratio).toEqual({ typecode: 'float', size: 64, nullable: true })
@@ -284,23 +291,21 @@ describe('Relation.derive()', () => {
     })
 })
 
-describe('GroupAccessor.agg() validation', () => {
+describe('GroupedRelation.agg() validation', () => {
     it('throws when aggregation contains a columnar expression', () => {
         expect(() =>
-            penguins.group(
-                _r => ({ species: true }),
-                g => g.agg({
-                    // @ts-expect-error — columnar expr is not assignable to scalar aggregation
-                    bad: g.col('bill_length_mm'),
-                })
-            )
+            penguins
+                .groupBy(_r => ({ species: true }))
+                // @ts-expect-error — columnar expr is not assignable to scalar aggregation
+                .agg(r => ({
+                    bad: r.bill_length_mm,
+                }))
         ).toThrow("Aggregation 'bad' must be a scalar expression")
     })
-    it('group reduces schema to key columns and aggregations', () => {
-        const q = penguins.group(
-            _r => ({ species: true }),
-            g => g.agg({ n: ty.count() })
-        )
+    it('groupBy().agg() reduces schema to key columns and aggregations', () => {
+        const q = penguins
+            .groupBy(_r => ({ species: true }))
+            .agg({ n: ty.count() })
         expect('species' in q.schema).toBe(true)
         expect('n' in q.schema).toBe(true)
         expect('bill_length_mm' in q.schema).toBe(false)
@@ -316,7 +321,7 @@ describe('GroupAccessor.agg() validation', () => {
 
 describe('Relation.filter()', () => {
     it('schema is preserved through filter', () => {
-        const q = penguins.filter(r => r.col('bill_length_mm').gt(40))
+        const q = penguins.filter(r => r.bill_length_mm.gt(40))
         expect(q.schema).toEqual(penguins.schema)
         expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })
@@ -325,7 +330,7 @@ describe('Relation.filter()', () => {
 
 describe('Relation.sort()', () => {
     it('schema is preserved through sort', () => {
-        const q = penguins.sort(r => r.col('year'))
+        const q = penguins.sort(r => r.year)
         expect(q.schema).toEqual(penguins.schema)
         expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
     })

@@ -19,7 +19,7 @@ describe('UUIDExpr', () => {
     })
 
     it('isNotNull() returns a boolean columnar expr', () => {
-        const e = users.col('id').isNotNull()
+        const e = users.cols.id.isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
@@ -30,23 +30,22 @@ describe('UUIDExpr', () => {
             order_id: "uuid",
             user_id: "uuid",
         })
-        const e = orders.col('user_id').eq(orders.col('order_id'))
+        const e = orders.cols.user_id.eq(orders.cols.order_id)
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
     })
 
     it('min/max aggregations preserve uuid type', () => {
-        const q = users.group(
-            _r => ({ name: true }),
-            g => g.agg({
-                min_id: g.col('id').min(),
-                max_id: g.col('id').max(),
-            })
-        )
-        expect(q.col('min_id').dtype()).toEqual({ typecode: 'uuid', nullable: true })
-        expect(q.col('max_id').dtype()).toEqual({ typecode: 'uuid', nullable: true })
-        expectTypeOf(q.col('min_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
-        expectTypeOf(q.col('max_id')).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
+        const q = users
+            .groupBy(_r => ({ name: true }))
+            .agg(r => ({
+                min_id: r.id.min(),
+                max_id: r.id.max(),
+            }))
+        expect(q.cols.min_id.dtype()).toEqual({ typecode: 'uuid', nullable: true })
+        expect(q.cols.max_id.dtype()).toEqual({ typecode: 'uuid', nullable: true })
+        expectTypeOf(q.cols.min_id).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
+        expectTypeOf(q.cols.max_id).toMatchTypeOf<vals.UUIDExpr<"columnar">>()
     })
 })

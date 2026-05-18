@@ -260,7 +260,7 @@ export function count() {
  * 
  * The dtype can be inferred from the value, or explicitly provided if needed.
  * 
- * Note how `ty.lit("name")` represents a string literal value, which is different from `myrelation.col("name")`, which represents a reference to a column named "name".
+ * Note how `ty.lit("name")` represents a string literal value, which is different from `myrelation.cols.name`, which represents a reference to a column named "name".
  * 
  * @param value The literal value to use.
  * @param dtype The optional data type of the literal. If not provided, it will be inferred from the value.

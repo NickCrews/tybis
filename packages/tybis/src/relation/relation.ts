@@ -14,53 +14,41 @@ import {
 import { suggestColumnName } from '../utils/typo.js'
 
 // ---------------------------------------------------------------------------
-// Row and group accessors
+// Column namespace
 // ---------------------------------------------------------------------------
 
 type Col<DT extends DataType = DataType> = VExpr<DT, 'columnar'>
 
-function _colWithSchemaCheck<S extends Schema, K extends keyof S & string>(schema: S, name: K): Col<S[K]> {
-    if (!(name in schema)) {
-        const suggestion = suggestColumnName(name, Object.keys(schema))
-        throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
-    }
-    return col(name, schema[name] as S[K]) as Col<S[K]>
+/**
+ * A flat namespace of column expressions for a given schema.
+ *
+ * `cols.species` returns a columnar expression for the `species` column.
+ * Bracket access (`cols["first name"]`) works for column names that aren't valid identifiers.
+ * Accessing an unknown column throws an error (with a typo suggestion when applicable).
+ */
+export type Cols<S extends Schema> = {
+    readonly [K in keyof S & string]: Col<S[K]>
 }
 
-class RowAccessor<S extends Schema> {
-    constructor(private readonly _schema: S) { }
-
-    col<K extends keyof S & string>(name: K): Col<S[K]> {
-        return _colWithSchemaCheck(this._schema, name)
+function buildCols<S extends Schema>(sch: S): Cols<S> {
+    const target: Record<string, Col> = {}
+    for (const name of Object.keys(sch)) {
+        target[name] = col(name, sch[name]!) as Col
     }
-}
-
-/** Result of calling g.agg({...}) inside a group() callback. */
-class GroupResult<A extends Record<string, IVExpr<any, 'scalar'>>> {
-    constructor(readonly aggregations: A) { }
-}
-
-class GroupAccessor<S extends Schema> {
-    constructor(private readonly _schema: S) { }
-
-    col<K extends keyof S & string>(name: K): Col<S[K]> {
-        return _colWithSchemaCheck(this._schema, name)
-    }
-
-    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
-        aggregations: A
-    ): GroupResult<A> {
-        for (const [key, expr] of Object.entries(aggregations)) {
-            if (expr.dshape() !== 'scalar') {
-                throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape()}'`)
+    return new Proxy(target, {
+        get(t, prop) {
+            if (typeof prop === 'symbol' || prop in t) {
+                return (t as any)[prop]
             }
-        }
-        return new GroupResult(aggregations)
-    }
+            const name = prop as string
+            const suggestion = suggestColumnName(name, Object.keys(t))
+            throw new Error(`Column '${name}' does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+        },
+    }) as Cols<S>
 }
 
 // ---------------------------------------------------------------------------
-// Helper types for group() result schema
+// Schema-shape helpers
 // ---------------------------------------------------------------------------
 
 type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
@@ -90,61 +78,51 @@ type SelectSchema<S extends Schema, D> = {
 // ---------------------------------------------------------------------------
 
 export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
+    /**
+     * A flat namespace of every column in the relation as a property.
+     * @example penguins.cols.bill_length_mm.mean()
+     * @example penguins.cols["first name"]  // bracket access for non-identifier names
+     */
+    readonly cols: Cols<S>
+
     constructor(
         /** @internal */ readonly _op: O
-    ) { }
+    ) {
+        this.cols = buildCols(_op.schema())
+    }
 
     /**
      * The schema of the relation, i.e. the mapping of column names to their data types.
      * @example
      * const penguins = ty.table('penguins', { species: 'string', bill_length_mm: 'float64' })
-     * penguins.derive({ bill_length_cm: penguins.col('bill_length_mm').div(10) }).schema
-     * // Result: { species: { typecode: 'string' }, bill_length_mm: { typecode: 'float', size: 64 }, bill_length_cm: { typecode: 'float', size: 64 } }
+     * penguins.derive(r => ({ bill_length_cm: r.bill_length_mm.div(10) })).schema
      */
     get schema(): S {
         return this._op.schema()
     }
 
     /**
-     * Get a column expression by name.
-     * @example penguins.col("bill_length_mm")
-     */
-    col<K extends keyof S & string>(name: K) {
-        return _colWithSchemaCheck(this.schema, name)
-    }
-
-    /**
      * Filter rows using a boolean expression.
-     * @example penguins.filter(r => r.col("bill_length_mm").gt(40))
+     * @example penguins.filter(r => r.bill_length_mm.gt(40))
      */
-    filter(cb: (r: RowAccessor<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
-        const accessor = new RowAccessor(this.schema)
-        const condition = cb(accessor)
+    filter(cb: (r: Cols<S>) => BooleanExpr): Relation<S, FilterOp<S>> {
+        const condition = cb(this.cols)
         return new Relation(new FilterOp(this._op, condition.toOp()))
     }
 
     /**
-     * Group rows by key columns and apply aggregations.
+     * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
      * @example
-     * penguins.group(
-     *   r => ({ species: true, year: true }),
-     *   g => g.agg({ count: count(), mean_bill: g.col("bill_length_mm").mean() })
-     * )
+     * penguins.groupBy(r => ({ species: true, year: true }))
+     *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
-    group<
-        K extends SelectInput<S, K>,
-        A extends Record<string, IVExpr<any, 'scalar'>>
-    >(
-        keys: (r: RowAccessor<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K),
-        transform: (g: GroupAccessor<S>) => GroupResult<A>
-    ): Relation<
-        SelectSchema<S, K> & AggResultSchema<A>,
-        GroupOp<SelectSchema<S, K> & AggResultSchema<A>>
-    > {
-        const accessor = new RowAccessor(this.schema)
-        const groupingKeys = keys(accessor) as Record<string, IVExpr<any, any> | boolean>
+    groupBy<K extends SelectInput<S, K>>(
+        keys: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K),
+    ): GroupedRelation<S, SelectSchema<S, K>> {
+        const groupingKeys = keys(this.cols) as Record<string, IVExpr<any, any> | boolean>
 
         const keyPairs: [string, IVOp][] = []
+        const keySchema: Record<string, DataType> = {}
         for (const [k, v] of Object.entries(groupingKeys)) {
             if (typeof v === 'boolean') {
                 if (v === true) {
@@ -152,40 +130,32 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
                         const suggestion = suggestColumnName(k, Object.keys(this.schema))
                         throw new Error(`Cannot group by '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
                     }
-                    keyPairs.push([k, accessor.col(k).toOp() as unknown as IVOp])
+                    keyPairs.push([k, (this.cols as any)[k].toOp() as IVOp])
+                    keySchema[k] = this.schema[k]!
                 }
             } else {
                 keyPairs.push([k, v.toOp() as unknown as IVOp])
+                keySchema[k] = v.dtype()
             }
         }
 
         // We could extend this to support empty keys (aggregating the whole table) in the future.
         if (keyPairs.length === 0) {
-            throw new Error("group() requires at least one grouping key")
+            throw new Error("groupBy() requires at least one grouping key")
         }
 
-        const groupAccessor = new GroupAccessor(this.schema)
-        const result = transform(groupAccessor)
-
-        const aggregations = Object.entries(result.aggregations).map(
-            ([k, v]) => [k, v.toOp()] as [string, IVOp]
-        )
-
-        return new Relation(new GroupOp(this._op, keyPairs, aggregations)) as any
+        return new GroupedRelation<S, SelectSchema<S, K>>(this, keyPairs, keySchema as SelectSchema<S, K>)
     }
-
-
 
     /**
      * Add computed columns to each row.
-     * @example penguins.derive(r => ({ ratio: r.col("bill_length_mm").div(40) }))
+     * @example penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
      * @example penguins.derive({ year_offset: lit(2000) })
      */
     derive<D extends Record<string, IVExpr<any, any>>>(
-        input: D | ((r: RowAccessor<S>) => D)
+        input: D | ((r: Cols<S>) => D)
     ): Relation<DeriveSchema<S, D>> {
-        const accessor = new RowAccessor(this.schema)
-        const derivations = typeof input === 'function' ? input(accessor) : input
+        const derivations = typeof input === 'function' ? input(this.cols) : input
         const pairs = Object.entries(derivations).map(([k, v]) => [k, v.toOp()] as [string, IVOp])
 
         return new Relation(new DeriveOp(this._op, pairs)) as any
@@ -193,18 +163,17 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Replace existing columns with a new set of expressions.
-     * @example penguins.select(r => ({ species: r.col("species"), age: r.col("year").sub(2000) }))
+     * @example penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
      * @example penguins.select({ species: true }) // Keep existing column
      */
     select<D extends SelectInput<S, D>>(
-        input: D | ((r: RowAccessor<S>) => D)
+        input: D | ((r: Cols<S>) => D)
     ): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>> {
         if (!input) {
             throw new Error("select() requires a mapping object or callback. For example: .select({ species: true })")
         }
 
-        const accessor = new RowAccessor(this.schema)
-        const selections = typeof input === 'function' ? (input as any)(accessor) : input
+        const selections = typeof input === 'function' ? (input as any)(this.cols) : input
 
         const pairs: [string, IVOp][] = []
         const newSchema: Record<string, DataType> = {}
@@ -217,7 +186,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
                         throw new Error(`Cannot select '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
                     }
                     newSchema[k] = this.schema[k]!
-                    pairs.push([k, accessor.col(k).toOp() as unknown as IVOp])
+                    pairs.push([k, (this.cols as any)[k].toOp() as IVOp])
                 } else {
                     continue
                 }
@@ -236,14 +205,13 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Sort rows by one or more keys.
-     * @example penguins.sort(r => r.col("count").desc())
-     * @example penguins.sort(r => [r.col("species"), r.col("year").desc()])
+     * @example penguins.sort(r => r.count.desc())
+     * @example penguins.sort(r => [r.species, r.year.desc()])
      */
     sort(
-        cb: (r: RowAccessor<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
+        cb: (r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
     ): Relation<S, SortOp<S>> {
-        const accessor = new RowAccessor(this.schema)
-        const result = cb(accessor)
+        const result = cb(this.cols)
         const keysList = Array.isArray(result) ? result : [result]
         const sortKeys = keysList.map(k =>
             k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
@@ -261,6 +229,46 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     compile<R>(compiler: RCompiler<R, O>): R {
         return compiler.compileROp(this._op)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GroupedRelation
+// ---------------------------------------------------------------------------
+
+/**
+ * The result of calling {@link Relation.groupBy}. Use {@link GroupedRelation.agg}
+ * to produce a new aggregated {@link Relation}.
+ */
+export class GroupedRelation<S extends Schema, KS extends Schema> {
+    constructor(
+        private readonly _source: Relation<S>,
+        private readonly _keyPairs: [string, IVOp][],
+        /** @internal */ readonly _keySchema: KS,
+    ) { }
+
+    /**
+     * Aggregate the group with a record of scalar expressions.
+     * @example
+     * penguins.groupBy(r => ({ species: true }))
+     *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
+     */
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
+        input: A | ((r: Cols<S>) => A)
+    ): Relation<KS & AggResultSchema<A>, GroupOp<KS & AggResultSchema<A>>> {
+        const aggregations = typeof input === 'function' ? input(this._source.cols) : input
+
+        for (const [key, expr] of Object.entries(aggregations)) {
+            if (expr.dshape() !== 'scalar') {
+                throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape()}'`)
+            }
+        }
+
+        const pairs = Object.entries(aggregations).map(
+            ([k, v]) => [k, v.toOp()] as [string, IVOp]
+        )
+
+        return new Relation(new GroupOp(this._source._op, this._keyPairs, pairs)) as any
     }
 }
 

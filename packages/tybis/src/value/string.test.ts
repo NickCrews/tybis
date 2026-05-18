@@ -27,7 +27,7 @@ describe('String Operations', () => {
 
         it('on a relation column produces a columnar string expr', () => {
             const r = ty.table('t', { name: 'string' })
-            const e = r.col('name').upper()
+            const e = r.cols.name.upper()
             expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('columnar')
             expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'string', nullable: boolean }>()
@@ -64,7 +64,7 @@ describe('String Operations', () => {
 
         it('on a relation column produces a columnar string expr', () => {
             const r = ty.table('t', { name: 'string' })
-            const e = r.col('name').lower()
+            const e = r.cols.name.lower()
             expect(e.dtype()).toEqual({ typecode: 'string', nullable: true })
             expect(e.dshape()).toBe('columnar')
             expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'string', nullable: boolean }>()
@@ -101,14 +101,14 @@ describe('String Operations', () => {
 
         it('on a relation column produces a columnar boolean expr', () => {
             const r = ty.table('t', { name: 'string', other: 'string' })
-            const e = r.col('name').contains('x')
+            const e = r.cols.name.contains('x')
             expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('columnar')
             expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
             expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
 
 
-            const e2 = r.col('name').contains(r.col('other'))
+            const e2 = r.cols.name.contains(r.cols.other)
             expect(e2.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e2.dshape()).toBe('columnar')
             expectTypeOf(e2.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
@@ -118,7 +118,7 @@ describe('String Operations', () => {
         it('correctly handles highest shape in type system', () => {
             const r = ty.table('t', { name: 'string' })
             const scalar = ty.lit('x')
-            const col = r.col('name')
+            const col = r.cols.name
 
             const e1 = scalar.contains(col)
             expectTypeOf(e1.dshape()).toEqualTypeOf<'columnar'>()
@@ -182,12 +182,12 @@ describe('String Operations', () => {
 
         it('on a relation column produces a columnar boolean expr', () => {
             const r = ty.table('t', { name: 'string', title: 'string' })
-            const e = r.col('name').startsWith('Dr.')
+            const e = r.cols.name.startsWith('Dr.')
             expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e.dshape()).toBe('columnar')
             expectTypeOf(e).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()
             expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
-            const e2 = r.col('name').startsWith(r.col('title'))
+            const e2 = r.cols.name.startsWith(r.cols.title)
             expect(e2.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expect(e2.dshape()).toBe('columnar')
             expectTypeOf(e2).toMatchTypeOf<ty.IVExpr<dt.DTBoolean, 'columnar'>>()

@@ -23,7 +23,7 @@ const penguins = ty.table('penguins', {
 })
 
 const bigBills = penguins
-  .filter(r => r.col('bill_length_mm').gt(45))
+  .filter(r => r.bill_length_mm.gt(45))
 
 preview(bigBills)
 `,
@@ -43,16 +43,14 @@ const penguins = ty.table('penguins', {
 })
 
 const bySpecies = penguins
-  .group(
-    r => ({ species: true }),
-    g => g.agg({
-      count: ty.count(),
-      avg_bill: g.col('bill_length_mm').mean(),
-      avg_mass: g.col('body_mass_g').mean(),
-      max_mass: g.col('body_mass_g').max(),
-    })
-  )
-  .sort(r => r.col('avg_mass').desc())
+  .groupBy(r => ({ species: true }))
+  .agg(g => ({
+    count: ty.count(),
+    avg_bill: g.bill_length_mm.mean(),
+    avg_mass: g.body_mass_g.mean(),
+    max_mass: g.body_mass_g.max(),
+  }))
+  .sort(r => r.avg_mass.desc())
 
 preview(bySpecies)
 `,
@@ -71,21 +69,19 @@ const penguins = ty.table('penguins', {
 })
 
 const result = penguins
-  .filter(r => r.col('bill_length_mm').gt(40))
-  .group(
-    r => ({ species: true, year: true }),
-    g => g.agg({
-      count: ty.count(),
-      mean_bill: g.col('bill_length_mm').mean(),
-    })
-  )
+  .filter(r => r.bill_length_mm.gt(40))
+  .groupBy(r => ({ species: true, year: true }))
+  .agg(g => ({
+    count: ty.count(),
+    mean_bill: g.bill_length_mm.mean(),
+  }))
   .select(r => ({
     species: true,
     year: false, // Drop year
     count: true,
-    mean_bill_cm: r.col('mean_bill').div(10), // Rename and transform
+    mean_bill_cm: r.mean_bill.div(10), // Rename and transform
   }))
-  .sort(r => r.col('count').desc())
+  .sort(r => r.count.desc())
   .take(10)
 
 preview(result)
@@ -108,17 +104,15 @@ const orders = ty.table('orders', {
 
 // Top paying customers with at least one paid order
 const topCustomers = orders
-  .filter(r => r.col('is_paid').eq(true))
-  .filter(r => r.col('amount').gt(50))
-  .group(
-    r => ({ customer_id: true }),
-    g => g.agg({
-      order_count: ty.count(),
-      total_spent: g.col('amount').sum(),
-      max_order:   g.col('amount').max(),
-    })
-  )
-  .sort(r => r.col('total_spent').desc())
+  .filter(r => r.is_paid.eq(true))
+  .filter(r => r.amount.gt(50))
+  .groupBy(r => ({ customer_id: true }))
+  .agg(g => ({
+    order_count: ty.count(),
+    total_spent: g.amount.sum(),
+    max_order:   g.amount.max(),
+  }))
+  .sort(r => r.total_spent.desc())
   .take(20)
 
 preview(topCustomers)
@@ -139,10 +133,10 @@ const products = ty.table('products', {
 
 const enriched = products
   .derive(r => ({
-    price_dollars: r.col('price_cents').div(100),
-    revenue_cents: r.col('price_cents').mul(r.col('quantity')),
+    price_dollars: r.price_cents.div(100),
+    revenue_cents: r.price_cents.mul(r.quantity),
   }))
-  .sort(r => r.col('revenue_cents').desc())
+  .sort(r => r.revenue_cents.desc())
 
 preview(enriched)
 `,
@@ -167,11 +161,9 @@ const withExtract = events
     // Pull the year out using a raw SQL expression
     year: tysql.sql("EXTRACT(YEAR FROM occurred_at)", { typecode: 'int', size: 32, nullable: true }, 'columnar'),
   }))
-  .group(
-    r => ({ event_name: true, year: true }),
-    g => g.agg({ n: ty.count() })
-  )
-  .sort(r => r.col('n').desc())
+  .groupBy(r => ({ event_name: true, year: true }))
+  .agg({ n: ty.count() })
+  .sort(r => r.n.desc())
 
 preview(withExtract)
 `,

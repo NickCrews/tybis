@@ -110,7 +110,7 @@ describe('VOp output - literals', () => {
 
 describe('VOp output - column ref / count / raw_sql', () => {
   it('col_ref', () => {
-    expect(compileVal(t.col('s'))).toMatchInlineSnapshot(`
+    expect(compileVal(t.cols.s)).toMatchInlineSnapshot(`
           [
             ""s"",
           ]
@@ -144,7 +144,7 @@ describe('Relation - simple cases', () => {
   })
 
   it('filter eq with string param', () => {
-    expect(compileR(t.filter(r => r.col('s').eq('hi'))))
+    expect(compileR(t.filter(r => r.s.eq('hi'))))
       .toMatchInlineSnapshot(`
               {
                 "params": [
@@ -156,7 +156,7 @@ describe('Relation - simple cases', () => {
   })
 
   it('filter gt int', () => {
-    expect(compileR(t.filter(r => r.col('i').gt(40))))
+    expect(compileR(t.filter(r => r.i.gt(40))))
       .toMatchInlineSnapshot(`
               {
                 "params": [],
@@ -166,7 +166,7 @@ describe('Relation - simple cases', () => {
   })
 
   it('filter is_not_null', () => {
-    expect(compileR(t.filter(r => r.col('s').isNotNull())))
+    expect(compileR(t.filter(r => r.s.isNotNull())))
       .toMatchInlineSnapshot(`
               {
                 "params": [],
@@ -176,7 +176,7 @@ describe('Relation - simple cases', () => {
   })
 
   it('filter and / or / not', () => {
-    expect(compileR(t.filter(r => r.col('i').gt(1).and(r.col('i').lt(10)))))
+    expect(compileR(t.filter(r => r.i.gt(1).and(r.i.lt(10)))))
       .toMatchInlineSnapshot(`
               {
                 "params": [],
@@ -197,8 +197,8 @@ describe('Relation - simple cases', () => {
 
   it('select with derived expressions', () => {
     const q = t.select(r => ({
-      s: r.col('s'),
-      half: r.col('f').div(2),
+      s: r.s,
+      half: r.f.div(2),
       one: ty.lit(1),
     }))
     expect(compileR(q)).toMatchInlineSnapshot(`
@@ -210,7 +210,7 @@ describe('Relation - simple cases', () => {
   })
 
   it('derive (no shadow)', () => {
-    const q = t.derive(r => ({ doubled: r.col('i').mul(2) }))
+    const q = t.derive(r => ({ doubled: r.i.mul(2) }))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -220,14 +220,13 @@ describe('Relation - simple cases', () => {
   })
 
   it('group + agg', () => {
-    const q = t.group(
-      _r => ({ s: true }),
-      g => g.agg({
+    const q = t
+      .groupBy(_r => ({ s: true }))
+      .agg(g => ({
         cnt: ty.count(),
-        avg_f: g.col('f').mean(),
-        tot: g.col('i').sum(),
-      })
-    )
+        avg_f: g.f.mean(),
+        tot: g.i.sum(),
+      }))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -237,14 +236,14 @@ describe('Relation - simple cases', () => {
   })
 
   it('sort asc / desc', () => {
-    expect(compileR(t.sort(r => r.col('i'))))
+    expect(compileR(t.sort(r => r.i)))
       .toMatchInlineSnapshot(`
               {
                 "params": [],
                 "sql": "SELECT * FROM "t" ORDER BY "i"",
               }
             `)
-    expect(compileR(t.sort(r => r.col('i').desc())))
+    expect(compileR(t.sort(r => r.i.desc())))
       .toMatchInlineSnapshot(`
               {
                 "params": [],
@@ -266,8 +265,8 @@ describe('Relation - simple cases', () => {
 describe('String ops - DuckDB', () => {
   it('upper / lower', () => {
     const q = t.derive(r => ({
-      up: r.col('s').upper(),
-      lo: r.col('s').lower(),
+      up: r.s.upper(),
+      lo: r.s.lower(),
     }))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
@@ -277,7 +276,7 @@ describe('String ops - DuckDB', () => {
         `)
   })
   it('contains (DuckDB function form)', () => {
-    const q = t.filter(r => r.col('s').contains('foo'))
+    const q = t.filter(r => r.s.contains('foo'))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [
@@ -288,7 +287,7 @@ describe('String ops - DuckDB', () => {
         `)
   })
   it('starts_with (DuckDB function form)', () => {
-    const q = t.filter(r => r.col('s').startsWith('pre'))
+    const q = t.filter(r => r.s.startsWith('pre'))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [
@@ -302,7 +301,7 @@ describe('String ops - DuckDB', () => {
 
 describe('Temporal toString - DuckDB', () => {
   it('date', () => {
-    const q = t.derive(r => ({ formatted: r.col('d').toString('%Y-%m-%d') }))
+    const q = t.derive(r => ({ formatted: r.d.toString('%Y-%m-%d') }))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [

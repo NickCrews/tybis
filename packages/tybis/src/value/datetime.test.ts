@@ -25,14 +25,14 @@ describe('DateTimeExpr', () => {
     })
 
     it('eq() comparison constructs a boolean expr', () => {
-        const e = events.col('event_datetime').eq(events.col('event_datetime'))
+        const e = events.cols.event_datetime.eq(events.cols.event_datetime)
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()
     })
 
     it('isNotNull() check constructs a boolean expr', () => {
-        const e = events.col('event_datetime').isNotNull()
+        const e = events.cols.event_datetime.isNotNull()
         expect(e.dtype()).toEqual({ typecode: 'boolean', nullable: true })
         expect(e.dshape()).toBe('columnar')
         expectTypeOf(e).toMatchTypeOf<ty.IVExpr<{ typecode: 'boolean', nullable: boolean }, 'columnar'>>()

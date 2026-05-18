@@ -10,7 +10,7 @@ export const IsVExprSymbol = Symbol('isVExpr')
 export const DependsOnSymbol = Symbol('dependsOn')
 
 /**
- * An IVOp is an interface for a value-op, for example `add(5, relation.col('height_cm'))`.
+ * An IVOp is an interface for a value-op, for example `add(5, relation.cols.height_cm)`.
  * 
  * An IVop represent either a scalar or columnar value with a known DataType.
  * An implementation of IVOp must have the following properties:

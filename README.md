@@ -32,15 +32,13 @@ const penguins = ty.table('penguins', {
 })
 
 const result = penguins
-    .filter(r => r.col('bill_length_mm').gt(40))
-    .group(
-        r => ({ species: true, year: true }),
-        g => g.agg({
-            count: ty.count(),
-            mean_bill: g.col('bill_length_mm').mean(),
-        })
-    )
-    .sort(r => r.col('count').desc())
+    .filter(r => r.bill_length_mm.gt(40))
+    .groupBy(r => ({ species: true, year: true }))
+    .agg(g => ({
+        count: ty.count(),
+        mean_bill: g.bill_length_mm.mean(),
+    }))
+    .sort(r => r.count.desc())
     .take(10)
 
 console.log(toSql(result).sql)
@@ -66,7 +64,7 @@ console.log(toPrql(result))
 
 Tybis does NOT:
 - Provide DDL or DML constructs, eg `INSERT` or `CREATE TABLE`. We focus the equivalent of `SELECT`.
-  But, tybis is designed to be extensible, eg you can do `CREATE TABLE AS ${penguins.filter(r => r.col('bill_length_mm').gt(40)).toSql()}`
+  But, tybis is designed to be extensible, eg you can do `CREATE TABLE AS ${penguins.filter(r => r.bill_length_mm.gt(40)).toSql()}`
 
 ## API
 
@@ -109,7 +107,7 @@ Analogous to sql SELECT.
 ```typescript
 orders.select(r => ({
     n: tybis.count(),
-    amount_usd: r.col('amount').div(100),
+    amount_usd: r.amount.div(100),
     transaction_date: true, // keep the existing "transaction_date" column
     will_be_dropped: false, // this will be explicityl dropped
     constantly_42: ty.lit(42), // all rows filled with `42`
@@ -124,18 +122,18 @@ This is like .select(), but keeps around the existing columns.
 
 ```typescript
 orders.derive(r => ({
-    amount_usd: r.col('amount').div(100),
+    amount_usd: r.amount.div(100),
 }))
 ```
 
 ### `.filter(r => condition)`
 
-Filter rows. The callback receives a row accessor and must return a `BoolExpr`.
+Filter rows. The callback receives a column namespace and must return a `BoolExpr`.
 
 ```typescript
-orders.filter(r => r.col('amount').gt(100))
-orders.filter(r => r.col('is_paid').eq(true))
-orders.filter(r => r.col('amount').gt(50).and(r.col('is_paid').eq(true)))
+orders.filter(r => r.amount.gt(100))
+orders.filter(r => r.is_paid.eq(true))
+orders.filter(r => r.amount.gt(50).and(r.is_paid.eq(true)))
 ```
 
 ### `.sort(r => key | keys)`
@@ -143,8 +141,8 @@ orders.filter(r => r.col('amount').gt(50).and(r.col('is_paid').eq(true)))
 Sort rows. Use `.desc()` for descending, `.asc()` or a bare column for ascending.
 
 ```typescript
-orders.sort(r => r.col('amount').desc())
-orders.sort(r => [r.col('customer_id'), r.col('amount').desc()])
+orders.sort(r => r.amount.desc())
+orders.sort(r => [r.customer_id, r.amount.desc()])
 ```
 
 ### `.take(n)`
@@ -155,19 +153,18 @@ Return only the first `n` rows.
 orders.take(100)
 ```
 
-### `.group(keys, transform)`
+### `.groupBy(keys).agg(transform)`
 
-Group rows by key columns and apply aggregations.
+Group rows by key columns and apply aggregations. `groupBy` returns a `GroupedRelation`; call `.agg(...)` on it to reduce to one row per group.
 
 ```typescript
-orders.group(
-    r => ({ customer_id: true }),
-    g => g.agg({
+orders
+    .groupBy(r => ({ customer_id: true }))
+    .agg(g => ({
         order_count: ty.count(),
-        total_spent: g.col('amount').sum(),
-        max_order: g.col('amount').max(),
-    })
-)
+        total_spent: g.amount.sum(),
+        max_order: g.amount.max(),
+    }))
 ```
 
 ### `count()`
@@ -175,7 +172,7 @@ orders.group(
 Aggregate function — counts the number of rows.
 
 ```typescript
-g.agg({ n: ty.count() })
+agg({ n: ty.count() })
 ```
 
 ## Type Safety
@@ -185,19 +182,18 @@ Tybis tracks the schema of every table expression at compile time. Invalid colum
 ```typescript
 const t = ty.table('t', { x: 'int32', y: 'float64' })
 
-t.filter(r => r.col('z').gt(0))
-//                  ^^^
-// Argument of type '"z"' is not assignable to parameter of type '"x" | "y"'
+t.filter(r => r.z.gt(0))
+//              ^
+// Property 'z' does not exist on type 'Cols<{ x: 'int32'; y: 'float64' }>'
 ```
 
-Schema changes from all methods, such as `group` and `derive` are also tracked:
+Schema changes from all methods, such as `groupBy` and `derive` are also tracked:
 
 ```typescript
-const result = t.group(
-    r => [r.col('x')],
-    g => g.agg({ mean_y: g.col('y').mean() })
-)
-// result: Table<{ x: 'int32', mean_y: 'float64' }>
+const result = t
+    .groupBy(r => ({ x: true }))
+    .agg(g => ({ mean_y: g.y.mean() }))
+// result: Relation<{ x: 'int32', mean_y: 'float64' }>
 ```
 
 ## Motivation and related work
