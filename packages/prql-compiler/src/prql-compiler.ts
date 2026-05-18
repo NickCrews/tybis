@@ -1,10 +1,10 @@
-import type { Compiler } from './base.js'
-import type { BuiltinROp } from '../relation/index.js'
-import {
-    type BuiltinVOp, type SortSpec,
-} from '../value/ops.js'
+import type { Compiler, BuiltinROp, BuiltinVOp } from 'tybis'
+import { type RawSqlOp } from 'tybis-sql-compiler'
 
-export type SupportedPrqlVops = Exclude<BuiltinVOp, { kind: 'interval_literal' }> // PRQL doesn't support interval literals (at least for now)
+
+export type SupportedPrqlVops =
+    | Exclude<BuiltinVOp, { kind: 'interval_literal' }> // PRQL doesn't support interval literals (at least for now)
+    | RawSqlOp
 export type SupportedPrqlROps = BuiltinROp
 export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, SupportedPrqlROps> {
     compileVOp(op: SupportedPrqlVops): string {
@@ -58,8 +58,8 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
         }
     }
 
-    compileSortKey(spec: SortSpec): string {
-        const inner = this.compileVOp(spec.op as SupportedPrqlVops)
+    compileSortKey(spec: { op: SupportedPrqlVops, direction: 'asc' | 'desc' }): string {
+        const inner = this.compileVOp(spec.op)
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
 
@@ -86,7 +86,7 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
                 return `${this.compileROp(node.source as SupportedPrqlROps)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
             }
             case 'sort': {
-                const keys = node.keys.map(k => this.compileSortKey(k)).join(', ')
+                const keys = node.keys.map(k => this.compileSortKey({ op: k.op as SupportedPrqlVops, direction: k.direction })).join(', ')
                 return `${this.compileROp(node.source as SupportedPrqlROps)}\nsort {${keys}}`
             }
             case 'take':

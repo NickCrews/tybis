@@ -1,5 +1,6 @@
 import * as Babel from '@babel/standalone'
 import * as ty from 'tybis'
+import * as tysql from 'tybis-sql-compiler'
 import { DuckDbSqlCompiler } from 'tybis-sql-compiler'
 
 export type PreviewResult =
@@ -44,6 +45,10 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
     /import\s+\*\s+as\s+(\w+)\s+from\s+['"]tybis['"]/g,
     'const $1 = __ty'
   )
+  jsCode = jsCode.replace(
+    /import\s+\*\s+as\s+(\w+)\s+from\s+['"]tybis-sql-compiler['"]/g,
+    'const $1 = __tysql'
+  )
 
   let captured: ty.Relation | null = null
 
@@ -52,8 +57,8 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
   }
 
   try {
-    const fn = new Function('__ty', 'preview', jsCode)
-    await fn(ty, preview)
+    const fn = new Function('__ty', '__tysql', 'preview', jsCode)
+    await fn(ty, tysql, preview)
   } catch (err) {
     return { kind: 'error', message: String(err) }
   }

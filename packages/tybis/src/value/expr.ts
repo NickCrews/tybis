@@ -256,24 +256,6 @@ export function count() {
 }
 
 /**
- * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
- * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
- * 
- * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
- * and will have no effect at runtime.
- * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
- * Use with caution!
- * 
- * @param rawSql The raw SQL string to use. TODO in the future this should support tagged template literals for better interpolation, eg ty.sql`DATE_ADD(${col('my_date')}, INTERVAL 1 DAY)`
- * @param dtype The expected data type of the result.
- * @param dshape The expected data shape of the result.
- * @returns A VExpr representing the raw SQL expression.
- */
-export function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS) {
-    return vOpToVExpr(new ops.RawSqlOp(rawSql, dtype, dshape))
-}
-
-/**
  * Create a scalar value expression that represents a single literal value, eg `ty.lit(42)` or `ty.lit("hello")`.
  * 
  * The dtype can be inferred from the value, or explicitly provided if needed.

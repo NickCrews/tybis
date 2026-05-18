@@ -24,24 +24,33 @@ const tybisDistPath = resolve(__dirname, '../../tybis/dist/index.d.ts')
 console.log(`Reading tybis type definitions from: ${tybisDistPath}`)
 const tybisDtsRaw = readFileSync(tybisDistPath, 'utf-8')
 
+const sqlCompilerDistPath = resolve(__dirname, '../../sql-compiler/dist/index.d.ts')
+console.log(`Reading sql-compiler type definitions from: ${sqlCompilerDistPath}`)
+const sqlCompilerDtsRaw = readFileSync(sqlCompilerDistPath, 'utf-8')
+
 const header = `/**
  * Type declarations injected into the Monaco editor so users get
  * autocomplete and type-checking for the tybis API and the \`preview\`
  * sandbox function.
- * 
- * Auto-generated from tybis package types.
+ *
+ * Auto-generated from tybis + tybis-sql-compiler package types.
  */
 
 `
 
-const escapedDts = tybisDtsRaw
+const escape = (s: string) => s
     .replace(/\\/g, '\\\\')
     .replace(/`/g, '\\`')
     .replace(/\$/g, '\\$')
 
+const escapedTybis = escape(tybisDtsRaw)
+const escapedSqlCompiler = escape(sqlCompilerDtsRaw)
+
 const outputPath = resolve(__dirname, '../src/lib/tybis-dts.generated.ts')
-const outputContent = header + `export const TYBIS_DTS = /* ts */ \`declare module "tybis" { ${escapedDts} }\`
+const outputContent = header + `export const TYBIS_DTS = /* ts */ \`declare module "tybis" { ${escapedTybis} }\`
+
+export const TYBIS_SQL_COMPILER_DTS = /* ts */ \`declare module "tybis-sql-compiler" { ${escapedSqlCompiler} }\`
 `
 
 writeFileSync(outputPath, outputContent, 'utf-8')
-console.log('Generated tybis-dts.generated.ts from tybis/dist/index.d.ts')
+console.log('Generated tybis-dts.generated.ts')

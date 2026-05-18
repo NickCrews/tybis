@@ -91,24 +91,6 @@ describe('BooleanExpr.not()', () => {
     })
 })
 
-describe('sql() factory function', () => {
-    it('creates a raw SQL expr with given dtype and dshape', () => {
-        const e = vals.sql('custom_function(x)', { typecode: 'float', size: 64, nullable: true }, 'columnar')
-        expect(e.dtype()).toEqual({ typecode: 'float', size: 64, nullable: true })
-        expect(e.dshape()).toBe('columnar')
-        expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'float', size: 64, nullable: true }>()
-        expectTypeOf(e.dshape()).toEqualTypeOf<'columnar'>()
-    })
-
-    it('creates a scalar raw SQL expr', () => {
-        const e = vals.sql('COUNT(*)', { typecode: 'int', size: 64, nullable: true }, 'scalar')
-        expect(e.dtype()).toEqual({ typecode: 'int', size: 64, nullable: true })
-        expect(e.dshape()).toBe('scalar')
-        expectTypeOf(e.dtype()).toEqualTypeOf<{ typecode: 'int', size: 64, nullable: true }>()
-        expectTypeOf(e.dshape()).toEqualTypeOf<'scalar'>()
-    })
-})
-
 describe('count() factory function', () => {
     it('returns an int64 scalar expr', () => {
         const e = ty.count()

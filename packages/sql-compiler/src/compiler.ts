@@ -3,13 +3,20 @@ import {
     type BuiltinVOp,
     type Compiler,
     type Schema,
-    type IVOp,
     type IROp,
 } from 'tybis'
+
+import { RawSqlOp } from './ops.js'
 
 // SortSpec and IVOp aren't re-exported from `tybis` root; use a structural type.
 type IVOpLike = { readonly kind: string }
 interface SortSpecLike { readonly op: IVOpLike; readonly direction: 'asc' | 'desc' }
+
+/**
+ * Full op set the SQL compilers know how to compile: every builtin tybis op
+ * plus the SQL-specific {@link RawSqlOp} escape hatch.
+ */
+export type SqlVOp = BuiltinVOp | RawSqlOp
 
 import {
     type CompiledQuery,
@@ -24,15 +31,15 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Handler record keyed by the `kind` discriminator of {@link BuiltinVOp}.
+ * Handler record keyed by the `kind` discriminator of {@link SqlVOp}.
  *
  * Each handler receives the *full typed op object* — renaming a field on the
  * op class breaks the corresponding handler immediately. Adding a new op kind
- * to {@link BuiltinVOp} surfaces as a missing-key error wherever the handler
+ * to {@link SqlVOp} surfaces as a missing-key error wherever the handler
  * record is `satisfies`-checked (see `ANSI_V_HANDLERS`).
  */
 export type VOpHandlers<Self> = {
-    [K in BuiltinVOp['kind']]: (this: Self, op: Extract<BuiltinVOp, { kind: K }>) => Sql
+    [K in SqlVOp['kind']]: (this: Self, op: Extract<SqlVOp, { kind: K }>) => Sql
 }
 
 /**
@@ -93,14 +100,14 @@ export function closeLevel(ctx: PlannerCtx, sourceSchema: Schema): string {
 // Abstract base compiler
 // ---------------------------------------------------------------------------
 
-export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, IROp> {
+export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVOp, IROp> {
     abstract readonly vHandlers: VOpHandlers<SqlCompiler>
     abstract readonly rHandlers: ROpPlanHandlers<SqlCompiler>
 
     /** Compile a value op to a {@link Sql} fragment array. */
-    compileVOp(op: BuiltinVOp): Sql {
+    compileVOp(op: SqlVOp): Sql {
         // Indexing the handler record reduces precision — cast to the kind-narrowed signature.
-        const handler = this.vHandlers[op.kind] as (this: this, op: BuiltinVOp) => Sql
+        const handler = this.vHandlers[op.kind] as (this: this, op: SqlVOp) => Sql
         if (!handler) throw new Error(`No handler for VOp kind: ${op.kind}`)
         return handler.call(this, op)
     }
@@ -150,15 +157,15 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, 
         if (level.group) {
             const items: Sql[] = []
             for (const [name, op] of level.group.keys) {
-                items.push(this.aliasIfNeeded(this.compileVOp(op as BuiltinVOp), name))
+                items.push(this.aliasIfNeeded(this.compileVOp(op as SqlVOp), name))
             }
             for (const [name, op] of level.group.aggs) {
-                items.push(this.aliasIfNeeded(this.compileVOp(op as BuiltinVOp), name))
+                items.push(this.aliasIfNeeded(this.compileVOp(op as SqlVOp), name))
             }
             projection = joinSql(items, ', ')
         } else if (level.select) {
             const items: Sql[] = level.select.map(([name, op]) =>
-                this.aliasIfNeeded(this.compileVOp(op as BuiltinVOp), name)
+                this.aliasIfNeeded(this.compileVOp(op as SqlVOp), name)
             )
             projection = joinSql(items, ', ')
         } else if (level.derives.length > 0) {
@@ -173,13 +180,13 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, 
                     items.push([this.quoteIdent(colName)])
                 }
                 for (const [name, op] of level.derives) {
-                    items.push(this.aliasIfNeeded(this.compileVOp(op as BuiltinVOp), name))
+                    items.push(this.aliasIfNeeded(this.compileVOp(op as SqlVOp), name))
                 }
                 projection = joinSql(items, ', ')
             } else {
                 const items: Sql[] = [['*']]
                 for (const [name, op] of level.derives) {
-                    items.push(this.aliasIfNeeded(this.compileVOp(op as BuiltinVOp), name))
+                    items.push(this.aliasIfNeeded(this.compileVOp(op as SqlVOp), name))
                 }
                 projection = joinSql(items, ', ')
             }
@@ -192,7 +199,7 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, 
         parts.push(f` FROM ${[this.quoteIdentIfNotCte(level.from)]}`)
 
         if (level.filters.length > 0) {
-            const conds: Sql[] = level.filters.map(c => this.compileVOp(c as BuiltinVOp))
+            const conds: Sql[] = level.filters.map(c => this.compileVOp(c as SqlVOp))
             const wrapped: Sql[] = conds.length === 1 ? [conds[0]!] : conds.map(c => f`(${c})`)
             parts.push(f` WHERE `)
             parts.push(joinSql(wrapped, ' AND '))
@@ -200,7 +207,7 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, 
 
         if (level.group) {
             const keyExprs: Sql[] = level.group.keys.map(([_, op]) =>
-                this.compileVOp(op as BuiltinVOp)
+                this.compileVOp(op as SqlVOp)
             )
             parts.push(f` GROUP BY `)
             parts.push(joinSql(keyExprs, ', '))
@@ -208,7 +215,7 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, IVOp, 
 
         if (level.sort && level.sort.length > 0) {
             const items: Sql[] = level.sort.map(s => {
-                const inner = this.compileVOp(s.op as BuiltinVOp)
+                const inner = this.compileVOp(s.op as SqlVOp)
                 return s.direction === 'desc' ? f`${inner} DESC` : inner
             })
             parts.push(f` ORDER BY `)

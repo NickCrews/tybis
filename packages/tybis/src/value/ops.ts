@@ -50,10 +50,6 @@ export class CountOp extends BaseOp<dt.DTInt<64>, 'scalar'> {
     readonly kind = 'count' as const
     constructor() { super(dt.DTInt(64), 'scalar') }
 }
-export class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
-    readonly kind = 'raw_sql' as const
-    constructor(readonly rawSql: string, dtype: DT, dshape: DS) { super(dtype, dshape) }
-}
 
 // ---------------------------------------------------------------------------
 // Comparison ops
@@ -253,7 +249,6 @@ export type BuiltinVOp =
     | IsNotNullOp
     | IsNullOp
     | CountOp
-    | RawSqlOp
     // comparison ops
     | EqOp
     | GtOp

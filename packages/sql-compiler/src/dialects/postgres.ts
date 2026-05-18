@@ -1,6 +1,6 @@
-import type { BuiltinVOp } from 'tybis'
 import {
     type ROpPlanHandlers,
+    type SqlVOp,
     type VOpHandlers,
     SqlCompiler,
 } from '../compiler.js'
@@ -11,13 +11,13 @@ export class PostgresSqlCompiler extends SqlCompiler {
     readonly vHandlers: VOpHandlers<SqlCompiler> = {
         ...ANSI_V_HANDLERS,
         contains(op) {
-            return f`strpos(${this.compileVOp(op.operand as BuiltinVOp)}, ${this.compileVOp(op.pattern as BuiltinVOp)}) > 0`
+            return f`strpos(${this.compileVOp(op.operand as SqlVOp)}, ${this.compileVOp(op.pattern as SqlVOp)}) > 0`
         },
         starts_with(op) {
-            return f`starts_with(${this.compileVOp(op.operand as BuiltinVOp)}, ${this.compileVOp(op.prefix as BuiltinVOp)})`
+            return f`starts_with(${this.compileVOp(op.operand as SqlVOp)}, ${this.compileVOp(op.prefix as SqlVOp)})`
         },
         temporal_to_string(op) {
-            return f`to_char(${this.compileVOp(op.operand as BuiltinVOp)}, ${[param(op.format)]})`
+            return f`to_char(${this.compileVOp(op.operand as SqlVOp)}, ${[param(op.format)]})`
         },
     }
     readonly rHandlers: ROpPlanHandlers<SqlCompiler> = ANSI_R_HANDLERS

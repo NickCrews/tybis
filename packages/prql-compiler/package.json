@@ -1,7 +1,7 @@
 {
-  "name": "tybis-sql-compiler",
+  "name": "tybis-prql-compiler",
   "version": "0.1.0",
-  "description": "Pure-TypeScript SQL compiler for tybis (DuckDB, Postgres, MySQL, SQLite)",
+  "description": "Pure-TypeScript PRQL compiler for tybis",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -11,11 +11,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./ops": {
-      "types": "./dist/ops.d.ts",
-      "import": "./dist/ops.js",
-      "require": "./dist/ops.cjs"
     }
   },
   "scripts": {
@@ -26,12 +21,14 @@
   },
   "keywords": [
     "tybis",
+    "prql",
     "sql"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "tybis": "workspace:*"
+    "tybis": "workspace:*",
+    "tybis-sql-compiler": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

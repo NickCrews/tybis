@@ -8,12 +8,12 @@ export {
     type InferSchema
 } from './relation/index.js'
 export type { Compiler } from './compilers/base.js'
-export { PrqlCompiler } from './compilers/prql-compiler.js'
 export {
     count,
     col,
     lit,
-    sql,
+    BaseOp,
+    vOpToVExpr,
     type IVExpr,
     type VExpr,
     type IVOp,
@@ -35,3 +35,4 @@ export {
     type DTUUID,
     type JSTypeFromDtype,
 } from './datatype.js'
+export { type DataShape } from './datashape.js'

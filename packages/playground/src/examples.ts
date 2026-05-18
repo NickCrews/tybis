@@ -150,9 +150,10 @@ preview(enriched)
   {
     id: 'raw-sql',
     label: 'Escape Hatch — Raw SQL',
-    description: 'Use ty.sql() for expressions the API does not cover',
+    description: 'Use tysql.sql() for expressions the API does not cover',
     code: `// Escape hatch: embed raw SQL expressions
 import * as ty from 'tybis';
+import * as tysql from 'tybis-sql-compiler';
 
 const events = ty.table('events', {
   id: 'int64',
@@ -164,7 +165,7 @@ const events = ty.table('events', {
 const withExtract = events
   .derive(() => ({
     // Pull the year out using a raw SQL expression
-    year: ty.sql("EXTRACT(YEAR FROM occurred_at)", 'int32'),
+    year: tysql.sql("EXTRACT(YEAR FROM occurred_at)", { typecode: 'int', size: 32, nullable: true }, 'columnar'),
   }))
   .group(
     r => ({ event_name: true, year: true }),

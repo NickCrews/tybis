@@ -1,6 +1,6 @@
-import type { BuiltinVOp } from 'tybis'
 import {
     type ROpPlanHandlers,
+    type SqlVOp,
     type VOpHandlers,
     type SqlCompiler,
     closeLevel,
@@ -11,7 +11,7 @@ import { f, param, type Sql } from './types.js'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function infix(self: SqlCompiler, left: BuiltinVOp, op: string, right: BuiltinVOp): Sql {
+function infix(self: SqlCompiler, left: SqlVOp, op: string, right: SqlVOp): Sql {
     return f`${self.compileVOp(left)} ${[op]} ${self.compileVOp(right)}`
 }
 
@@ -26,7 +26,7 @@ function paren(s: Sql): Sql {
 // The explicit return type annotation on the IIFE prevents TS4023/4094 errors
 // caused by inferring private/non-exported field types from `tybis`. The
 // `satisfies` clause inside enforces exhaustiveness — adding a new
-// `BuiltinVOp` kind without a handler is a compile error here.
+// `SqlVOp` kind without a handler is a compile error here.
 export const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler> = ({
     // ---- Column reference ----
     col_ref(op) {
@@ -72,10 +72,10 @@ export const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler> = ({
 
     // ---- Generic ----
     is_null(op) {
-        return f`${this.compileVOp(op.operand as BuiltinVOp)} IS NULL`
+        return f`${this.compileVOp(op.operand as SqlVOp)} IS NULL`
     },
     is_not_null(op) {
-        return f`${this.compileVOp(op.operand as BuiltinVOp)} IS NOT NULL`
+        return f`${this.compileVOp(op.operand as SqlVOp)} IS NOT NULL`
     },
     count(_op) {
         return ['COUNT(*)']
@@ -86,81 +86,81 @@ export const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler> = ({
 
     // ---- Comparison ----
     eq(op) {
-        return infix(this, op.left as BuiltinVOp, '=', op.right as BuiltinVOp)
+        return infix(this, op.left as SqlVOp, '=', op.right as SqlVOp)
     },
     gt(op) {
-        return infix(this, op.left as BuiltinVOp, '>', op.right as BuiltinVOp)
+        return infix(this, op.left as SqlVOp, '>', op.right as SqlVOp)
     },
     gte(op) {
-        return infix(this, op.left as BuiltinVOp, '>=', op.right as BuiltinVOp)
+        return infix(this, op.left as SqlVOp, '>=', op.right as SqlVOp)
     },
     lt(op) {
-        return infix(this, op.left as BuiltinVOp, '<', op.right as BuiltinVOp)
+        return infix(this, op.left as SqlVOp, '<', op.right as SqlVOp)
     },
     lte(op) {
-        return infix(this, op.left as BuiltinVOp, '<=', op.right as BuiltinVOp)
+        return infix(this, op.left as SqlVOp, '<=', op.right as SqlVOp)
     },
     min(op) {
-        return f`MIN(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`MIN(${this.compileVOp(op.operand as SqlVOp)})`
     },
     max(op) {
-        return f`MAX(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`MAX(${this.compileVOp(op.operand as SqlVOp)})`
     },
 
     // ---- Boolean logic ----
     not(op) {
-        return f`NOT ${paren(this.compileVOp(op.operand as BuiltinVOp))}`
+        return f`NOT ${paren(this.compileVOp(op.operand as SqlVOp))}`
     },
     and(op) {
-        const l = paren(this.compileVOp(op.left as BuiltinVOp))
-        const r = paren(this.compileVOp(op.right as BuiltinVOp))
+        const l = paren(this.compileVOp(op.left as SqlVOp))
+        const r = paren(this.compileVOp(op.right as SqlVOp))
         return f`${l} AND ${r}`
     },
     or(op) {
-        const l = paren(this.compileVOp(op.left as BuiltinVOp))
-        const r = paren(this.compileVOp(op.right as BuiltinVOp))
+        const l = paren(this.compileVOp(op.left as SqlVOp))
+        const r = paren(this.compileVOp(op.right as SqlVOp))
         return f`${l} OR ${r}`
     },
 
     // ---- Arithmetic ----
     add(op) {
-        return paren(infix(this, op.left as BuiltinVOp, '+', op.right as BuiltinVOp))
+        return paren(infix(this, op.left as SqlVOp, '+', op.right as SqlVOp))
     },
     sub(op) {
-        return paren(infix(this, op.left as BuiltinVOp, '-', op.right as BuiltinVOp))
+        return paren(infix(this, op.left as SqlVOp, '-', op.right as SqlVOp))
     },
     mul(op) {
-        return paren(infix(this, op.left as BuiltinVOp, '*', op.right as BuiltinVOp))
+        return paren(infix(this, op.left as SqlVOp, '*', op.right as SqlVOp))
     },
     div(op) {
-        return paren(infix(this, op.left as BuiltinVOp, '/', op.right as BuiltinVOp))
+        return paren(infix(this, op.left as SqlVOp, '/', op.right as SqlVOp))
     },
     sum(op) {
-        return f`SUM(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`SUM(${this.compileVOp(op.operand as SqlVOp)})`
     },
     mean(op) {
-        return f`AVG(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`AVG(${this.compileVOp(op.operand as SqlVOp)})`
     },
 
     // ---- String ----
     upper(op) {
-        return f`UPPER(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`UPPER(${this.compileVOp(op.operand as SqlVOp)})`
     },
     lower(op) {
-        return f`LOWER(${this.compileVOp(op.operand as BuiltinVOp)})`
+        return f`LOWER(${this.compileVOp(op.operand as SqlVOp)})`
     },
     contains(op) {
-        return f`POSITION(${this.compileVOp(op.pattern as BuiltinVOp)} IN ${this.compileVOp(op.operand as BuiltinVOp)}) > 0`
+        return f`POSITION(${this.compileVOp(op.pattern as SqlVOp)} IN ${this.compileVOp(op.operand as SqlVOp)}) > 0`
     },
     starts_with(op) {
-        const operand = this.compileVOp(op.operand as BuiltinVOp)
-        const prefix = this.compileVOp(op.prefix as BuiltinVOp)
+        const operand = this.compileVOp(op.operand as SqlVOp)
+        const prefix = this.compileVOp(op.prefix as SqlVOp)
         return f`SUBSTRING(${operand} FROM 1 FOR LENGTH(${prefix})) = ${prefix}`
     },
 
     // ---- Temporal ----
     temporal_to_string(op) {
-        return f`TO_CHAR(${this.compileVOp(op.operand as BuiltinVOp)}, ${[param(op.format)]})`
+        return f`TO_CHAR(${this.compileVOp(op.operand as SqlVOp)}, ${[param(op.format)]})`
     },
 } satisfies VOpHandlers<SqlCompiler>)
 

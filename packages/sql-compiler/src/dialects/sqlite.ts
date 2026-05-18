@@ -1,6 +1,6 @@
-import type { BuiltinVOp } from 'tybis'
 import {
     type ROpPlanHandlers,
+    type SqlVOp,
     type VOpHandlers,
     SqlCompiler,
 } from '../compiler.js'
@@ -11,15 +11,15 @@ export class SqliteSqlCompiler extends SqlCompiler {
     readonly vHandlers: VOpHandlers<SqlCompiler> = {
         ...ANSI_V_HANDLERS,
         contains(op) {
-            return f`instr(${this.compileVOp(op.operand as BuiltinVOp)}, ${this.compileVOp(op.pattern as BuiltinVOp)}) > 0`
+            return f`instr(${this.compileVOp(op.operand as SqlVOp)}, ${this.compileVOp(op.pattern as SqlVOp)}) > 0`
         },
         starts_with(op) {
-            const operand = this.compileVOp(op.operand as BuiltinVOp)
-            const prefix = this.compileVOp(op.prefix as BuiltinVOp)
+            const operand = this.compileVOp(op.operand as SqlVOp)
+            const prefix = this.compileVOp(op.prefix as SqlVOp)
             return f`substr(${operand}, 1, length(${prefix})) = ${prefix}`
         },
         temporal_to_string(op) {
-            return f`strftime(${[param(op.format)]}, ${this.compileVOp(op.operand as BuiltinVOp)})`
+            return f`strftime(${[param(op.format)]}, ${this.compileVOp(op.operand as SqlVOp)})`
         },
     }
     readonly rHandlers: ROpPlanHandlers<SqlCompiler> = ANSI_R_HANDLERS

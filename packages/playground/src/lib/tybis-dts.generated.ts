@@ -2,8 +2,8 @@
  * Type declarations injected into the Monaco editor so users get
  * autocomplete and type-checking for the tybis API and the `preview`
  * sandbox function.
- * 
- * Auto-generated from tybis package types.
+ *
+ * Auto-generated from tybis + tybis-sql-compiler package types.
  */
 
 export const TYBIS_DTS = /* ts */ `declare module "tybis" { type DataShape = 'scalar' | 'columnar';
@@ -305,11 +305,6 @@ declare class CountOp extends BaseOp<DTInt<64>, 'scalar'> {
     readonly kind: "count";
     constructor();
 }
-declare class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
-    readonly rawSql: string;
-    readonly kind: "raw_sql";
-    constructor(rawSql: string, dtype: DT, dshape: DS);
-}
 declare class EqOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
@@ -444,7 +439,7 @@ declare class SortSpec {
     readonly direction: 'asc' | 'desc';
     constructor(op: IVOp<any, any>, direction: 'asc' | 'desc');
 }
-type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IntervalLiteralOp | UuidLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | RawSqlOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
+type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IntervalLiteralOp | UuidLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
 
 declare abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
     [IsROpSymbol]: true;
@@ -538,6 +533,7 @@ type VExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> = D
 } ? UUIDExpr<DS> : DT extends {
     typecode: 'interval';
 } ? IntervalExpr<DS> : never;
+declare function vOpToVExpr<DT extends DataType, DS extends DataShape>(op: IVOp<DT, DS>): VExpr<DT, DS>;
 declare abstract class BaseVExpr<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVExpr<DT, DS> {
     private readonly _op;
     constructor(_op: IVOp<DT, DS>);
@@ -605,21 +601,6 @@ declare class SortExpr {
  * Counts the number of rows. Analogous to SQL's COUNT(*). Returns a NumericExpr with dtype=int64 and dshape='scalar'.
  */
 declare function count(): NumericExpr<DTInt<64>, "scalar">;
-/**
- * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
- * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
- *
- * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
- * and will have no effect at runtime.
- * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
- * Use with caution!
- *
- * @param rawSql The raw SQL string to use. TODO in the future this should support tagged template literals for better interpolation, eg ty.sql\`DATE_ADD(\${col('my_date')}, INTERVAL 1 DAY)\`
- * @param dtype The expected data type of the result.
- * @param dshape The expected data shape of the result.
- * @returns A VExpr representing the raw SQL expression.
- */
-declare function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS): VExpr<DT, DS>;
 /**
  * Create a scalar value expression that represents a single literal value, eg \`ty.lit(42)\` or \`ty.lit("hello")\`.
  *
@@ -736,11 +717,198 @@ declare function table<S extends IntoSchema>(name: string, sch: S): Relation<Inf
 type SupportedPrqlVops = Exclude<BuiltinVOp, {
     kind: 'interval_literal';
 }>;
-declare class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, BuiltinROp> {
+type SupportedPrqlROps = BuiltinROp;
+declare class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, SupportedPrqlROps> {
     compileVOp(op: SupportedPrqlVops): string;
     compileSortKey(spec: SortSpec): string;
-    compileROp(node: BuiltinROp): string;
+    compileROp(node: SupportedPrqlROps): string;
 }
 
-export { type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, sql, table };
+export { BaseOp, type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataShape, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, table, vOpToVExpr };
+ }`
+
+export const TYBIS_SQL_COMPILER_DTS = /* ts */ `declare module "tybis-sql-compiler" { import * as tybis from 'tybis';
+import { DataType, DataShape, BaseOp, BuiltinROp, Schema, Compiler, BuiltinVOp, IROp } from 'tybis';
+
+/**
+ * Fragment-based SQL representation.
+ *
+ * A {@link Sql} value is a flat array of {@link SqlFragment}s — each one is
+ * either a string of literal SQL text or a {@link Param} placeholder for a
+ * runtime value. The placeholders are resolved into the dialect's parameter
+ * marker (\$1, ?, etc.) by {@link SqlCompiler.finalize}.
+ */
+type Param = {
+    readonly value: unknown;
+};
+type SqlFragment = string | Param;
+type Sql = SqlFragment[];
+/** Final compiled output: a SQL string plus an ordered array of parameter values. */
+type CompiledQuery = {
+    sql: string;
+    params: unknown[];
+};
+/** Wrap an arbitrary JS value as a parameter placeholder. */
+declare const param: (value: unknown) => Param;
+/**
+ * Tagged template for composing Sql fragments naturally.
+ *
+ * @example
+ * f\`strpos(\${this.compileVOp(op.operand)}, \${this.compileVOp(op.pattern)}) > 0\`
+ */
+declare function f(strings: TemplateStringsArray, ...values: Sql[]): Sql;
+
+/**
+ * Op for a raw SQL fragment. The \`dtype\` / \`dshape\` are caller-provided
+ * type hints used during expression building and have no runtime effect —
+ * passing the wrong values can produce code that type-checks but fails or
+ * returns wrong results at compile time.
+ */
+declare class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
+    readonly rawSql: string;
+    readonly kind: "raw_sql";
+    constructor(rawSql: string, dtype: DT, dshape: DS);
+}
+/**
+ * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
+ * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
+ *
+ * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
+ * and will have no effect at runtime.
+ * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
+ * Use with caution!
+ *
+ * @param rawSql The raw SQL string to use.
+ * @param dtype The expected data type of the result.
+ * @param dshape The expected data shape of the result.
+ * @returns A VExpr representing the raw SQL expression.
+ */
+declare function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS): tybis.VExpr<DT, DS>;
+
+type IVOpLike = {
+    readonly kind: string;
+};
+interface SortSpecLike {
+    readonly op: IVOpLike;
+    readonly direction: 'asc' | 'desc';
+}
+/**
+ * Full op set the SQL compilers know how to compile: every builtin tybis op
+ * plus the SQL-specific {@link RawSqlOp} escape hatch.
+ */
+type SqlVOp = BuiltinVOp | RawSqlOp;
+
+/**
+ * Handler record keyed by the \`kind\` discriminator of {@link SqlVOp}.
+ *
+ * Each handler receives the *full typed op object* — renaming a field on the
+ * op class breaks the corresponding handler immediately. Adding a new op kind
+ * to {@link SqlVOp} surfaces as a missing-key error wherever the handler
+ * record is \`satisfies\`-checked (see \`ANSI_V_HANDLERS\`).
+ */
+type VOpHandlers<Self> = {
+    [K in SqlVOp['kind']]: (this: Self, op: Extract<SqlVOp, {
+        kind: K;
+    }>) => Sql;
+};
+/**
+ * Handler record keyed by the \`kind\` discriminator of {@link BuiltinROp}.
+ *
+ * Each handler is responsible for either merging the incoming op into the
+ * current {@link QueryLevel} or closing the level and opening a new one.
+ */
+type ROpPlanHandlers<Self> = {
+    [K in BuiltinROp['kind']]: (this: Self, op: Extract<BuiltinROp, {
+        kind: K;
+    }>, ctx: PlannerCtx) => void;
+};
+interface QueryLevel {
+    from: string;
+    /** Schema visible at the start of this level — used for derive-shadow detection. */
+    derivesSourceSchema?: Schema;
+    filters: IVOpLike[];
+    derives: [string, IVOpLike][];
+    select?: [string, IVOpLike][];
+    group?: {
+        keys: [string, IVOpLike][];
+        aggs: [string, IVOpLike][];
+    };
+    sort?: SortSpecLike[];
+    limit?: number;
+}
+interface PlannerCtx {
+    /** Already-closed levels, in order. Each becomes a CTE. */
+    levels: QueryLevel[];
+    /** The level currently being built. */
+    current: QueryLevel;
+    /** Monotonically increasing counter used to mint CTE names. */
+    cteCounter: number;
+}
+/**
+ * Close the current level, push it onto the completed list, and start a new
+ * level whose \`from\` is the just-closed level's CTE name.
+ */
+declare function closeLevel(ctx: PlannerCtx, sourceSchema: Schema): string;
+declare abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVOp, IROp> {
+    abstract readonly vHandlers: VOpHandlers<SqlCompiler>;
+    abstract readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+    /** Compile a value op to a {@link Sql} fragment array. */
+    compileVOp(op: SqlVOp): Sql;
+    /**
+     * Plan an ROp chain into levels, then compile and finalize.
+     *
+     * Returns a {@link CompiledQuery} so that this method satisfies the public
+     * \`Compiler<CompiledQuery>\` interface.
+     */
+    compileROp(op: BuiltinROp): CompiledQuery;
+    /**
+     * Walk the op chain leaf-first and produce a populated {@link PlannerCtx}.
+     */
+    protected planROp(rootOp: BuiltinROp): PlannerCtx;
+    /** Compile a single {@link QueryLevel} into a SELECT statement (no semicolon). */
+    protected emitLevel(level: QueryLevel): Sql;
+    /** Stitch the closed levels and the current level into a final SQL fragment array. */
+    protected emitLevels(ctx: PlannerCtx): Sql;
+    /** Convenience: emit either a quoted identifier or, for an internal \`_cte_N\` ref, leave unquoted. */
+    protected quoteIdentIfNotCte(name: string): string;
+    /**
+     * Wrap an expression as \`expr AS alias\` when the expression isn't already a
+     * bare reference to that same identifier. Avoids redundant \`name AS name\`.
+     */
+    protected aliasIfNeeded(expr: Sql, alias: string): Sql;
+    /** Default placeholder style: \`\$1, \$2, …\` (postgres). Override per dialect. */
+    protected placeholder(n: number): string;
+    /** Default identifier quoting: ANSI double-quotes. Override per dialect. */
+    protected quoteIdent(name: string): string;
+    /** Collapse a {@link Sql} fragment array into a finished {@link CompiledQuery}. */
+    protected finalize(sql: Sql): CompiledQuery;
+}
+
+declare const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler>;
+declare const ANSI_R_HANDLERS: ROpPlanHandlers<SqlCompiler>;
+
+declare class DuckDbSqlCompiler extends SqlCompiler {
+    readonly vHandlers: VOpHandlers<SqlCompiler>;
+    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+}
+
+declare class PostgresSqlCompiler extends SqlCompiler {
+    readonly vHandlers: VOpHandlers<SqlCompiler>;
+    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+}
+
+declare class MySqlSqlCompiler extends SqlCompiler {
+    readonly vHandlers: VOpHandlers<SqlCompiler>;
+    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+    protected placeholder(_n: number): string;
+    protected quoteIdent(name: string): string;
+}
+
+declare class SqliteSqlCompiler extends SqlCompiler {
+    readonly vHandlers: VOpHandlers<SqlCompiler>;
+    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+    protected placeholder(_n: number): string;
+}
+
+export { ANSI_R_HANDLERS, ANSI_V_HANDLERS, type CompiledQuery, DuckDbSqlCompiler, MySqlSqlCompiler, type Param, type PlannerCtx, PostgresSqlCompiler, type QueryLevel, type ROpPlanHandlers, RawSqlOp, type Sql, SqlCompiler, type SqlFragment, type SqlVOp, SqliteSqlCompiler, type VOpHandlers, closeLevel, f, param, sql };
  }`

@@ -1,22 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { expectTypeOf } from 'expect-type'
 import { table } from '../relation/index.js'
-import { PrqlCompiler } from './prql-compiler.js'
-import type { Compiler, RCompiler } from './base.js'
+import type { RCompiler } from './base.js'
 import type { BuiltinROp } from '../relation/index.js'
 
 const penguins = table('penguins', { species: 'string', bill_length_mm: 'float64' })
 
 describe('Compiler<Result>', () => {
-    it('PrqlCompiler satisfies Compiler<string>', () => {
-        expectTypeOf<PrqlCompiler>().toMatchTypeOf<Compiler<string, string>>()
-    })
-
-    it('rel.compile(PrqlCompiler) returns string', () => {
-        const result = penguins.compile(new PrqlCompiler())
-        expect(typeof result).toBe('string')
-        expectTypeOf(result).toEqualTypeOf<string>()
-    })
 
     it('rel.compile returns R for an arbitrary RCompiler<R>', () => {
         type CompiledQuery = { sql: string; params: unknown[] }
@@ -26,6 +16,7 @@ describe('Compiler<Result>', () => {
                 return { sql: 'SELECT 1', params: [] }
             }
         }
+        expectTypeOf<StubSqlCompiler>().toMatchTypeOf<RCompiler<CompiledQuery>>()
 
         const result = penguins.compile(new StubSqlCompiler())
         expect(result).toEqual({ sql: 'SELECT 1', params: [] })

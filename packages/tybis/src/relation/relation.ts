@@ -11,7 +11,6 @@ import {
     col,
     VExpr,
 } from '../value/expr.js'
-import { PrqlCompiler } from '../compilers/prql-compiler.js'
 import { suggestColumnName } from '../utils/typo.js'
 
 // ---------------------------------------------------------------------------
@@ -262,15 +261,6 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     compile<R>(compiler: RCompiler<R, O>): R {
         return compiler.compileROp(this._op)
-    }
-
-    // TODO: we should adjust our type system so that
-    // a ROp keeps track of which ROps and VOps it contains.
-    // This is because PrqlCompiler can only compile a subset of possible ROps and VOps,
-    // and so we only want to allow compiling to PRQL if the relation's operations are all supported by PrqlCompiler.
-    /** Compile to a PRQL query string. */
-    toPrql() {
-        return this.compile(new PrqlCompiler() as any)
     }
 }
 

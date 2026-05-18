@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import * as ty from 'tybis'
 import { DuckDbSqlCompiler } from './dialects/duckdb.js'
+import { sql as sqlExpr, type SqlVOp } from './index.js'
 
 const compiler = new DuckDbSqlCompiler()
 const compileVal = (e: ty.VExpr<any, any>) =>
-  compiler.compileVOp(e.toOp() as ty.BuiltinVOp)
+  compiler.compileVOp(e.toOp() as SqlVOp)
 const finalizeVal = (e: ty.VExpr<any, any>) => {
-  const sql = compiler.compileVOp(e.toOp() as ty.BuiltinVOp)
+  const sql = compiler.compileVOp(e.toOp() as SqlVOp)
   // Use `finalize` indirectly via compileROp on a tiny relation, or implement here.
   // Easiest: build a one-row relation that selects the expression.
   const params: unknown[] = []
@@ -123,7 +124,7 @@ describe('VOp output - column ref / count / raw_sql', () => {
         `)
   })
   it('raw_sql passthrough', () => {
-    const e = ty.sql('my_udf(col)', ty.dtype('string'), 'columnar')
+    const e = sqlExpr('my_udf(col)', ty.dtype('string'), 'columnar')
     expect(compileVal(e)).toMatchInlineSnapshot(`
           [
             "my_udf(col)",

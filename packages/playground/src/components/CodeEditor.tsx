@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import MonacoEditor, { type OnMount } from '@monaco-editor/react'
 import type * as Monaco from 'monaco-editor'
-import { TYBIS_DTS } from '@/lib/tybis-dts.generated'
+import { TYBIS_DTS, TYBIS_SQL_COMPILER_DTS } from '@/lib/tybis-dts.generated'
 
 interface CodeEditorProps {
   value: string
@@ -18,6 +18,10 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
     monaco.languages.typescript.typescriptDefaults.addExtraLib(
       TYBIS_DTS,
       'file:///node_modules/tybis/index.d.ts'
+    )
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(
+      TYBIS_SQL_COMPILER_DTS,
+      'file:///node_modules/tybis-sql-compiler/index.d.ts'
     )
     monaco.languages.typescript.typescriptDefaults.addExtraLib(
       `
@@ -51,12 +55,16 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
     })
   }
 
-  // Keep the extra lib fresh if TYBIS_DTS ever changes (HMR during dev).
+  // Keep the extra libs fresh if the generated DTS ever changes (HMR during dev).
   useEffect(() => {
     if (!monacoRef.current) return
     monacoRef.current.languages.typescript.typescriptDefaults.addExtraLib(
       TYBIS_DTS,
       'file:///node_modules/tybis/index.d.ts'
+    )
+    monacoRef.current.languages.typescript.typescriptDefaults.addExtraLib(
+      TYBIS_SQL_COMPILER_DTS,
+      'file:///node_modules/tybis-sql-compiler/index.d.ts'
     )
   }, [])
 

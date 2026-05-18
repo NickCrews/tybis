@@ -12,7 +12,7 @@ Tybis provides:
   All of the above is in vanilla, dependency-free typescript. Deploy anywhere!
 - Compilation of an expression to SQL or PRQL using pure, dependency-free typescript.
   TODO is to also provide clients to natively execute expressions on a real backend,
-  eg duckdb or postgres.
+  eg duckdb, postgres, airtable, or google sheets.
 - Escape hatches when we can't provide the functionality you need.
 
 Note: I just (March 6, 2026) was pointed to https://github.com/futu2/teta, which looks like almost the exact same idea.
@@ -22,6 +22,8 @@ I will probably hold off on working on this further until I see if we could join
 
 ```typescript
 import * as ty from 'tybis'
+import { toSql } from 'tybis-sql-compiler'
+import { toPrql } from 'tybis-prql-compiler'
 
 const penguins = ty.table('penguins', {
     species: 'string',
@@ -41,7 +43,15 @@ const result = penguins
     .sort(r => r.col('count').desc())
     .take(10)
 
-console.log(result.toPrql())
+console.log(toSql(result).sql)
+// SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill
+// FROM penguins
+// WHERE bill_length_mm > 40
+// GROUP BY species, year
+// ORDER BY count DESC
+// LIMIT 10
+
+console.log(toPrql(result))
 // from penguins
 // filter bill_length_mm > 40
 // group {species, year} (
@@ -52,14 +62,6 @@ console.log(result.toPrql())
 // )
 // sort {-count}
 // take 10
-
-console.log(result.toSql())
-// SELECT species, year, COUNT(*) AS count, AVG(bill_length_mm) AS mean_bill
-// FROM penguins
-// WHERE bill_length_mm > 40
-// GROUP BY species, year
-// ORDER BY count DESC
-// LIMIT 10
 ```
 
 Tybis does NOT:
@@ -150,17 +152,9 @@ Embed a raw SQL expression with an explicit return type.
 
 ```typescript
 orders.derive(() => ({
-    db_version: ty.sql('version()', 'string'),
+    db_version: ty.sql('version()', 'string', 'scalar'),
 }))
 ```
-
-### `.toPrql()`
-
-Returns the PRQL query string. Useful for debugging or inspecting generated queries.
-
-### `.toSql()`
-
-Compiles to SQL using the PRQL compiler. Returns a SQL string synchronously.
 
 ## Type Safety
 
