@@ -61,6 +61,9 @@ importers:
       tybis:
         specifier: workspace:*
         version: link:../tybis
+      tybis-prql-compiler:
+        specifier: workspace:*
+        version: link:../prql-compiler
       tybis-sql-compiler:
         specifier: workspace:*
         version: link:../sql-compiler

@@ -1,5 +1,5 @@
 import type { Compiler, BuiltinROp, BuiltinVOp } from 'tybis'
-import { type RawSqlOp } from 'tybis-sql-compiler'
+import { type RawSqlOp } from 'tybis-sql-compiler/ops'
 
 
 export type SupportedPrqlVops =

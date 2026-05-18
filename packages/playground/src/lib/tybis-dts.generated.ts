@@ -698,8 +698,6 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      */
     take(n: number): Relation<S, TakeOp<S>>;
     compile<R>(compiler: RCompiler<R, O>): R;
-    /** Compile to a PRQL query string. */
-    toPrql(): unknown;
 }
 /**
  * Define a relation backed by a database table or view.
@@ -714,21 +712,12 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
  */
 declare function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
 
-type SupportedPrqlVops = Exclude<BuiltinVOp, {
-    kind: 'interval_literal';
-}>;
-type SupportedPrqlROps = BuiltinROp;
-declare class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, SupportedPrqlROps> {
-    compileVOp(op: SupportedPrqlVops): string;
-    compileSortKey(spec: SortSpec): string;
-    compileROp(node: SupportedPrqlROps): string;
-}
-
-export { BaseOp, type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataShape, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, PrqlCompiler, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, table, vOpToVExpr };
+export { BaseOp, type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataShape, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, table, vOpToVExpr };
  }`
 
 export const TYBIS_SQL_COMPILER_DTS = /* ts */ `declare module "tybis-sql-compiler" { import * as tybis from 'tybis';
-import { DataType, DataShape, BaseOp, BuiltinROp, Schema, Compiler, BuiltinVOp, IROp } from 'tybis';
+import { BuiltinROp, Schema, Compiler, BuiltinVOp, IROp, DataType, DataShape, Relation } from 'tybis';
+import { RawSqlOp } from './ops.js';
 
 /**
  * Fragment-based SQL representation.
@@ -757,33 +746,6 @@ declare const param: (value: unknown) => Param;
  * f\`strpos(\${this.compileVOp(op.operand)}, \${this.compileVOp(op.pattern)}) > 0\`
  */
 declare function f(strings: TemplateStringsArray, ...values: Sql[]): Sql;
-
-/**
- * Op for a raw SQL fragment. The \`dtype\` / \`dshape\` are caller-provided
- * type hints used during expression building and have no runtime effect —
- * passing the wrong values can produce code that type-checks but fails or
- * returns wrong results at compile time.
- */
-declare class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
-    readonly rawSql: string;
-    readonly kind: "raw_sql";
-    constructor(rawSql: string, dtype: DT, dshape: DS);
-}
-/**
- * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
- * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
- *
- * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
- * and will have no effect at runtime.
- * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
- * Use with caution!
- *
- * @param rawSql The raw SQL string to use.
- * @param dtype The expected data type of the result.
- * @param dshape The expected data shape of the result.
- * @returns A VExpr representing the raw SQL expression.
- */
-declare function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS): tybis.VExpr<DT, DS>;
 
 type IVOpLike = {
     readonly kind: string;
@@ -884,15 +846,7 @@ declare abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVO
     protected finalize(sql: Sql): CompiledQuery;
 }
 
-declare const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler>;
-declare const ANSI_R_HANDLERS: ROpPlanHandlers<SqlCompiler>;
-
 declare class DuckDbSqlCompiler extends SqlCompiler {
-    readonly vHandlers: VOpHandlers<SqlCompiler>;
-    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
-}
-
-declare class PostgresSqlCompiler extends SqlCompiler {
     readonly vHandlers: VOpHandlers<SqlCompiler>;
     readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
 }
@@ -904,11 +858,46 @@ declare class MySqlSqlCompiler extends SqlCompiler {
     protected quoteIdent(name: string): string;
 }
 
+declare class PostgresSqlCompiler extends SqlCompiler {
+    readonly vHandlers: VOpHandlers<SqlCompiler>;
+    readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
+}
+
 declare class SqliteSqlCompiler extends SqlCompiler {
     readonly vHandlers: VOpHandlers<SqlCompiler>;
     readonly rHandlers: ROpPlanHandlers<SqlCompiler>;
     protected placeholder(_n: number): string;
 }
 
-export { ANSI_R_HANDLERS, ANSI_V_HANDLERS, type CompiledQuery, DuckDbSqlCompiler, MySqlSqlCompiler, type Param, type PlannerCtx, PostgresSqlCompiler, type QueryLevel, type ROpPlanHandlers, RawSqlOp, type Sql, SqlCompiler, type SqlFragment, type SqlVOp, SqliteSqlCompiler, type VOpHandlers, closeLevel, f, param, sql };
+declare const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler>;
+declare const ANSI_R_HANDLERS: ROpPlanHandlers<SqlCompiler>;
+
+/**
+ * Creates a raw SQL expression. The caller must provide the raw SQL string, as well as the expected dtype and dshape of the result.
+ * This is an escape hatch for when you need to use a function or expression that isn't natively supported by Tybis.
+ *
+ * The provided dtype and dshape will ONLY be used for type-checking and expression-building purposes,
+ * and will have no effect at runtime.
+ * So if you pass the wrong dtype/dshape, your code might type-check but then fail at runtime, or return incorrect results.
+ * Use with caution!
+ *
+ * @param rawSql The raw SQL string to use.
+ * @param dtype The expected data type of the result.
+ * @param dshape The expected data shape of the result.
+ * @returns A VExpr representing the raw SQL expression.
+ */
+declare function sql<DT extends DataType, DS extends DataShape>(rawSql: string, dtype: DT, dshape: DS): tybis.VExpr<DT, DS>;
+
+declare const DIALECT_TO_COMPILER_CLASS: {
+    readonly duckdb: typeof DuckDbSqlCompiler;
+    readonly postgres: typeof PostgresSqlCompiler;
+    readonly mysql: typeof MySqlSqlCompiler;
+    readonly sqlite: typeof SqliteSqlCompiler;
+};
+declare const DIALECTS: (keyof typeof DIALECT_TO_COMPILER_CLASS)[];
+type Dialect = typeof DIALECTS[number];
+/** Compile a {@link Relation} to a SQL string and params. */
+declare function toSql(relation: Relation<Schema, BuiltinROp>, dialect?: Dialect): CompiledQuery;
+
+export { ANSI_R_HANDLERS, ANSI_V_HANDLERS, type CompiledQuery, DIALECTS, DIALECT_TO_COMPILER_CLASS, type Dialect, DuckDbSqlCompiler, MySqlSqlCompiler, type Param, type PlannerCtx, PostgresSqlCompiler, type QueryLevel, type ROpPlanHandlers, type Sql, SqlCompiler, type SqlFragment, type SqlVOp, SqliteSqlCompiler, type VOpHandlers, closeLevel, f, param, sql, toSql };
  }`

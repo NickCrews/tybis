@@ -2,6 +2,7 @@ import * as Babel from '@babel/standalone'
 import * as ty from 'tybis'
 import * as tysql from 'tybis-sql-compiler'
 import { DuckDbSqlCompiler } from 'tybis-sql-compiler'
+import { toPrql } from 'tybis-prql-compiler'
 
 export type PreviewResult =
   | { kind: 'ok'; prql: string; sql: string | null; sqlError: string | null }
@@ -74,7 +75,7 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
 
   let prql: string
   try {
-    prql = rel.toPrql()
+    prql = toPrql(rel)
   } catch (err) {
     return { kind: 'error', message: `toPrql() failed: ${err}` }
   }

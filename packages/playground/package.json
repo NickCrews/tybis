@@ -30,7 +30,8 @@
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",
     "tybis": "workspace:*",
-    "tybis-sql-compiler": "workspace:*"
+    "tybis-sql-compiler": "workspace:*",
+    "tybis-prql-compiler": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
