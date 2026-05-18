@@ -118,8 +118,8 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVOp
      * Returns a {@link CompiledQuery} so that this method satisfies the public
      * `Compiler<CompiledQuery>` interface.
      */
-    compileROp(op: BuiltinROp): CompiledQuery {
-        const ctx = this.planROp(op)
+    compileROp(op: IROp): CompiledQuery {
+        const ctx = this.planROp(op as BuiltinROp)
         const sql = this.emitLevels(ctx)
         return this.finalize(sql)
     }

@@ -1,4 +1,4 @@
-import type { Compiler, BuiltinROp, BuiltinVOp } from 'tybis'
+import type { Compiler, BuiltinROp, BuiltinVOp, IROp } from 'tybis'
 import { type RawSqlOp } from 'tybis-sql-compiler/ops'
 
 
@@ -6,7 +6,7 @@ export type SupportedPrqlVops =
     | Exclude<BuiltinVOp, { kind: 'interval_literal' }> // PRQL doesn't support interval literals (at least for now)
     | RawSqlOp
 export type SupportedPrqlROps = BuiltinROp
-export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, SupportedPrqlROps> {
+export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops, IROp> {
     compileVOp(op: SupportedPrqlVops): string {
         const kind = op.kind
         switch (kind) {
@@ -63,7 +63,8 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
 
-    compileROp(node: SupportedPrqlROps): string {
+    compileROp(op: IROp): string {
+        const node = op as SupportedPrqlROps
         switch (node.kind) {
             case 'from':
                 return `from ${node.name}`
