@@ -219,7 +219,7 @@ describe('Relation.take()', () => {
     it('preserves schema through take', () => {
         const q = penguins.take(5)
         expect(q.schema).toEqual(penguins.schema)
-        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
     })
 })
 
@@ -323,7 +323,7 @@ describe('Relation.filter()', () => {
     it('schema is preserved through filter', () => {
         const q = penguins.filter(r => r.bill_length_mm.gt(40))
         expect(q.schema).toEqual(penguins.schema)
-        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
     })
 
 })
@@ -332,6 +332,57 @@ describe('Relation.sort()', () => {
     it('schema is preserved through sort', () => {
         const q = penguins.sort(r => r.year)
         expect(q.schema).toEqual(penguins.schema)
-        expectTypeOf(q.schema).toEqualTypeOf<typeof penguins['schema']>()
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
+    })
+
+    it('accepts plain-object form with direction strings', () => {
+        const q = penguins.sort({ species: 'asc', year: 'desc' })
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
+    })
+
+    it('accepts options object with nulls handling', () => {
+        const q = penguins.sort({ year: { dir: 'desc', nulls: 'last' } })
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
+    })
+
+    it('accepts mixed string and options-object values', () => {
+        const q = penguins.sort({ species: 'asc', year: { dir: 'desc', nulls: 'first' } })
+        expect(q.schema).toEqual(penguins.schema)
+        expectTypeOf(q.schema).toEqualTypeOf(penguins.schema)
+    })
+
+    it('throws with typo suggestion for unknown column in object form', () => {
+        // @ts-expect-error — 'yeer' is not in the schema
+        expect(() => penguins.sort({ yeer: 'desc' })).toThrowError(
+            "Cannot sort by 'yeer': column does not exist. Did you mean 'year'?"
+        )
+    })
+
+    it('throws when given an empty object', () => {
+        expect(() => penguins.sort({})).toThrowError(/at least one key/)
+    })
+
+    it('accepts callback form with nulls options on .desc()', () => {
+        const q = penguins.sort(r => r.year.desc({ nulls: 'last' }))
+        expect(q.schema).toEqual(penguins.schema)
+    })
+})
+
+describe('Relation.groupBy()', () => {
+    it('accepts plain-object form', () => {
+        const q = penguins
+            .groupBy({ species: true })
+            .agg({ n: ty.count() })
+        expect('species' in q.schema).toBe(true)
+        expect('n' in q.schema).toBe(true)
+    })
+
+    it('throws with typo suggestion for unknown column in object form', () => {
+        expect(() =>
+            // @ts-expect-error — 'specie' is not in the schema
+            penguins.groupBy({ specie: true }).agg({ n: ty.count() })
+        ).toThrowError("Cannot group by 'specie': column does not exist. Did you mean 'species'?")
     })
 })

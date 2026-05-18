@@ -10,7 +10,11 @@ import { RawSqlOp } from './ops.js'
 
 // SortSpec and IVOp aren't re-exported from `tybis` root; use a structural type.
 type IVOpLike = { readonly kind: string }
-interface SortSpecLike { readonly op: IVOpLike; readonly direction: 'asc' | 'desc' }
+interface SortSpecLike {
+    readonly op: IVOpLike
+    readonly direction: 'asc' | 'desc'
+    readonly nulls?: 'first' | 'last' | undefined
+}
 
 /**
  * Full op set the SQL compilers know how to compile: every builtin tybis op
@@ -216,7 +220,10 @@ export abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVOp
         if (level.sort && level.sort.length > 0) {
             const items: Sql[] = level.sort.map(s => {
                 const inner = this.compileVOp(s.op as SqlVOp)
-                return s.direction === 'desc' ? f`${inner} DESC` : inner
+                const withDir: Sql = s.direction === 'desc' ? f`${inner} DESC` : inner
+                if (s.nulls === 'first') return f`${withDir} NULLS FIRST`
+                if (s.nulls === 'last') return f`${withDir} NULLS LAST`
+                return withDir
             })
             parts.push(f` ORDER BY `)
             parts.push(joinSql(items, ', '))

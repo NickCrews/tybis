@@ -91,11 +91,11 @@ export class GenericVExpr<DT extends DataType = DataType, DS extends DataShape =
     max() {
         return vOpToVExpr(new ops.MaxOp(this.toOp()))
     }
-    desc() {
-        return new SortExpr(this, 'desc')
+    desc(opts?: { nulls?: ops.NullsOrder }) {
+        return new SortExpr(this, 'desc', opts?.nulls)
     }
-    asc() {
-        return new SortExpr(this, 'asc')
+    asc(opts?: { nulls?: ops.NullsOrder }) {
+        return new SortExpr(this, 'asc', opts?.nulls)
     }
 }
 
@@ -238,9 +238,10 @@ export class SortExpr {
     constructor(
         readonly expr: BaseVExpr,
         readonly direction: 'asc' | 'desc',
+        readonly nulls?: ops.NullsOrder,
     ) { }
     toSortSpec() {
-        return new ops.SortSpec(this.expr.toOp(), this.direction)
+        return new ops.SortSpec(this.expr.toOp(), this.direction, this.nulls)
     }
 }
 

@@ -96,6 +96,36 @@ describe('Level-boundary planner rules', () => {
         `)
     })
 
+    it('SORT object-form emits ORDER BY with directions', () => {
+        const q = penguins.sort({ species: 'asc', year: 'desc' })
+        expect(compileR(q)).toMatchInlineSnapshot(`
+          {
+            "params": [],
+            "sql": "SELECT * FROM "penguins" ORDER BY "species", "year" DESC",
+          }
+        `)
+    })
+
+    it('SORT emits NULLS FIRST/LAST when specified', () => {
+        const q = penguins.sort({ year: { dir: 'desc', nulls: 'last' }, species: { dir: 'asc', nulls: 'first' } })
+        expect(compileR(q)).toMatchInlineSnapshot(`
+          {
+            "params": [],
+            "sql": "SELECT * FROM "penguins" ORDER BY "year" DESC NULLS LAST, "species" NULLS FIRST",
+          }
+        `)
+    })
+
+    it('SORT callback with .desc({nulls:"last"}) emits NULLS LAST', () => {
+        const q = penguins.sort(r => r.year.desc({ nulls: 'last' }))
+        expect(compileR(q)).toMatchInlineSnapshot(`
+          {
+            "params": [],
+            "sql": "SELECT * FROM "penguins" ORDER BY "year" DESC NULLS LAST",
+          }
+        `)
+    })
+
     it('FROM + SORT + TAKE + SORT -> CTE chain (second sort is new level)', () => {
         const q = penguins
             .sort(r => r.bill_length_mm)

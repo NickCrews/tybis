@@ -58,7 +58,10 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
         }
     }
 
-    compileSortKey(spec: { op: SupportedPrqlVops, direction: 'asc' | 'desc' }): string {
+    compileSortKey(spec: { op: SupportedPrqlVops, direction: 'asc' | 'desc', nulls?: 'first' | 'last' }): string {
+        if (spec.nulls !== undefined) {
+            throw new Error(`PRQL does not support NULLS FIRST/LAST in sort keys`)
+        }
         const inner = this.compileVOp(spec.op)
         return spec.direction === 'desc' ? `-${inner}` : inner
     }
@@ -87,7 +90,11 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
                 return `${this.compileROp(node.source as SupportedPrqlROps)}\ngroup {${keys}} (\n  aggregate {\n${aggs}\n  }\n)`
             }
             case 'sort': {
-                const keys = node.keys.map(k => this.compileSortKey({ op: k.op as SupportedPrqlVops, direction: k.direction })).join(', ')
+                const keys = node.keys.map(k => this.compileSortKey(
+                    k.nulls !== undefined
+                        ? { op: k.op as SupportedPrqlVops, direction: k.direction, nulls: k.nulls }
+                        : { op: k.op as SupportedPrqlVops, direction: k.direction }
+                )).join(', ')
                 return `${this.compileROp(node.source as SupportedPrqlROps)}\nsort {${keys}}`
             }
             case 'take':

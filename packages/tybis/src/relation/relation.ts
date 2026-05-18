@@ -4,7 +4,7 @@ import type { IROp } from './irop.js'
 import { FilterOp, GroupOp, DeriveOp, SelectOp, SortOp, TakeOp, FromOp } from './rops.js'
 import type { RCompiler } from '../compilers/base.js'
 import { type IVOp, type IVExpr } from '../value/core.js'
-import { SortSpec } from '../value/ops.js'
+import { SortSpec, type NullsOrder } from '../value/ops.js'
 import {
     BooleanExpr,
     SortExpr,
@@ -73,6 +73,12 @@ type SelectSchema<S extends Schema, D> = {
     never
 }
 
+type SortDir = 'asc' | 'desc'
+type SortKeyOpts = { dir: SortDir; nulls?: NullsOrder }
+type SortKeysObject<S extends Schema> = {
+    [K in keyof S & string]?: SortDir | SortKeyOpts
+}
+
 // ---------------------------------------------------------------------------
 // Relation class
 // ---------------------------------------------------------------------------
@@ -112,14 +118,21 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
+     * @example penguins.groupBy({ species: true, year: true })
      * @example
-     * penguins.groupBy(r => ({ species: true, year: true }))
+     * penguins.groupBy(r => ({ kind: r.species, decade: r.year.div(10) }))
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
     groupBy<K extends SelectInput<S, K>>(
-        keys: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K),
+        input: K & (keyof K extends never ? "At least one grouping key is required" : K),
+    ): GroupedRelation<S, SelectSchema<S, K>>
+    groupBy<K extends SelectInput<S, K>>(
+        input: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K),
+    ): GroupedRelation<S, SelectSchema<S, K>>
+    groupBy<K extends SelectInput<S, K>>(
+        input: K | ((r: Cols<S>) => K),
     ): GroupedRelation<S, SelectSchema<S, K>> {
-        const groupingKeys = keys(this.cols) as Record<string, IVExpr<any, any> | boolean>
+        const groupingKeys = (typeof input === 'function' ? (input as any)(this.cols) : input) as Record<string, IVExpr<any, any> | boolean>
 
         const keyPairs: [string, IVOp][] = []
         const keySchema: Record<string, DataType> = {}
@@ -205,18 +218,55 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
     /**
      * Sort rows by one or more keys.
+     *
+     * Plain-object form keys are column names; values are `'asc'`, `'desc'`,
+     * or `{ dir, nulls? }`. Insertion order determines sort priority.
+     *
+     * @example penguins.sort({ year: 'desc' })
+     * @example penguins.sort({ species: 'asc', year: { dir: 'desc', nulls: 'last' } })
      * @example penguins.sort(r => r.count.desc())
-     * @example penguins.sort(r => [r.species, r.year.desc()])
+     * @example penguins.sort(r => [r.species, r.year.desc({ nulls: 'last' })])
      */
     sort(
-        cb: (r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
+        input:
+            | SortKeysObject<S>
+            | ((r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[])
     ): Relation<S, SortOp<S>> {
+        const sortKeys: SortSpec[] =
+            typeof input === 'function'
+                ? this._sortKeysFromCallback(input)
+                : this._sortKeysFromObject(input)
+        if (sortKeys.length === 0) {
+            throw new Error("sort() requires at least one key")
+        }
+        return new Relation(new SortOp(this._op, sortKeys))
+    }
+
+    private _sortKeysFromCallback(
+        cb: (r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]
+    ): SortSpec[] {
         const result = cb(this.cols)
         const keysList = Array.isArray(result) ? result : [result]
-        const sortKeys = keysList.map(k =>
+        return keysList.map(k =>
             k instanceof SortExpr ? k.toSortSpec() : new SortSpec(k.toOp(), 'asc')
         )
-        return new Relation(new SortOp(this._op, sortKeys))
+    }
+
+    private _sortKeysFromObject(obj: SortKeysObject<S>): SortSpec[] {
+        const out: SortSpec[] = []
+        for (const [name, value] of Object.entries(obj) as [string, SortDir | SortKeyOpts][]) {
+            if (!(name in this.schema)) {
+                const suggestion = suggestColumnName(name, Object.keys(this.schema))
+                throw new Error(`Cannot sort by '${name}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+            }
+            const colOp = (this.cols as any)[name].toOp() as IVOp
+            if (typeof value === 'string') {
+                out.push(new SortSpec(colOp, value))
+            } else {
+                out.push(new SortSpec(colOp, value.dir, value.nulls))
+            }
+        }
+        return out
     }
 
     /**

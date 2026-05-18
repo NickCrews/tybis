@@ -227,8 +227,14 @@ export class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseVO
 // Sort specification
 // ---------------------------------------------------------------------------
 
+export type NullsOrder = 'first' | 'last'
+
 export class SortSpec {
-    constructor(readonly op: IVOp<any, any>, readonly direction: 'asc' | 'desc') { }
+    constructor(
+        readonly op: IVOp<any, any>,
+        readonly direction: 'asc' | 'desc',
+        readonly nulls?: NullsOrder,
+    ) { }
 }
 
 // ---------------------------------------------------------------------------
