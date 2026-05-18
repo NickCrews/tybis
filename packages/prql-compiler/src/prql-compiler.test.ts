@@ -290,12 +290,12 @@ describe('PrqlCompiler — comparison ops', () => {
         `)
   })
 
-  it('gte', () => {
-    const q = table.derive(r => ({ is_gte: r.f64a.gte(10) }))
+  it('ge', () => {
+    const q = table.derive(r => ({ is_ge: r.f64a.ge(10) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
-            is_gte = f64a >= 10
+            is_ge = f64a >= 10
           }"
         `)
   })
@@ -310,12 +310,12 @@ describe('PrqlCompiler — comparison ops', () => {
         `)
   })
 
-  it('lte', () => {
-    const q = table.derive(r => ({ is_lte: r.f64a.lte(20) }))
+  it('le', () => {
+    const q = table.derive(r => ({ is_le: r.f64a.le(20) }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           derive {
-            is_lte = f64a <= 20
+            is_le = f64a <= 20
           }"
         `)
   })

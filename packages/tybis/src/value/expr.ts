@@ -73,17 +73,17 @@ export class GenericVExpr<DT extends DataType = DataType, DS extends DataShape =
         const op = cmp.coerceToComparable(this.dtype(), other)
         return vOpToVExpr(new ops.GtOp(this.toOp(), op))
     }
-    gte<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+    ge<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
         const op = cmp.coerceToComparable(this.dtype(), other)
-        return vOpToVExpr(new ops.GteOp(this.toOp(), op))
+        return vOpToVExpr(new ops.GeOp(this.toOp(), op))
     }
     lt<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
         const op = cmp.coerceToComparable(this.dtype(), other)
         return vOpToVExpr(new ops.LtOp(this.toOp(), op))
     }
-    lte<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
+    le<O extends cmp.IntoValueComparableTo<DT>>(other: O) {
         const op = cmp.coerceToComparable(this.dtype(), other)
-        return vOpToVExpr(new ops.LteOp(this.toOp(), op))
+        return vOpToVExpr(new ops.LeOp(this.toOp(), op))
     }
     min() {
         return vOpToVExpr(new ops.MinOp(this.toOp()))

@@ -193,18 +193,18 @@ describe('Comparison Operations', () => {
     })
 
     describe('greater than or equal', () => {
-        it('should have basic functionality for gte', () => {
-            const q = table.derive(r => ({ is_gte: r.f64a.gte(10) }))
-            expect(q.cols.is_gte.dtype()).toEqual({ typecode: 'boolean', nullable: true })
-            expect(q.cols.is_gte.dshape()).toBe('columnar')
-            expectTypeOf(q.cols.is_gte.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
-            expectTypeOf(q.cols.is_gte.dshape()).toEqualTypeOf<'columnar'>()
+        it('should have basic functionality for ge', () => {
+            const q = table.derive(r => ({ is_ge: r.f64a.ge(10) }))
+            expect(q.cols.is_ge.dtype()).toEqual({ typecode: 'boolean', nullable: true })
+            expect(q.cols.is_ge.dshape()).toBe('columnar')
+            expectTypeOf(q.cols.is_ge.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
+            expectTypeOf(q.cols.is_ge.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
             const col = new ops.ColRefOp('x', 'float64')
             const scalar = new FloatLiteralOp(10)
-            const op = new ops.GteOp(col, scalar)
+            const op = new ops.GtOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()
@@ -231,18 +231,18 @@ describe('Comparison Operations', () => {
     })
 
     describe('less than or equal', () => {
-        it('should have basic functionality for lte', () => {
-            const q = table.derive(r => ({ is_lte: r.f64a.lte(20) }))
-            expect(q.cols.is_lte.dtype()).toEqual({ typecode: 'boolean', nullable: true })
-            expect(q.cols.is_lte.dshape()).toBe('columnar')
-            expectTypeOf(q.cols.is_lte.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
-            expectTypeOf(q.cols.is_lte.dshape()).toEqualTypeOf<'columnar'>()
+        it('should have basic functionality for le', () => {
+            const q = table.derive(r => ({ is_le: r.f64a.le(20) }))
+            expect(q.cols.is_le.dtype()).toEqual({ typecode: 'boolean', nullable: true })
+            expect(q.cols.is_le.dshape()).toBe('columnar')
+            expectTypeOf(q.cols.is_le.dtype()).toEqualTypeOf<{ typecode: 'boolean', nullable: boolean }>()
+            expectTypeOf(q.cols.is_le.dshape()).toEqualTypeOf<'columnar'>()
         })
 
         it('should have correct shape for mixed shapes', () => {
             const col = new ops.ColRefOp('f64a', 'float64')
             const scalar = new FloatLiteralOp(20)
-            const op = new ops.LteOp(col, scalar)
+            const op = new ops.LeOp(col, scalar)
             expect(op.dshape()).toBe('columnar')
             expect(op.dtype()).toEqual({ typecode: 'boolean', nullable: true })
             expectTypeOf(op.dshape()).toEqualTypeOf<'columnar'>()

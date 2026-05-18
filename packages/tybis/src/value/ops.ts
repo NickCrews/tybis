@@ -67,8 +67,8 @@ export class GtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = Dat
     constructor(readonly left: IVOp<DataType, DS1>, readonly right: IVOp<DataType, DS2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[DS1, DS2]>) }
 }
 
-export class GteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
-    readonly kind = 'gte' as const
+export class GeOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
+    readonly kind = 'ge' as const
     constructor(readonly left: IVOp<DataType, DS1>, readonly right: IVOp<DataType, DS2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[DS1, DS2]>) }
 }
 
@@ -77,8 +77,8 @@ export class LtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = Dat
     constructor(readonly left: IVOp<DataType, DS1>, readonly right: IVOp<DataType, DS2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[DS1, DS2]>) }
 }
 
-export class LteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
-    readonly kind = 'lte' as const
+export class LeOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<dt.DTBoolean, HighestDataShape<[DS1, DS2]>> {
+    readonly kind = 'le' as const
     constructor(readonly left: IVOp<DataType, DS1>, readonly right: IVOp<DataType, DS2>) { super(dt.DTBoolean(), highestDataShape(left.dshape(), right.dshape()) as HighestDataShape<[DS1, DS2]>) }
 }
 
@@ -261,9 +261,9 @@ export type BuiltinVOp =
     // comparison ops
     | EqOp
     | GtOp
-    | GteOp
+    | GeOp
     | LtOp
-    | LteOp
+    | LeOp
     | MinOp
     | MaxOp
     // boolean logic ops

@@ -91,13 +91,13 @@ export const ANSI_V_HANDLERS: VOpHandlers<SqlCompiler> = ({
     gt(op) {
         return infix(this, op.left as SqlVOp, '>', op.right as SqlVOp)
     },
-    gte(op) {
+    ge(op) {
         return infix(this, op.left as SqlVOp, '>=', op.right as SqlVOp)
     },
     lt(op) {
         return infix(this, op.left as SqlVOp, '<', op.right as SqlVOp)
     },
-    lte(op) {
+    le(op) {
         return infix(this, op.left as SqlVOp, '<=', op.right as SqlVOp)
     },
     min(op) {

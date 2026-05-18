@@ -23,9 +23,9 @@ export class PrqlCompiler implements Compiler<string, string, SupportedPrqlVops,
 
             case 'eq': return `${this.compileVOp(op.left as SupportedPrqlVops)} == ${this.compileVOp(op.right as SupportedPrqlVops)}`
             case 'gt': return `${this.compileVOp(op.left as SupportedPrqlVops)} > ${this.compileVOp(op.right as SupportedPrqlVops)}`
-            case 'gte': return `${this.compileVOp(op.left as SupportedPrqlVops)} >= ${this.compileVOp(op.right as SupportedPrqlVops)}`
+            case 'ge': return `${this.compileVOp(op.left as SupportedPrqlVops)} >= ${this.compileVOp(op.right as SupportedPrqlVops)}`
             case 'lt': return `${this.compileVOp(op.left as SupportedPrqlVops)} < ${this.compileVOp(op.right as SupportedPrqlVops)}`
-            case 'lte': return `${this.compileVOp(op.left as SupportedPrqlVops)} <= ${this.compileVOp(op.right as SupportedPrqlVops)}`
+            case 'le': return `${this.compileVOp(op.left as SupportedPrqlVops)} <= ${this.compileVOp(op.right as SupportedPrqlVops)}`
             case 'is_not_null': return `${this.compileVOp(op.operand as SupportedPrqlVops)} != null`
             case 'is_null': return `${this.compileVOp(op.operand as SupportedPrqlVops)} == null`
 

@@ -358,10 +358,10 @@ declare class GtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = Da
     readonly kind: "gt";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class GteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class GeOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
-    readonly kind: "gte";
+    readonly kind: "ge";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
 declare class LtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
@@ -370,10 +370,10 @@ declare class LtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = Da
     readonly kind: "lt";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class LteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class LeOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
-    readonly kind: "lte";
+    readonly kind: "le";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
 declare class MinOp<DT extends DataType = DataType> extends BaseVOp<DT, 'scalar'> {
@@ -475,12 +475,14 @@ declare class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseV
     readonly kind: "temporal_to_string";
     constructor(operand: IVOp<TemporalDataType, DS>, format: string);
 }
+type NullsOrder = 'first' | 'last';
 declare class SortSpec {
     readonly op: IVOp<any, any>;
     readonly direction: 'asc' | 'desc';
-    constructor(op: IVOp<any, any>, direction: 'asc' | 'desc');
+    readonly nulls?: NullsOrder | undefined;
+    constructor(op: IVOp<any, any>, direction: 'asc' | 'desc', nulls?: NullsOrder | undefined);
 }
-type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IntervalLiteralOp | UuidLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | EqOp | GtOp | GteOp | LtOp | LteOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
+type BuiltinVOp = IntLiteralOp | FloatLiteralOp | StringLiteralOp | BooleanLiteralOp | NullLiteralOp | DatetimeLiteralOp | DateLiteralOp | TimeLiteralOp | IntervalLiteralOp | UuidLiteralOp | ColRefOp | IsNotNullOp | IsNullOp | CountOp | EqOp | GtOp | GeOp | LtOp | LeOp | MinOp | MaxOp | LogicalNotOp | LogicalAndOp | LogicalOrOp | AddOp | SubOp | MulOp | DivOp | SumOp | MeanOp | UpperOp | LowerOp | ContainsOp | StartsWithOp | TemporalToStringOp;
 
 declare abstract class BaseROp<S extends Schema = Schema, K extends string = string> implements IROp<S, K> {
     [IsROpSymbol]: true;
@@ -588,13 +590,17 @@ declare class GenericVExpr<DT extends DataType = DataType, DS extends DataShape 
     isNull(): BooleanExpr<DS>;
     eq<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
     gt<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
-    gte<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    ge<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
     lt<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
-    lte<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
+    le<O extends IntoValueComparableTo<DT>>(other: O): BooleanExpr<"columnar" extends DS | InferDataShape<O> ? (DS | InferDataShape<O>) & "columnar" : "scalar">;
     min(): VExpr<DT, "scalar">;
     max(): VExpr<DT, "scalar">;
-    desc(): SortExpr;
-    asc(): SortExpr;
+    desc(opts?: {
+        nulls?: NullsOrder;
+    }): SortExpr;
+    asc(opts?: {
+        nulls?: NullsOrder;
+    }): SortExpr;
 }
 declare class NullExpr<DS extends DataShape = DataShape> extends GenericVExpr<DTNull, DS> {
 }
@@ -635,7 +641,8 @@ declare function col<N extends string, DT extends IntoDtype>(name: N, dtype: DT)
 declare class SortExpr {
     readonly expr: BaseVExpr;
     readonly direction: 'asc' | 'desc';
-    constructor(expr: BaseVExpr, direction: 'asc' | 'desc');
+    readonly nulls?: NullsOrder | undefined;
+    constructor(expr: BaseVExpr, direction: 'asc' | 'desc', nulls?: NullsOrder | undefined);
     toSortSpec(): SortSpec;
 }
 /**
@@ -678,6 +685,14 @@ type SelectInput<S extends Schema, D> = {
 type SelectSchema<S extends Schema, D> = {
     [K in keyof D as D[K] extends false ? never : K]: D[K] extends IVExpr<infer T, any> ? T : D[K] extends boolean ? (K extends keyof S ? S[K] : never) : never;
 };
+type SortDir = 'asc' | 'desc';
+type SortKeyOpts = {
+    dir: SortDir;
+    nulls?: NullsOrder;
+};
+type SortKeysObject<S extends Schema> = {
+    [K in keyof S & string]?: SortDir | SortKeyOpts;
+};
 declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /** @internal */ readonly _op: O;
     /**
@@ -702,29 +717,52 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     filter(cb: (r: Cols<S>) => BooleanExpr): Relation<S, FilterOp<S>>;
     /**
      * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
+     *
+     * Use the plain-object form to group by existing columns. Use the callback form
+     * when you need to compute keys from column expressions.
+     *
+     * @example penguins.groupBy({ species: true, year: true })
      * @example
-     * penguins.groupBy(r => ({ species: true, year: true }))
+     * penguins.groupBy(r => ({ kind: r.species, decade: r.year.div(10) }))
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
-    groupBy<K extends SelectInput<S, K>>(keys: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
+    groupBy<K extends SelectInput<S, K>>(input: K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
+    groupBy<K extends SelectInput<S, K>>(input: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
     /**
      * Add computed columns to each row.
+     *
+     * Use the plain-object form for derivations that don't reference existing columns.
+     * Use the callback form to compute new columns from column expressions.
+     *
+     * @example penguins.derive({ year_offset: ty.lit(2000) })
      * @example penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
-     * @example penguins.derive({ year_offset: lit(2000) })
      */
     derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: Cols<S>) => D)): Relation<DeriveSchema<S, D>>;
     /**
      * Replace existing columns with a new set of expressions.
+     *
+     * Use the plain-object form to pick (or drop) existing columns by name. Use
+     * the callback form when you need to compute new column values from
+     * column expressions.
+     *
+     * @example penguins.select({ species: true, island: true })
      * @example penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
-     * @example penguins.select({ species: true }) // Keep existing column
      */
     select<D extends SelectInput<S, D>>(input: D | ((r: Cols<S>) => D)): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
     /**
      * Sort rows by one or more keys.
+     *
+     * Plain-object form keys are column names; values are \`'asc'\`, \`'desc'\`,
+     * or \`{ dir, nulls? }\`. Insertion order determines sort priority.
+     *
+     * @example penguins.sort({ year: 'desc' })
+     * @example penguins.sort({ species: 'asc', year: { dir: 'desc', nulls: 'last' } })
      * @example penguins.sort(r => r.count.desc())
-     * @example penguins.sort(r => [r.species, r.year.desc()])
+     * @example penguins.sort(r => [r.species, r.year.desc({ nulls: 'last' })])
      */
-    sort(cb: (r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[]): Relation<S, SortOp<S>>;
+    sort(input: SortKeysObject<S> | ((r: Cols<S>) => SortExpr | IVExpr<any, any> | (SortExpr | IVExpr<any, any>)[])): Relation<S, SortOp<S>>;
+    private _sortKeysFromCallback;
+    private _sortKeysFromObject;
     /**
      * Take the first n rows.
      * @example penguins.take(10)
@@ -745,7 +783,7 @@ declare class GroupedRelation<S extends Schema, KS extends Schema> {
     /**
      * Aggregate the group with a record of scalar expressions.
      * @example
-     * penguins.groupBy(r => ({ species: true }))
+     * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
     agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A | ((r: Cols<S>) => A)): Relation<KS & AggResultSchema<A>, GroupOp<KS & AggResultSchema<A>>>;
@@ -804,6 +842,7 @@ type IVOpLike = {
 interface SortSpecLike {
     readonly op: IVOpLike;
     readonly direction: 'asc' | 'desc';
+    readonly nulls?: 'first' | 'last' | undefined;
 }
 /**
  * Full op set the SQL compilers know how to compile: every builtin tybis op
