@@ -12,7 +12,7 @@ export {
     count,
     col,
     lit,
-    BaseOp,
+    BaseVOp,
     vOpToVExpr,
     type IVExpr,
     type VExpr,

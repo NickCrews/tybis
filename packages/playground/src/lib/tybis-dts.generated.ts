@@ -203,7 +203,7 @@ interface IROp<S extends Schema = Schema, K extends string = string> {
     [IsROpSymbol]?: boolean;
 }
 
-declare abstract class BaseOp<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVOp<DT, DS> {
+declare abstract class BaseVOp<DT extends DataType = DataType, DS extends DataShape = DataShape> implements IVOp<DT, DS> {
     [IsVOpSymbol]: true;
     abstract readonly kind: string;
     private readonly _dtype;
@@ -215,67 +215,67 @@ declare abstract class BaseOp<DT extends DataType = DataType, DS extends DataSha
 }
 
 type IntoIntLiteralValue = number | \`\${number}\`;
-declare class IntLiteralOp<DT extends DTInt = DTInt> extends BaseOp<DT, 'scalar'> {
+declare class IntLiteralOp<DT extends DTInt = DTInt> extends BaseVOp<DT, 'scalar'> {
     readonly raw: IntoIntLiteralValue;
     readonly kind: "int_literal";
     readonly value: number;
     constructor(raw: IntoIntLiteralValue, dtype?: DT);
 }
 type IntoFloatLiteralValue = number | \`\${number}\` | 'NAN' | 'nan' | 'NaN';
-declare class FloatLiteralOp<DT extends DTFloat = DTFloat> extends BaseOp<DT, 'scalar'> {
+declare class FloatLiteralOp<DT extends DTFloat = DTFloat> extends BaseVOp<DT, 'scalar'> {
     readonly raw: IntoFloatLiteralValue;
     readonly kind: "float_literal";
     readonly value: number;
     constructor(raw: IntoFloatLiteralValue, dtype?: DT);
 }
 type IntoStringLiteralValue = string | boolean | number | null | Date;
-declare class StringLiteralOp extends BaseOp<DTString, 'scalar'> {
+declare class StringLiteralOp extends BaseVOp<DTString, 'scalar'> {
     readonly raw: IntoStringLiteralValue;
     readonly kind: "string_literal";
     readonly value: string;
     constructor(raw: IntoStringLiteralValue);
 }
 type IntoBooleanLiteralValue = boolean | number | null | 'true' | 'false';
-declare class BooleanLiteralOp extends BaseOp<DTBoolean, 'scalar'> {
+declare class BooleanLiteralOp extends BaseVOp<DTBoolean, 'scalar'> {
     readonly raw: IntoBooleanLiteralValue;
     readonly kind: "boolean_literal";
     readonly value: boolean;
     constructor(raw: IntoBooleanLiteralValue);
 }
-declare class NullLiteralOp extends BaseOp<DTNull, 'scalar'> {
+declare class NullLiteralOp extends BaseVOp<DTNull, 'scalar'> {
     readonly kind: "null_literal";
     constructor();
 }
 type IntoDatetimeLiteralValue = Date | string;
-declare class DatetimeLiteralOp extends BaseOp<DTDateTime, 'scalar'> {
+declare class DatetimeLiteralOp extends BaseVOp<DTDateTime, 'scalar'> {
     readonly raw: IntoDatetimeLiteralValue;
     readonly kind: "datetime_literal";
     readonly value: Date;
     constructor(raw: IntoDatetimeLiteralValue);
 }
 type IntoDateLiteralValue = Date | string;
-declare class DateLiteralOp extends BaseOp<DTDate, 'scalar'> {
+declare class DateLiteralOp extends BaseVOp<DTDate, 'scalar'> {
     readonly raw: IntoDateLiteralValue;
     readonly kind: "date_literal";
     readonly value: Date;
     constructor(raw: IntoDateLiteralValue);
 }
 type IntoTimeLiteralValue = Date | string;
-declare class TimeLiteralOp extends BaseOp<DTTime, 'scalar'> {
+declare class TimeLiteralOp extends BaseVOp<DTTime, 'scalar'> {
     readonly raw: IntoTimeLiteralValue;
     readonly kind: "time_literal";
     readonly value: Date;
     constructor(raw: IntoTimeLiteralValue);
 }
 type IntoIntervalLiteralValue = number;
-declare class IntervalLiteralOp extends BaseOp<DTInterval, 'scalar'> {
+declare class IntervalLiteralOp extends BaseVOp<DTInterval, 'scalar'> {
     readonly raw: IntoIntervalLiteralValue;
     readonly kind: "interval_literal";
     readonly value: number;
     constructor(raw: IntoIntervalLiteralValue);
 }
 type IntoUuidLiteralValue = string;
-declare class UuidLiteralOp extends BaseOp<DTUUID, 'scalar'> {
+declare class UuidLiteralOp extends BaseVOp<DTUUID, 'scalar'> {
     readonly raw: IntoUuidLiteralValue;
     readonly kind: "uuid_literal";
     readonly value: string;
@@ -285,134 +285,134 @@ type LiteralValueCoercibleTo<DT extends DataType> = DT extends DTInt ? IntoIntLi
 type AcceptableJsVal<DT extends IntoDtype | undefined = undefined> = DT extends IntoDtype ? LiteralValueCoercibleTo<InferDtype<DT>> : InferrableJsType;
 type ExplicitOrInferredDtype<JS extends InferrableJsType, DT extends IntoDtype | undefined> = DT extends IntoDtype ? InferDtype<DT> : InferDtypeFromJs<JS>;
 
-declare class ColRefOp<N extends string = string, DT extends IntoDtype = DataType> extends BaseOp<InferDtype<DT>, 'columnar'> {
+declare class ColRefOp<N extends string = string, DT extends IntoDtype = DataType> extends BaseVOp<InferDtype<DT>, 'columnar'> {
     readonly name: N;
     readonly kind: "col_ref";
     constructor(name: N, dtype: DT);
     getName(): string;
 }
-declare class IsNotNullOp<DS extends DataShape = DataShape> extends BaseOp<DTBoolean, DS> {
+declare class IsNotNullOp<DS extends DataShape = DataShape> extends BaseVOp<DTBoolean, DS> {
     readonly operand: IVOp<DataType, DS>;
     readonly kind: "is_not_null";
     constructor(operand: IVOp<DataType, DS>);
 }
-declare class IsNullOp<DS extends DataShape = DataShape> extends BaseOp<DTBoolean, DS> {
+declare class IsNullOp<DS extends DataShape = DataShape> extends BaseVOp<DTBoolean, DS> {
     readonly operand: IVOp<DataType, DS>;
     readonly kind: "is_null";
     constructor(operand: IVOp<DataType, DS>);
 }
-declare class CountOp extends BaseOp<DTInt<64>, 'scalar'> {
+declare class CountOp extends BaseVOp<DTInt<64>, 'scalar'> {
     readonly kind: "count";
     constructor();
 }
-declare class EqOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class EqOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
     readonly kind: "eq";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class GtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class GtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
     readonly kind: "gt";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class GteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class GteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
     readonly kind: "gte";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class LtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class LtOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
     readonly kind: "lt";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class LteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class LteOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DataType, DS1>;
     readonly right: IVOp<DataType, DS2>;
     readonly kind: "lte";
     constructor(left: IVOp<DataType, DS1>, right: IVOp<DataType, DS2>);
 }
-declare class MinOp<DT extends DataType = DataType> extends BaseOp<DT, 'scalar'> {
+declare class MinOp<DT extends DataType = DataType> extends BaseVOp<DT, 'scalar'> {
     readonly operand: IVOp<DT, any>;
     readonly kind: "min";
     constructor(operand: IVOp<DT, any>);
 }
-declare class MaxOp<DT extends DataType = DataType> extends BaseOp<DT, 'scalar'> {
+declare class MaxOp<DT extends DataType = DataType> extends BaseVOp<DT, 'scalar'> {
     readonly operand: IVOp<DT, any>;
     readonly kind: "max";
     constructor(operand: IVOp<DT, any>);
 }
-declare class LogicalNotOp<DS extends DataShape = DataShape> extends BaseOp<DTBoolean, DS> {
+declare class LogicalNotOp<DS extends DataShape = DataShape> extends BaseVOp<DTBoolean, DS> {
     readonly operand: IVOp<DTBoolean, DS>;
     readonly kind: "not";
     constructor(operand: IVOp<DTBoolean, DS>);
 }
-declare class LogicalAndOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class LogicalAndOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DTBoolean, DS1>;
     readonly right: IVOp<DTBoolean, DS2>;
     readonly kind: "and";
     constructor(left: IVOp<DTBoolean, DS1>, right: IVOp<DTBoolean, DS2>);
 }
-declare class LogicalOrOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class LogicalOrOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DTBoolean, DS1>;
     readonly right: IVOp<DTBoolean, DS2>;
     readonly kind: "or";
     constructor(left: IVOp<DTBoolean, DS1>, right: IVOp<DTBoolean, DS2>);
 }
-declare class AddOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
+declare class AddOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseVOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DT1, DS1>;
     readonly right: IVOp<DT2, DS2>;
     readonly kind: "add";
     constructor(left: IVOp<DT1, DS1>, right: IVOp<DT2, DS2>);
 }
-declare class SubOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
+declare class SubOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseVOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DT1, DS1>;
     readonly right: IVOp<DT2, DS2>;
     readonly kind: "sub";
     constructor(left: IVOp<DT1, DS1>, right: IVOp<DT2, DS2>);
 }
-declare class MulOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
+declare class MulOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseVOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DT1, DS1>;
     readonly right: IVOp<DT2, DS2>;
     readonly kind: "mul";
     constructor(left: IVOp<DT1, DS1>, right: IVOp<DT2, DS2>);
 }
-declare class DivOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
+declare class DivOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape, DT1 extends DataType = DataType, DT2 extends DataType = DataType> extends BaseVOp<HighestDataType<[DT1, DT2]>, HighestDataShape<[DS1, DS2]>> {
     readonly left: IVOp<DT1, DS1>;
     readonly right: IVOp<DT2, DS2>;
     readonly kind: "div";
     constructor(left: IVOp<DT1, DS1>, right: IVOp<DT2, DS2>);
 }
-declare class SumOp<DT extends DataType = DataType> extends BaseOp<DT, 'scalar'> {
+declare class SumOp<DT extends DataType = DataType> extends BaseVOp<DT, 'scalar'> {
     readonly operand: IVOp<DT, any>;
     readonly kind: "sum";
     constructor(operand: IVOp<DT, any>);
 }
-declare class MeanOp extends BaseOp<DTFloat<64>, 'scalar'> {
+declare class MeanOp extends BaseVOp<DTFloat<64>, 'scalar'> {
     readonly operand: IVOp<any, any>;
     readonly kind: "mean";
     constructor(operand: IVOp<any, any>);
 }
-declare class UpperOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
+declare class UpperOp<DS extends DataShape = DataShape> extends BaseVOp<DTString, DS> {
     readonly operand: IVOp<DTString, DS>;
     readonly kind: "upper";
     constructor(operand: IVOp<DTString, DS>);
 }
-declare class LowerOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
+declare class LowerOp<DS extends DataShape = DataShape> extends BaseVOp<DTString, DS> {
     readonly operand: IVOp<DTString, DS>;
     readonly kind: "lower";
     constructor(operand: IVOp<DTString, DS>);
 }
-declare class ContainsOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class ContainsOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly operand: IVOp<DTString, DS1>;
     readonly pattern: IVOp<DTString, DS2>;
     readonly kind: "contains";
     constructor(operand: IVOp<DTString, DS1>, pattern: IVOp<DTString, DS2>);
 }
-declare class StartsWithOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
+declare class StartsWithOp<DS1 extends DataShape = DataShape, DS2 extends DataShape = DataShape> extends BaseVOp<DTBoolean, HighestDataShape<[DS1, DS2]>> {
     readonly operand: IVOp<DTString, DS1>;
     readonly prefix: IVOp<DTString, DS2>;
     readonly kind: "starts_with";
@@ -428,7 +428,7 @@ type TemporalDataType = {
     typecode: 'datetime';
     nullable: boolean;
 };
-declare class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseOp<DTString, DS> {
+declare class TemporalToStringOp<DS extends DataShape = DataShape> extends BaseVOp<DTString, DS> {
     readonly operand: IVOp<TemporalDataType, DS>;
     readonly format: string;
     readonly kind: "temporal_to_string";
@@ -712,7 +712,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
  */
 declare function table<S extends IntoSchema>(name: string, sch: S): Relation<InferSchema<S>, FromOp<InferSchema<S>>>;
 
-export { BaseOp, type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataShape, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, table, vOpToVExpr };
+export { BaseVOp, type BuiltinROp, type BuiltinVOp, type Compiler, DTBoolean, DTCustom, DTDate, DTDateTime, DTFloat, DTInt, DTInterval, DTNull, DTString, DTTime, DTUUID, type DataShape, type DataType, type IROp, type IVExpr, type IVOp, type InferSchema, type JSTypeFromDtype, Relation, type Schema, type VExpr, col, count, dtype, lit, schema, table, vOpToVExpr };
  }`
 
 export const TYBIS_SQL_COMPILER_DTS = /* ts */ `declare module "tybis-sql-compiler" { import * as tybis from 'tybis';
@@ -822,7 +822,7 @@ declare abstract class SqlCompiler implements Compiler<Sql, CompiledQuery, SqlVO
      * Returns a {@link CompiledQuery} so that this method satisfies the public
      * \`Compiler<CompiledQuery>\` interface.
      */
-    compileROp(op: BuiltinROp): CompiledQuery;
+    compileROp(op: IROp): CompiledQuery;
     /**
      * Walk the op chain leaf-first and produce a populated {@link PlannerCtx}.
      */

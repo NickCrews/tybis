@@ -433,7 +433,7 @@ must add, not replace.
 a typical op, comparable to today.
 
 **Examples.**
-- Today: `class UpperOp extends BaseOp<DTString, DS> { kind = 'upper' as const; constructor(operand) {…} }` — ~3 meaningful lines.
+- Today: `class UpperOp extends BaseVOp<DTString, DS> { kind = 'upper' as const; constructor(operand) {…} }` — ~3 meaningful lines.
 - The new system should not push this past ~5 lines for the common case.
 
 **Why it matters.** Friction at the op-definition site multiplies

@@ -2,7 +2,7 @@
 import { inferDtypeFromJs, type DataType, type InferrableJsType } from '../datatype.js'
 import * as dt from '../datatype.js'
 import { type IVOp } from './core.js'
-import { BaseOp } from './base-op.js'
+import { BaseVOp } from './base-op.js'
 
 // ---------------------------------------------------------------------------
 // Literals
@@ -20,7 +20,7 @@ function ensureIntLiteralValue(value: IntoIntLiteralValue): number {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to int literal`)
 }
-export class IntLiteralOp<DT extends dt.DTInt = dt.DTInt> extends BaseOp<DT, 'scalar'> {
+export class IntLiteralOp<DT extends dt.DTInt = dt.DTInt> extends BaseVOp<DT, 'scalar'> {
     readonly kind = 'int_literal' as const
     readonly value: number
     constructor(readonly raw: IntoIntLiteralValue, dtype: DT = dt.DTInt(64) as DT) {
@@ -46,7 +46,7 @@ function ensureFloatLiteralValue(value: IntoFloatLiteralValue): number {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to float literal`)
 }
-export class FloatLiteralOp<DT extends dt.DTFloat = dt.DTFloat> extends BaseOp<DT, 'scalar'> {
+export class FloatLiteralOp<DT extends dt.DTFloat = dt.DTFloat> extends BaseVOp<DT, 'scalar'> {
     readonly kind = 'float_literal' as const
     readonly value: number
     constructor(readonly raw: IntoFloatLiteralValue, dtype: DT = dt.DTFloat(64) as DT) {
@@ -69,7 +69,7 @@ function ensureStringLiteralValue(value: IntoStringLiteralValue): string {
         throw new Error(`Cannot convert ${typeof value} ${value} to string literal`)
     }
 }
-export class StringLiteralOp extends BaseOp<dt.DTString, 'scalar'> {
+export class StringLiteralOp extends BaseVOp<dt.DTString, 'scalar'> {
     readonly kind = 'string_literal' as const
     readonly value: string
     constructor(readonly raw: IntoStringLiteralValue) {
@@ -94,7 +94,7 @@ function ensureBooleanLiteralValue(value: IntoBooleanLiteralValue): boolean {
         throw new Error(`Cannot convert ${typeof value} '${value}' to boolean literal`)
     }
 }
-export class BooleanLiteralOp extends BaseOp<dt.DTBoolean, 'scalar'> {
+export class BooleanLiteralOp extends BaseVOp<dt.DTBoolean, 'scalar'> {
     readonly kind = 'boolean_literal' as const
     readonly value: boolean
     constructor(readonly raw: IntoBooleanLiteralValue) {
@@ -103,7 +103,7 @@ export class BooleanLiteralOp extends BaseOp<dt.DTBoolean, 'scalar'> {
     }
 }
 
-export class NullLiteralOp extends BaseOp<dt.DTNull, 'scalar'> {
+export class NullLiteralOp extends BaseVOp<dt.DTNull, 'scalar'> {
     readonly kind = 'null_literal' as const
     constructor() { super(dt.DTNull(), 'scalar') }
 }
@@ -122,7 +122,7 @@ function ensureDatetimeLiteralValue(value: IntoDatetimeLiteralValue): Date {
         throw new Error(`Cannot convert ${typeof value} '${value}' to datetime literal`)
     }
 }
-export class DatetimeLiteralOp extends BaseOp<dt.DTDateTime, 'scalar'> {
+export class DatetimeLiteralOp extends BaseVOp<dt.DTDateTime, 'scalar'> {
     readonly kind = 'datetime_literal' as const
     readonly value: Date
     constructor(readonly raw: IntoDatetimeLiteralValue) {
@@ -145,7 +145,7 @@ function ensureDateLiteralValue(value: IntoDateLiteralValue): Date {
         throw new Error(`Cannot convert ${typeof value} '${value}' to date literal`)
     }
 }
-export class DateLiteralOp extends BaseOp<dt.DTDate, 'scalar'> {
+export class DateLiteralOp extends BaseVOp<dt.DTDate, 'scalar'> {
     readonly kind = 'date_literal' as const
     readonly value: Date
     constructor(readonly raw: IntoDateLiteralValue) {
@@ -168,7 +168,7 @@ function ensureTimeLiteralValue(value: IntoTimeLiteralValue): Date {
         throw new Error(`Cannot convert ${typeof value} '${value}' to time literal`)
     }
 }
-export class TimeLiteralOp extends BaseOp<dt.DTTime, 'scalar'> {
+export class TimeLiteralOp extends BaseVOp<dt.DTTime, 'scalar'> {
     readonly kind = 'time_literal' as const
     readonly value: Date
     constructor(readonly raw: IntoTimeLiteralValue) {
@@ -184,7 +184,7 @@ function ensureIntervalLiteralValue(value: IntoIntervalLiteralValue): number {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to interval literal`)
 }
-export class IntervalLiteralOp extends BaseOp<dt.DTInterval, 'scalar'> {
+export class IntervalLiteralOp extends BaseVOp<dt.DTInterval, 'scalar'> {
     readonly kind = 'interval_literal' as const
     readonly value: number
     constructor(readonly raw: IntoIntervalLiteralValue) {
@@ -206,7 +206,7 @@ function ensureUuidLiteralValue(value: IntoUuidLiteralValue): string {
     }
     throw new Error(`Cannot convert ${typeof value} '${value}' to UUID literal`)
 }
-export class UuidLiteralOp extends BaseOp<dt.DTUUID, 'scalar'> {
+export class UuidLiteralOp extends BaseVOp<dt.DTUUID, 'scalar'> {
     readonly kind = 'uuid_literal' as const
     readonly value: string
     constructor(readonly raw: IntoUuidLiteralValue) {

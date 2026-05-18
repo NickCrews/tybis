@@ -1,5 +1,5 @@
 import {
-    BaseOp,
+    BaseVOp,
     type DataType,
     type DataShape,
 } from 'tybis'
@@ -10,7 +10,7 @@ import {
  * passing the wrong values can produce code that type-checks but fails or
  * returns wrong results at compile time.
  */
-export class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseOp<DT, DS> {
+export class RawSqlOp<DT extends DataType = DataType, DS extends DataShape = DataShape> extends BaseVOp<DT, DS> {
     readonly kind = 'raw_sql' as const
     constructor(readonly rawSql: string, dtype: DT, dshape: DS) { super(dtype, dshape) }
 }
