@@ -84,7 +84,49 @@ const orders = ty.table('orders', {
 })
 ```
 
-**Supported types**: `'string'`, `'int32'`, `'int64'`, `'float32'`, `'float64'`, `'boolean'`, `'date'`, `'datetime'`, `'interval'`
+**Datatype System**:
+
+These are designed to closely mirror the apache arrow datatypes.
+
+- `integer<8|16|32|64>` (maybe unsigned in the future)
+- `float<8|16|32|64>`
+- `string`
+- `boolean`
+- `uuid`
+- `date`
+- `time`
+- `datetime`
+- `interval`
+- `null`
+- `custom` (for holding raw opaque types from the specific backend)
+
+In the future I plan to add arrays, structs, and maps.
+
+### `.select(r => computations)`
+
+Analogous to sql SELECT.
+
+```typescript
+orders.select(r => ({
+    n: tybis.count(),
+    amount_usd: r.col('amount').div(100),
+    transaction_date: true, // keep the existing "transaction_date" column
+    will_be_dropped: false, // this will be explicityl dropped
+    constantly_42: ty.lit(42), // all rows filled with `42`
+    constantly_true: ty.lit(true), // all rows filled with `true`
+}))
+```
+
+### `.derive(r => computations)`
+
+Add or overwrite computed columns to each row.
+This is like .select(), but keeps around the existing columns.
+
+```typescript
+orders.derive(r => ({
+    amount_usd: r.col('amount').div(100),
+}))
+```
 
 ### `.filter(r => condition)`
 
@@ -94,21 +136,6 @@ Filter rows. The callback receives a row accessor and must return a `BoolExpr`.
 orders.filter(r => r.col('amount').gt(100))
 orders.filter(r => r.col('is_paid').eq(true))
 orders.filter(r => r.col('amount').gt(50).and(r.col('is_paid').eq(true)))
-```
-
-### `.group(keys, transform)`
-
-Group rows by key columns and apply aggregations.
-
-```typescript
-orders.group(
-    r => ({ customer_id: true }),
-    g => g.agg({
-        order_count: ty.count(),
-        total_spent: g.col('amount').sum(),
-        max_order: g.col('amount').max(),
-    })
-)
 ```
 
 ### `.sort(r => key | keys)`
@@ -128,14 +155,19 @@ Return only the first `n` rows.
 orders.take(100)
 ```
 
-### `.derive(r => computations)`
+### `.group(keys, transform)`
 
-Add computed columns to each row.
+Group rows by key columns and apply aggregations.
 
 ```typescript
-orders.derive(r => ({
-    amount_usd: r.col('amount').div(100),
-}))
+orders.group(
+    r => ({ customer_id: true }),
+    g => g.agg({
+        order_count: ty.count(),
+        total_spent: g.col('amount').sum(),
+        max_order: g.col('amount').max(),
+    })
+)
 ```
 
 ### `count()`
@@ -144,16 +176,6 @@ Aggregate function — counts the number of rows.
 
 ```typescript
 g.agg({ n: ty.count() })
-```
-
-### `sql(rawSql, dtype)`
-
-Embed a raw SQL expression with an explicit return type.
-
-```typescript
-orders.derive(() => ({
-    db_version: ty.sql('version()', 'string', 'scalar'),
-}))
 ```
 
 ## Type Safety
@@ -168,7 +190,7 @@ t.filter(r => r.col('z').gt(0))
 // Argument of type '"z"' is not assignable to parameter of type '"x" | "y"'
 ```
 
-Schema changes from `group` and `derive` are also tracked:
+Schema changes from all methods, such as `group` and `derive` are also tracked:
 
 ```typescript
 const result = t.group(
