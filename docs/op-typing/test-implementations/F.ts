@@ -27,7 +27,7 @@
 //   + 3rd-party targets: define `interface XxxTarget { ... }` and a
 //     `const XXX_COMPILATION_RULES: CompilationRules<..., XxxTarget, Out>`.
 //   + Teach an existing rule set about a new op: spread it into a new
-//     constant and add the missing handlers (or use `extend()`).
+//     constant and add the missing handlers.
 // =============================================================================
 
 // This file is an exploration of how to solve the "expression problem" for tybis.
@@ -169,67 +169,93 @@ class Add<L extends OpSpec, R extends OpSpec> implements IVOp<AddSpec<L, R>> {
 
 // ---- Registry / compiler machinery ----
 //
-// `KindMap` is the open registry that connects a kind STRING to the
-// concrete op CLASS for that kind. Handlers receive `KindMap[K]` so
-// `op.value` / `op.left` / `op.right` are typed without casts (R18).
-// 3rd-party packages augment this via interface declaration merging.
+// `SpecMap<S>` is the open registry connecting a kind STRING to the
+// concrete op CLASS for that kind, *parameterized by the op's spec* so
+// each handler sees the narrowest possible op type. Handlers receive
+// `OpFor<S>`, so `op.value` / `op.left` / `op.right` are typed without
+// casts (R18). 3rd-party packages augment this via interface
+// declaration merging.
 
-interface KindMap {
-    lit: Lit<DataType>
-    add: Add<OpSpec, OpSpec>
+interface SpecMap<S extends OpSpec> {
+    lit: S extends LitSpec<infer DT> ? Lit<DT> : never
+    add: S extends AddSpec<infer L, infer R> ? Add<L, R> : never
 }
 
-// All kinds used by a spec, including transitive descendants. We get
-// this for free because `childSpecs` is the entire transitive list.
+type OpFor<S extends OpSpec> = S extends OpSpec
+    ? S['thisKind'] extends keyof SpecMap<S>
+    ? SpecMap<S>[S['thisKind']]
+    : never
+    : never
+
+// All specs used by a spec tree, including transitive descendants. We
+// get this for free because `childSpecs` is the entire transitive list.
 // One indexed access — no recursive conditional, no depth cap (R23).
-type KindsOf<S extends OpSpec> =
-    S['thisKind'] | S['childSpecs'][number]['thisKind']
+type SpecsOf<S extends OpSpec> = S | S['childSpecs'][number]
 
 type Recurse<Out> = (sub: IVOp) => Out
 
-type Handler<K extends keyof KindMap, Target, Out> =
-    (op: KindMap[K], target: Target, recurse: Recurse<Out>) => Out
+type Handler<S extends OpSpec, Target, Out> =
+    (op: OpFor<S>, target: Target, recurse: Recurse<Out>) => Out
 
-// R20: template-literal error names the offending kind(s) in plain text.
-type MissingError<Missing extends string> =
-    `compilation rules are missing handler(s) for kind(s): ${Missing}`
+// R20: template-literal error names the offending spec(s) in plain
+// text. Surfaces kind + dtype + dshape so e.g. "lit<datetime, scalar>"
+// makes it obvious which combination isn't supported.
+type SpecDesc<S extends OpSpec> = S extends OpSpec
+    ? `${S['thisKind']}<${S['dataType']}, ${S['dataShape']}>`
+    : never
 
-type CompilationRules<Supported extends keyof KindMap, Target, Out> = {
-    readonly [K in Supported]: Handler<K, Target, Out>
+type MissingError<Missing extends OpSpec> =
+    `compilation rules don't support spec(s): ${SpecDesc<Missing> & string}`
+
+// `Supported` is a full OpSpec — not just the kind string — so rules
+// can advertise restrictions on the FULL spec, e.g. `LitSpec<'datetime'>`
+// can be excluded for sqlite while `LitSpec<'int'>` is fine.
+type CompilationRules<Supported extends OpSpec, Target, Out> = {
+    readonly [S in Supported as S['thisKind']]: Handler<S, Target, Out>
 }
 
-function compile<Supported extends keyof KindMap, Target, Out, S extends OpSpec>(
-    rules: CompilationRules<Supported, Target, Out>,
+// Inference helpers that look directly at the rules-object's handler
+// signatures. TS can't reverse the `[S in Supported as S['thisKind']]`
+// mapped type to recover Supported, so we extract Supported/Target/Out
+// from the concrete handler types instead. `any` rest patterns are
+// required so a 2-arg handler like `(op) => x` still matches.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyArgs = any[]
+type SpecsHandledBy<R> = {
+    [K in keyof R]: R[K] extends (op: infer Op, ...rest: AnyArgs) => unknown
+    ? Op extends IVOp<infer S> ? S : never
+    : never
+}[keyof R]
+type TargetOf<R> = {
+    [K in keyof R]: R[K] extends (op: never, target: infer T, ...rest: AnyArgs) => unknown
+    ? T : never
+}[keyof R]
+type OutOf<R> = {
+    [K in keyof R]: R[K] extends (...args: AnyArgs) => infer O ? O : never
+}[keyof R]
+type KindsHandledBy<R> = SpecsHandledBy<R>['thisKind']
+
+function compile<R, S extends OpSpec>(
+    rules: R,
     op: IVOp<S>,
-    target: Target,
-    // typing black magic: if the op's spec mentions any kinds not in Supported, error with a message listing the missing kinds.
-    ..._proof: [Exclude<KindsOf<S>, Supported>] extends [never]
+    target: TargetOf<R>,
+    // typing black magic: if the op's spec tree contains any specs not
+    // assignable to the rules' SpecsHandledBy, error with a message
+    // listing the offenders. This is what gives us "lit<datetime> on
+    // sqlite is rejected at compile time" — see SQL_SQLITE_COMPILATION_RULES.
+    ..._proof: [Exclude<SpecsOf<S>, SpecsHandledBy<R>>] extends [never]
         ? []
-        : [missing: MissingError<Exclude<KindsOf<S>, Supported> & string>]
-): Out {
-    const handlers = rules as unknown as Record<string, (op: IVOp, target: Target, recurse: Recurse<Out>) => Out>
-    const rec: Recurse<Out> = (sub) => handlers[sub.spec.thisKind](sub, target, rec)
+        : [missing: MissingError<Exclude<SpecsOf<S>, SpecsHandledBy<R>>>]
+): OutOf<R> {
+    const handlers = rules as unknown as Record<string, (op: IVOp, target: TargetOf<R>, recurse: Recurse<OutOf<R>>) => OutOf<R>>
+    const rec: Recurse<OutOf<R>> = (sub) => handlers[sub.spec.thisKind](sub, target, rec)
     return rec(op as IVOp)
-}
-
-// R1 + R14: extend produces a NEW rules object. The added handler dict
-// accepts overrides for existing kinds (last-write-wins via spread), so
-// 3rd parties can either ADD new kinds or REPLACE core emits. Callers
-// who want full control can spread the base rules directly instead.
-function extend<Supported extends keyof KindMap, New extends keyof KindMap, Target, Out>(
-    rules: CompilationRules<Supported, Target, Out>,
-    more: { [K in New]: Handler<K, Target, Out> },
-): CompilationRules<Supported | New, Target, Out> {
-    return { ...rules, ...more } as CompilationRules<Supported | New, Target, Out>
 }
 
 // R22: runtime introspection mirror of the static `Supported` union.
 function supports(rules: object, kind: string): boolean {
     return Object.prototype.hasOwnProperty.call(rules, kind)
 }
-
-// R22 (type side).
-type KindsHandledBy<R> = R extends CompilationRules<infer S, infer _T, infer _O> ? S : never
 
 // ---- Core compilation targets ----
 //
@@ -253,7 +279,7 @@ const STRING_COMPILATION_RULES = {
         return String(value)
     },
     add: (op, _target, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
-} as const satisfies CompilationRules<'lit' | 'add', StringTarget, string>
+} as const satisfies CompilationRules<LitSpec<DataType> | AddSpec<OpSpec, OpSpec>, StringTarget, string>
 
 interface EvaluateTarget {
     // No options in this demo. Real impls would carry a row context,
@@ -267,7 +293,7 @@ const EVALUATE_COMPILATION_RULES = {
         const r = rec(op.right) as number
         return l + r
     },
-} as const satisfies CompilationRules<'lit' | 'add', EvaluateTarget, unknown>
+} as const satisfies CompilationRules<LitSpec<DataType> | AddSpec<OpSpec, OpSpec>, EvaluateTarget, unknown>
 
 // --- 3RD-PARTY STATS PACKAGE -------------------------------------------------
 //
@@ -302,10 +328,10 @@ class Cov<L extends OpSpec, R extends OpSpec> implements IVOp<CovSpec<L, R>> {
     dshape() { return this.spec.dataShape }
 }
 
-// The stats library augments `KindMap` so any compilation rules with a `cov`
+// The stats library augments `SpecMap` so any compilation rules with a `cov`
 // handler gets a typed `op.left` / `op.right` for free.
-interface KindMap {
-    cov: Cov<OpSpec, OpSpec>
+interface SpecMap<S extends OpSpec> {
+    cov: S extends CovSpec<infer L, infer R> ? Cov<L, R> : never
 }
 
 // Rules exported by the stats package: the core ones, taught about Cov.
@@ -314,7 +340,11 @@ interface KindMap {
 const covStringCompilationRules = {
     ...STRING_COMPILATION_RULES,
     cov: (op, _t, rec) => `cov(${rec(op.left)}, ${rec(op.right)})`,
-} as const satisfies CompilationRules<'lit' | 'add' | 'cov', StringTarget, string>
+} as const satisfies CompilationRules<
+    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
+    StringTarget,
+    string
+>
 
 const covEvaluateCompilationRules = {
     ...EVALUATE_COMPILATION_RULES,
@@ -331,25 +361,31 @@ const covEvaluateCompilationRules = {
         for (let i = 0; i < n; i++) s += (xs[i] - mx) * (ys[i] - my)
         return s / n
     },
-} as const satisfies CompilationRules<'lit' | 'add' | 'cov', EvaluateTarget, unknown>
+} as const satisfies CompilationRules<
+    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
+    EvaluateTarget,
+    unknown
+>
 
 // --- 3RD-PARTY SQL PACKAGE ---------------------------------------------------
 //
-// Provides a `SqlTarget` with a `dialect` parameter and set of compilation rules that
-// handles the CORE ops. Does NOT know about Cov.
-// sqlite has no datetime literal, so a datetime literal on sqlite is a
-// runtime error.
+// Provides a `SqlTarget<D>` with a `dialect` parameter and two rule
+// sets that handle the CORE ops. Does NOT know about Cov.
+// sqlite has no datetime literal — the sqlite rules statically exclude
+// `LitSpec<'datetime'>` from their Supported union, so feeding a
+// datetime tree to them is a COMPILE-TIME error in addition to a runtime error.
 
 type SqlDialect = 'postgres' | 'duckdb' | 'sqlite'
 
-interface SqlTarget {
-    dialect: SqlDialect
+interface SqlTarget<D extends SqlDialect = SqlDialect> {
+    dialect: D
 }
 
 function sqlEscapeString(s: string): string {
     return `'${s.replace(/'/g, "''")}'`
 }
 
+// Postgres / DuckDB rules support every dtype, including datetime.
 const SQL_COMPILATION_RULES = {
     lit: (op, target) => {
         const { value, spec } = op
@@ -359,9 +395,6 @@ const SQL_COMPILATION_RULES = {
             case 'boolean':
                 return value ? 'TRUE' : 'FALSE'
             case 'datetime': {
-                if (target.dialect === 'sqlite') {
-                    throw new Error(`sqlite has no datetime literal; got value ${String(value)}`)
-                }
                 const lit = sqlEscapeString(String(value))
                 return target.dialect === 'postgres'
                     ? `${lit}::timestamptz`
@@ -370,10 +403,42 @@ const SQL_COMPILATION_RULES = {
             case 'int':
             case 'float':
                 return String(value)
+            default:
+                throw new Error(`Unsupported data type for SQL: ${spec.dataType satisfies never}`)
         }
     },
     add: (op, _t, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
-} as const satisfies CompilationRules<'lit' | 'add', SqlTarget, string>
+} as const satisfies CompilationRules<
+    LitSpec<DataType> | AddSpec<OpSpec, OpSpec>,
+    SqlTarget<'postgres' | 'duckdb'>,
+    string
+>
+
+// SQLite rules: identical at runtime, but the type-level `Supported`
+// union omits `LitSpec<'datetime'>`, turning the old runtime check
+// into a compile-time check. Add/Cov over a datetime descendant is
+// also rejected because `SpecsOf<S>` flattens the whole spec tree.
+const SQL_SQLITE_COMPILATION_RULES = {
+    lit: (op) => {
+        const { value, spec } = op
+        switch (spec.dataType) {
+            case 'string':
+                return sqlEscapeString(String(value))
+            case 'boolean':
+                return value ? 'TRUE' : 'FALSE'
+            case 'int':
+            case 'float':
+                return String(value)
+            default:
+                throw new Error(`Unsupported data type for SQLite: ${spec.dataType satisfies never}`)
+        }
+    },
+    add: (op, _t, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
+} as const satisfies CompilationRules<
+    LitSpec<Exclude<DataType, 'datetime'>> | AddSpec<OpSpec, OpSpec>,
+    SqlTarget<'sqlite'>,
+    string
+>
 
 // --- END-USER GLUE -----------------------------------------------------------
 //
@@ -384,16 +449,28 @@ const SQL_COMPILATION_RULES = {
 
 const userCompilationRules = {
     ...SQL_COMPILATION_RULES,
-    cov: (op, target, rec) => {
+    cov: (op, _t, rec) => `covar_pop(${rec(op.left)}, ${rec(op.right)})`,
+} as const satisfies CompilationRules<
+    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
+    SqlTarget<'postgres' | 'duckdb'>,
+    string
+>
+
+// SQLite variant: sqlite has no `covar_pop`, so emit the math directly.
+// `Supported` excludes `LitSpec<'datetime'>` so the rules statically
+// refuse to compile any tree containing a datetime literal.
+const userSqliteCompilationRules = {
+    ...SQL_SQLITE_COMPILATION_RULES,
+    cov: (op, _t, rec) => {
         const l = rec(op.left)
         const r = rec(op.right)
-        if (target.dialect === 'sqlite') {
-            // sqlite has no covar_pop — emit the math directly.
-            return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
-        }
-        return `covar_pop(${l}, ${r})`
+        return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
     },
-} as const satisfies CompilationRules<'lit' | 'add' | 'cov', SqlTarget, string>
+} as const satisfies CompilationRules<
+    LitSpec<Exclude<DataType, 'datetime'>> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
+    SqlTarget<'sqlite'>,
+    string
+>
 
 // =============================================================================
 // DEMO
@@ -437,9 +514,9 @@ log('compile(covEvaluateCompilationRules, cov(...))', compile(covEvaluateCompila
 // Wrapped in a never-called function so the @ts-expect-error lines are
 // still type-checked but the (deliberately-broken) calls don't run.
 function _typeErrorDemos() {
-    // @ts-expect-error — compilation rules are missing handler(s) for kind(s): cov
+    // @ts-expect-error — compilation rules don't support spec(s): cov<...>
     compile(STRING_COMPILATION_RULES, cov, {})
-    // @ts-expect-error — compilation rules are missing handler(s) for kind(s): cov
+    // @ts-expect-error — compilation rules don't support spec(s): cov<...>
     compile(EVALUATE_COMPILATION_RULES, cov, {})
     // @ts-expect-error — sql compilation rules don't handle cov on its own
     compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
@@ -448,24 +525,33 @@ void _typeErrorDemos
 
 section('SQL compilation rules on core ops')
 log('compile(SQL_COMPILATION_RULES, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
-log('compile(SQL_COMPILATION_RULES, 5 + 10, sqlite)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
+log('compile(SQL_SQLITE_COMPILATION_RULES, 5 + 10, sqlite)', compile(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
 
-// Datetime literal: ok on postgres/duckdb, throws on sqlite.
+// Datetime literal: ok on postgres/duckdb, statically rejected by sqlite rules.
 const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
 log('compile(SQL_COMPILATION_RULES, datetime, postgres)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' }))
 log('compile(SQL_COMPILATION_RULES, datetime, duckdb)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' }))
-try {
-    compile(SQL_COMPILATION_RULES, dt, { dialect: 'sqlite' })
-    throw new Error('expected throw')
-} catch (e) {
-    if (!(e instanceof Error) || !e.message.includes('sqlite has no datetime literal')) throw e
-    log('compile(SQL_COMPILATION_RULES, datetime, sqlite)', `throws: ${e.message}`)
+
+// The big payoff: sqlite + datetime is a COMPILE-TIME error, not a runtime
+// throw. `Supported` for SQL_SQLITE_COMPILATION_RULES excludes
+// `LitSpec<'datetime'>`, so feeding `dt` (or anything that transitively
+// contains a datetime literal) trips the `MissingError` template.
+function _sqliteDatetimeStaticError() {
+    // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
+    compile(SQL_SQLITE_COMPILATION_RULES, dt, { dialect: 'sqlite' })
+
+    // Even nested: an Add over a datetime descendant is also rejected,
+    // because SpecsOf<S> flattens the whole tree.
+    const dtPlus = new Add(dt, new Lit(1, 'int'))
+    // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
+    compile(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
 }
+void _sqliteDatetimeStaticError
 
 section('End-user glue: Cov compiled to SQL')
 log('compile(userCompilationRules, cov, postgres)', compile(userCompilationRules, cov, { dialect: 'postgres' }))
 log('compile(userCompilationRules, cov, duckdb)', compile(userCompilationRules, cov, { dialect: 'duckdb' }))
-log('compile(userCompilationRules, cov, sqlite)', compile(userCompilationRules, cov, { dialect: 'sqlite' }))
+log('compile(userSqliteCompilationRules, cov, sqlite)', compile(userSqliteCompilationRules, cov, { dialect: 'sqlite' }))
 const mixed = new Add(cov, new Lit(1, 'float'))
 log('compile(userCompilationRules, cov + 1, duckdb)', compile(userCompilationRules, mixed, { dialect: 'duckdb' }))
 
@@ -484,33 +570,40 @@ log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRu
 //   + R1 expression-problem: both axes open. The stats package teaches
 //     CORE rules about Cov by spreading them into a new constant; an
 //     end user combines a 3rd-party op with 3rd-party compilation rules the
-//     same way (or uses the `extend()` helper).
+//     same way.
 //   + R2 op-declares-self: ops carry their spec/kind; they say nothing
 //     about which targets they can be compiled to.
-//   + R3 dialect-safety: `KindsOf<S>` enumerates every kind in the tree
+//   + R3 dialect-safety: `SpecsOf<S>` enumerates every spec in the tree
 //     (statically, via `childSpecs`), and `compile` requires that union
-//     to be a subset of `Supported`. Missing kinds → typed error.
+//     to be a subset of `SpecsHandledBy<rules>`. Missing specs → typed
+//     error. Because Supported is an OpSpec union (not just a kind
+//     union), the rules can ALSO restrict on dtype/dshape — e.g.
+//     `SQL_SQLITE_COMPILATION_RULES` excludes `LitSpec<'datetime'>` and
+//     turns `compile(rules, dtLit, { dialect: 'sqlite' })` into a
+//     compile-time error.
 //   + R10 multi-target: Target is a generic, so the same op tree can be
 //     compiled to string, evaluated, or emitted as SQL by different
 //     compilation rules without touching the tree.
-//   + R11/R22 static-introspection: `KindsOf<typeof tree>` is one
-//     indexed access; `KindsHandledBy<typeof c>` projects the compilation rules.
-//   + R14 fallback: rules are plain objects, so spreading (or
-//     `extend()`) lets downstream compilation rules re-emit a core kind
-//     differently via last-write-wins.
+//   + R11/R22 static-introspection: `SpecsOf<typeof tree>` is one
+//     indexed access; `SpecsHandledBy<typeof c>` / `KindsHandledBy<typeof c>`
+//     project the compilation rules.
+//   + R14 fallback: rules are plain objects, so spreading lets downstream
+//     compilation rules re-emit a core kind differently via last-write-wins.
 //   + R15 type-composition: lives next to existing `DataType` /
 //     `DataShape` rather than replacing them; same generic-threading
 //     pattern as the rest of the codebase.
-//   + R18 typed-handler-payload: `KindMap[K]` gives handlers the
-//     concrete class, so `op.left` / `op.right` / `op.value` are typed.
-//   + R19 exhaustiveness: `{ [K in Supported]: Handler<K, ...> }`
-//     errors at compile time if a handler is missing for any kind in `Supported`.
+//   + R18 typed-handler-payload: `SpecMap<S>[K]` gives handlers the
+//     concrete class narrowed by the spec, so `op.left` / `op.right` /
+//     `op.value` are typed without casts.
+//   + R19 exhaustiveness: `{ [S in Supported as S['thisKind']]: Handler<S, ...> }`
+//     errors at compile time if a handler is missing for any spec in
+//     `Supported`.
 //   + R20 error-clarity: template-literal error names the offending
-//     kind in plain English: `compilation rules are missing handler(s) for kind(s): cov`.
+//     spec in plain English: `compilation rules don't support spec(s): lit<datetime, scalar>`.
 //   + R23 check-time: no recursive conditional on the tree — the
 //     transitive kind list is already a tuple in `childSpecs`. Should
 //     scale better than D/E on deep trees.
-//   + R24 tree-shaking: spreads / `extend()` produce new VALUES; no
+//   + R24 tree-shaking: spreads produce new VALUES; no
 //     load-time side effects mutating shared state.
 //
 // WEAK / OPEN
@@ -521,14 +614,14 @@ log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRu
 //     story yet.
 //   – R7 name-collision: kinds are bare strings. Scoped-kind convention
 //     (`'@scope/pkg/name'`) would apply identically to this approach.
-//   – R13 capability-axes: not modeled. Could add an `OpCapabilities`
-//     registry à la E and require the compile rule sets to accept an axis set.
+//   + R13 capability-axes: partial — targets are generic (`SqlTarget<D>`)
+//     and Supported is an OpSpec union, so per-target capability
+//     constraints can be encoded in the type (`Supported` excludes
+//     `LitSpec<'datetime'>` for `SqlTarget<'sqlite'>`). Open: there's
+//     still no first-class capability REGISTRY à la E for axes that
+//     aren't naturally part of the spec.
 //   – Op boilerplate (R17): each composite op threads child specs
 //     through generics and writes a `make<Op>Spec` builder. Comparable
 //     to B's phantom-threading cost. A `defineOp` helper could compress
 //     this, but the spec-shape is fundamental to R23's win here.
-//   – Runtime-only sqlite/datetime check: catching it at compile time
-//     would require pushing the `dialect` into the type system (e.g.
-//     `Compiler<..., SqlTarget<D>, ...>` and rejecting `dt: 'datetime'`
-//     children when `D extends 'sqlite'`). Possible follow-up.
 // =============================================================================
