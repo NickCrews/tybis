@@ -266,20 +266,50 @@ function compile<R extends readonly unknown[], S extends OpSpec>(
     return next(op, target)
 }
 
-// R22: runtime introspection
+// R22: introspection — both runtime AND compile-time.
+//
+// `CanHandle<R, S>` is the type-level twin of the runtime `canHandle()`:
+// given a rule set R and an op spec S, it resolves to the literal
+// `true` if every spec in the tree (`SpecsOf<S>`) is covered by the
+// rules' `SpecsHandledBy<R>`, otherwise `false`. Same machinery as
+// `compile()`'s `_proof` parameter, just exposed as a boolean instead
+// of a `MissingError` template.
+type CanHandle<R, S extends OpSpec> =
+    [Exclude<SpecsOf<S>, SpecsHandledBy<R>>] extends [never] ? true : false
+
 type HasShouldHandle<Spec extends OpSpec, Target = unknown> = { canHandle: (spec: Partial<OpSpec>, target: Target) => spec is Spec }
+
+// Overload 1: typed `IVOp<S>` — return value is narrowed to `true` or
+// `false` at compile time via `CanHandle<R, S>`. The runtime walks the
+// full spec tree to match.
+function canHandle<R extends readonly unknown[], S extends OpSpec>(
+    rules: R,
+    op: IVOp<S>,
+    target?: TargetOf<R>
+): CanHandle<R, S>
+// Overload 2: string kind or partial spec — runtime-only boolean,
+// since a bare kind string carries no static tree info.
 function canHandle<T = unknown>(
     ruleOrRules: HasShouldHandle<OpSpec, T> | readonly HasShouldHandle<OpSpec, T>[],
     kindOrSpec: string | Partial<OpSpec>,
     target?: T
+): boolean
+function canHandle(
+    ruleOrRules: HasShouldHandle<OpSpec, unknown> | readonly HasShouldHandle<OpSpec, unknown>[],
+    kindOrOp: string | Partial<OpSpec> | IVOp,
+    target?: unknown
 ): boolean {
-    const spec: Partial<OpSpec> = typeof kindOrSpec === 'string'
-        ? { thisKind: kindOrSpec }
-        : kindOrSpec
-    if (Array.isArray(ruleOrRules)) {
-        return ruleOrRules.some(r => r.canHandle(spec, target as T))
+    const rules: readonly HasShouldHandle<OpSpec, unknown>[] =
+        Array.isArray(ruleOrRules) ? ruleOrRules : [ruleOrRules as HasShouldHandle<OpSpec, unknown>]
+    if (kindOrOp && typeof kindOrOp === 'object' && 'spec' in kindOrOp) {
+        const op = kindOrOp as IVOp
+        const allSpecs: readonly OpSpec[] = [op.spec, ...op.spec.childSpecs]
+        return allSpecs.every(s => rules.some(r => r.canHandle(s, target)))
     }
-    return (ruleOrRules as HasShouldHandle<OpSpec, T>).canHandle(spec, target as T)
+    const spec: Partial<OpSpec> = typeof kindOrOp === 'string'
+        ? { thisKind: kindOrOp }
+        : kindOrOp
+    return rules.some(r => r.canHandle(spec, target))
 }
 
 // ---- Core compilation targets ----
@@ -624,6 +654,32 @@ const fullKinds: FullKinds[] = ['lit', 'add', 'cov']
 log('static  KindsHandledBy<typeof userCompilationRules>', fullKinds.join(' | '))
 log("runtime canHandle(userCompilationRules, 'cov')", canHandle(userCompilationRules, 'cov'))
 log("runtime canHandle(userCompilationRules, 'nope')", canHandle(userCompilationRules, 'nope'))
+
+// Compile-time CanHandle: same question as the runtime call, answered
+// during type checking. The `const _: true = ...` / `const _: false = ...`
+// assertions would fail to compile if the inferred literal were wrong,
+// so they double as compile-time tests.
+type _StaticCovOnString = CanHandle<typeof STRING_COMPILATION_RULES, typeof cov.spec> // false — STRING rules don't know cov
+type _StaticCovOnUser   = CanHandle<typeof userCompilationRules,    typeof cov.spec> // true  — user rules teach SQL about cov
+type _StaticDtOnSqlite  = CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt.spec> // false — sqlite excludes datetime literals
+type _StaticDtOnPg      = CanHandle<typeof SQL_COMPILATION_RULES, typeof dt.spec>        // true  — postgres/duckdb handle datetime
+
+const _covOnString: _StaticCovOnString = false
+const _covOnUser:   _StaticCovOnUser   = true
+const _dtOnSqlite:  _StaticDtOnSqlite  = false
+const _dtOnPg:      _StaticDtOnPg      = true
+log('static  CanHandle<STRING_..., cov>', _covOnString)
+log('static  CanHandle<userCompilationRules, cov>', _covOnUser)
+log('static  CanHandle<SQL_SQLITE_..., datetime>', _dtOnSqlite)
+log('static  CanHandle<SQL_COMPILATION_RULES, datetime>', _dtOnPg)
+
+// Same answers reachable through the runtime overload — when called
+// with a typed IVOp, the return is narrowed to the same `true`/`false`
+// literal.
+log('runtime canHandle(STRING_..., cov op)', canHandle(STRING_COMPILATION_RULES, cov))
+log('runtime canHandle(userCompilationRules, cov op)', canHandle(userCompilationRules, cov))
+log('runtime canHandle(SQL_SQLITE_..., datetime op)', canHandle(SQL_SQLITE_COMPILATION_RULES, dt))
+log('runtime canHandle(SQL_COMPILATION_RULES, datetime op)', canHandle(SQL_COMPILATION_RULES, dt))
 
 // =============================================================================
 // HOW IT SCORES AGAINST THE PRD
