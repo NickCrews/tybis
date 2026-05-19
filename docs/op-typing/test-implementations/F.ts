@@ -88,7 +88,7 @@ interface IVOp<T extends OpSpec = OpSpec> {
 // --- Core ops---
 // Define two core ops: a literal and an addition:
 
-type LitSpec<DT extends DataType> = {
+type LitSpec<DT extends DataType = DataType> = {
     thisKind: 'lit',
     dataType: DT,
     dataShape: 'scalar',
@@ -114,7 +114,7 @@ type ValueOf<DT extends DataType> =
     DT extends 'boolean' ? boolean :
     number
 
-class Lit<DT extends DataType> implements IVOp<LitSpec<DT>> {
+class Lit<DT extends DataType = DataType> implements IVOp<LitSpec<DT>> {
     readonly spec: LitSpec<DT>
     constructor(readonly value: ValueOf<DT>, dtype: DT) {
         this.spec = makeLitSpec(dtype)
@@ -205,37 +205,41 @@ type SpecDesc<S extends OpSpec> = S extends OpSpec
     : never
 
 type MissingError<Missing extends OpSpec> =
-    `compilation rules don't support spec(s): ${SpecDesc<Missing> & string}`
+    `No compilation rule for spec(s): ${SpecDesc<Missing> & string}`
 
 // `Supported` is a full OpSpec — not just the kind string — so rules
 // can advertise restrictions on the FULL spec, e.g. `LitSpec<'datetime'>`
 // can be excluded for sqlite while `LitSpec<'int'>` is fine.
-type CompilationRules<Supported extends OpSpec, Target, Out> = {
-    readonly [S in Supported as S['thisKind']]: Handler<S, Target, Out>
+type CompilationRule<Target, Out, Supported extends OpSpec = OpSpec> = {
+    name?: string;
+    shouldHandle: (spec: OpSpec) => spec is Supported;
+    handle: Handler<Supported, Target, Out>;
 }
 
-// Inference helpers that look directly at the rules-object's handler
-// signatures. TS can't reverse the `[S in Supported as S['thisKind']]`
-// mapped type to recover Supported, so we extract Supported/Target/Out
-// from the concrete handler types instead. `any` rest patterns are
+// Inference helpers that look directly at each rule's `shouldHandle`
+// predicate and `handle` signature. We map across the tuple's numeric
+// indices and union the per-element results. `any` rest patterns are
 // required so a 2-arg handler like `(op) => x` still matches.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyArgs = any[]
-type SpecsHandledBy<R> = {
-    [K in keyof R]: R[K] extends (op: infer Op, ...rest: AnyArgs) => unknown
-    ? Op extends IVOp<infer S> ? S : never
+type SpecsHandledBy<R> = R extends readonly unknown[] ? {
+    [K in keyof R]: R[K] extends { shouldHandle: (spec: OpSpec) => spec is infer S extends OpSpec }
+    ? S
     : never
-}[keyof R]
-type TargetOf<R> = {
-    [K in keyof R]: R[K] extends (op: never, target: infer T, ...rest: AnyArgs) => unknown
+}[number] : never
+type TargetOf<R> = R extends readonly unknown[] ? {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [K in keyof R]: R[K] extends { handle: (op: any, target: infer T, ...rest: AnyArgs) => unknown }
     ? T : never
-}[keyof R]
-type OutOf<R> = {
-    [K in keyof R]: R[K] extends (...args: AnyArgs) => infer O ? O : never
-}[keyof R]
-type KindsHandledBy<R> = SpecsHandledBy<R>['thisKind']
+}[number] : never
+type OutOf<R> = R extends readonly unknown[] ? {
+    [K in keyof R]: R[K] extends { handle: (...args: AnyArgs) => infer O } ? O : never
+}[number] : never
+type KindsHandledBy<R> = SpecsHandledBy<R> extends infer S
+    ? S extends OpSpec ? S['thisKind'] : never
+    : never
 
-function compile<R, S extends OpSpec>(
+function compile<R extends readonly unknown[], S extends OpSpec>(
     rules: R,
     op: IVOp<S>,
     target: TargetOf<R>,
@@ -247,14 +251,31 @@ function compile<R, S extends OpSpec>(
         ? []
         : [missing: MissingError<Exclude<SpecsOf<S>, SpecsHandledBy<R>>>]
 ): OutOf<R> {
-    const handlers = rules as unknown as Record<string, (op: IVOp, target: TargetOf<R>, visitNext: VisitNext<OutOf<R>, TargetOf<R>>) => OutOf<R>>
-    const next: VisitNext<OutOf<R>, TargetOf<R>> = (sub, passedTarget) => handlers[sub.spec.thisKind](sub, passedTarget ?? target, next)
+    type T = TargetOf<R>
+    type O = OutOf<R>
+    const handlers = rules as unknown as readonly {
+        shouldHandle: (spec: OpSpec) => boolean
+        handle: (op: IVOp, target: T, visitNext: VisitNext<O, T>) => O
+    }[]
+    const next: VisitNext<O, T> = (sub, passedTarget) => {
+        const rule = handlers.find(r => r.shouldHandle(sub.spec))
+        if (!rule) throw new Error(`No compilation rule handles spec: ${sub.spec.thisKind}`)
+        return rule.handle(sub, passedTarget ?? target, next)
+    }
     return next(op, target)
 }
 
 // R22: runtime introspection mirror of the static `Supported` union.
-function supports(rules: object, kind: string): boolean {
-    return Object.prototype.hasOwnProperty.call(rules, kind)
+// Accepts either a bare kind string (matched against a synthetic spec)
+// or a fully-formed spec for predicates that discriminate on dtype/dshape.
+function supports(
+    rules: readonly { shouldHandle: (spec: OpSpec) => boolean }[],
+    kindOrSpec: string | OpSpec,
+): boolean {
+    const spec: OpSpec = typeof kindOrSpec === 'string'
+        ? { thisKind: kindOrSpec, dataType: 'int', dataShape: 'scalar', childSpecs: [], version: 1 }
+        : kindOrSpec
+    return rules.some(r => r.shouldHandle(spec))
 }
 
 // ---- Core compilation targets ----
@@ -268,32 +289,58 @@ interface StringTarget {
     /** decimals to render for float literals; default: full precision */
     precision?: number
 }
+type StringCompilationRule = CompilationRule<StringTarget, string>
 
-const STRING_COMPILATION_RULES = {
-    lit: (op, target) => {
-        const { value, spec } = op
-        if (spec.dataType === 'float' && target.precision !== undefined && typeof value === 'number') {
-            return value.toFixed(target.precision)
-        }
-        if (spec.dataType === 'string') return JSON.stringify(value)
-        return String(value)
+// type ShouldHandle<Spec extends OpSpec> = (spec: OpSpec) => spec is Spec
+function makeIsKind<Spec extends OpSpec>(kind: Spec['thisKind']): (spec: OpSpec) => spec is Spec {
+    return (spec: OpSpec): spec is Spec => spec.thisKind === kind
+}
+
+const STRING_COMPILATION_RULES = [
+    {
+        name: 'lit',
+        shouldHandle: makeIsKind<LitSpec>('lit'),
+        handle: (op: Lit, target: StringTarget) => {
+            const { value, spec } = op
+            if (spec.dataType === 'float' && target.precision !== undefined && typeof value === 'number') {
+                return value.toFixed(target.precision)
+            }
+            if (spec.dataType === 'string') return JSON.stringify(value)
+            return String(value)
+        },
     },
-    add: (op, _target, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
-} as const satisfies CompilationRules<LitSpec<DataType> | AddSpec<OpSpec, OpSpec>, StringTarget, string>
+    {
+        // add: (op, _target, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
+        name: 'add',
+        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        handle: (op: Add<OpSpec, OpSpec>, _target: StringTarget, next: VisitNext<string, StringTarget>) => `(${next(op.left)} + ${next(op.right)})`,
+
+    }
+] as const satisfies StringCompilationRule[]
 
 interface EvaluateTarget {
     // No options in this demo. Real impls would carry a row context,
     // a column-data map, etc. — same shape as StringTarget's precision.
 }
 
-const EVALUATE_COMPILATION_RULES = {
-    lit: (op) => op.value,
-    add: (op, _t, rec) => {
-        const l = rec(op.left) as number
-        const r = rec(op.right) as number
-        return l + r
+type EvaluateCompilationRule = CompilationRule<EvaluateTarget, unknown>
+
+const EVALUATE_COMPILATION_RULES = [
+    {
+        name: 'lit',
+        shouldHandle: makeIsKind<LitSpec>('lit'),
+        handle: (op: Lit) => op.value,
     },
-} as const satisfies CompilationRules<LitSpec<DataType> | AddSpec<OpSpec, OpSpec>, EvaluateTarget, unknown>
+    {
+        name: 'add',
+        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        handle: (op: Add<OpSpec, OpSpec>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
+            const l = next(op.left) as number
+            const r = next(op.right) as number
+            return l + r
+        },
+    },
+] as const satisfies EvaluateCompilationRule[]
 
 // --- 3RD-PARTY STATS PACKAGE -------------------------------------------------
 //
@@ -337,35 +384,35 @@ interface SpecMap<S extends OpSpec> {
 // Rules exported by the stats package: the core ones, taught about Cov.
 // We spread the builtin rules directly to demonstrate that they're plain
 // data — a 3rd party could just as easily override an existing kind.
-const covStringCompilationRules = {
+const covStringCompilationRules = [
     ...STRING_COMPILATION_RULES,
-    cov: (op, _t, next) => `cov(${next(op.left)}, ${next(op.right)})`,
-} as const satisfies CompilationRules<
-    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
-    StringTarget,
-    string
->
+    {
+        name: 'cov',
+        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        handle: (op: Cov<OpSpec, OpSpec>, _t: StringTarget, next: VisitNext<string, StringTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
+    }
+] as const satisfies StringCompilationRule[]
 
-const covEvaluateCompilationRules = {
+const covEvaluateCompilationRules = [
     ...EVALUATE_COMPILATION_RULES,
-    cov: (op, _t, next) => {
-        const xs = next(op.left) as number[]
-        const ys = next(op.right) as number[]
-        if (xs.length !== ys.length || xs.length === 0) {
-            throw new Error('cov: inputs must be same-length non-empty arrays')
-        }
-        const n = xs.length
-        const mx = xs.reduce((a, b) => a + b, 0) / n
-        const my = ys.reduce((a, b) => a + b, 0) / n
-        let s = 0
-        for (let i = 0; i < n; i++) s += (xs[i] - mx) * (ys[i] - my)
-        return s / n
+    {
+        name: 'cov',
+        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        handle: (op: Cov<OpSpec, OpSpec>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
+            const xs = next(op.left) as number[]
+            const ys = next(op.right) as number[]
+            if (xs.length !== ys.length || xs.length === 0) {
+                throw new Error('cov: inputs must be same-length non-empty arrays')
+            }
+            const n = xs.length
+            const mx = xs.reduce((a, b) => a + b, 0) / n
+            const my = ys.reduce((a, b) => a + b, 0) / n
+            let s = 0
+            for (let i = 0; i < n; i++) s += (xs[i] - mx) * (ys[i] - my)
+            return s / n
+        },
     },
-} as const satisfies CompilationRules<
-    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
-    EvaluateTarget,
-    unknown
->
+] as const satisfies EvaluateCompilationRule[]
 
 // --- 3RD-PARTY SQL PACKAGE ---------------------------------------------------
 //
@@ -381,64 +428,76 @@ interface SqlTarget<D extends SqlDialect = SqlDialect> {
     dialect: D
 }
 
+type SqlCompilationRule<D extends SqlDialect> = CompilationRule<SqlTarget<D>, string>
+
 function sqlEscapeString(s: string): string {
     return `'${s.replace(/'/g, "''")}'`
 }
 
 // Postgres / DuckDB rules support every dtype, including datetime.
-const SQL_COMPILATION_RULES = {
-    lit: (op, target) => {
-        const { value, spec } = op
-        switch (spec.dataType) {
-            case 'string':
-                return sqlEscapeString(String(value))
-            case 'boolean':
-                return value ? 'TRUE' : 'FALSE'
-            case 'datetime': {
-                const lit = sqlEscapeString(String(value))
-                return target.dialect === 'postgres'
-                    ? `${lit}::timestamptz`
-                    : `CAST(${lit} AS TIMESTAMP)`
+type PgDuckDialect = 'postgres' | 'duckdb'
+const SQL_COMPILATION_RULES = [
+    {
+        name: 'lit',
+        shouldHandle: makeIsKind<LitSpec>('lit'),
+        handle: (op: Lit, target: SqlTarget<PgDuckDialect>) => {
+            const { value, spec } = op
+            switch (spec.dataType) {
+                case 'string':
+                    return sqlEscapeString(String(value))
+                case 'boolean':
+                    return value ? 'TRUE' : 'FALSE'
+                case 'datetime': {
+                    const lit = sqlEscapeString(String(value))
+                    return target.dialect === 'postgres'
+                        ? `${lit}::timestamptz`
+                        : `CAST(${lit} AS TIMESTAMP)`
+                }
+                case 'int':
+                case 'float':
+                    return String(value)
+                default:
+                    throw new Error(`Unsupported data type for SQL: ${spec.dataType satisfies never}`)
             }
-            case 'int':
-            case 'float':
-                return String(value)
-            default:
-                throw new Error(`Unsupported data type for SQL: ${spec.dataType satisfies never}`)
-        }
+        },
     },
-    add: (op, _t, next) => `(${next(op.left)} + ${next(op.right)})`,
-} as const satisfies CompilationRules<
-    LitSpec<DataType> | AddSpec<OpSpec, OpSpec>,
-    SqlTarget<'postgres' | 'duckdb'>,
-    string
->
+    {
+        name: 'add',
+        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        handle: (op: Add<OpSpec, OpSpec>, _t: SqlTarget<PgDuckDialect>, next: VisitNext<string, SqlTarget<PgDuckDialect>>) => `(${next(op.left)} + ${next(op.right)})`,
+    }
+] as const satisfies SqlCompilationRule<PgDuckDialect>[]
 
 // SQLite rules: identical at runtime, but the type-level `Supported`
 // union omits `LitSpec<'datetime'>`, turning the old runtime check
 // into a compile-time check. Add/Cov over a datetime descendant is
 // also rejected because `SpecsOf<S>` flattens the whole spec tree.
-const SQL_SQLITE_COMPILATION_RULES = {
-    lit: (op) => {
-        const { value, spec } = op
-        switch (spec.dataType) {
-            case 'string':
-                return sqlEscapeString(String(value))
-            case 'boolean':
-                return value ? 'TRUE' : 'FALSE'
-            case 'int':
-            case 'float':
-                return String(value)
-            default:
-                throw new Error(`Unsupported data type for SQLite: ${spec.dataType satisfies never}`)
+type NonDatetime = Exclude<DataType, 'datetime'>
+const SQL_SQLITE_COMPILATION_RULES = [
+    {
+        name: 'any_lit_except_datetime',
+        shouldHandle: (spec: OpSpec): spec is LitSpec<NonDatetime> => spec.thisKind === 'lit' && spec.dataType !== 'datetime',
+        handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
+            const { value, spec } = op
+            switch (spec.dataType) {
+                case 'string':
+                    return sqlEscapeString(String(value))
+                case 'boolean':
+                    return value ? 'TRUE' : 'FALSE'
+                case 'int':
+                case 'float':
+                    return String(value)
+                default:
+                    throw new Error(`Unsupported data type for SQLite: ${spec.dataType satisfies never}`)
+            }
         }
     },
-    add: (op, _t, next) => `(${next(op.left)} + ${next(op.right)})`,
-} as const satisfies CompilationRules<
-    LitSpec<Exclude<DataType, 'datetime'>> | AddSpec<OpSpec, OpSpec>,
-    SqlTarget<'sqlite'>,
-    string
->
+    {
+        name: 'add',
+        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        handle: (op: Add<OpSpec, OpSpec>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => `(${next(op.left)} + ${next(op.right)})`,
+    }
+] as const satisfies SqlCompilationRule<'sqlite'>[]
 
 // --- END-USER GLUE -----------------------------------------------------------
 //
@@ -447,30 +506,30 @@ const SQL_SQLITE_COMPILATION_RULES = {
 // are just data, so they can spread them into a new rule set in their own
 // application code, without touching either library's source.
 
-const userCompilationRules = {
+const userCompilationRules = [
     ...SQL_COMPILATION_RULES,
-    cov: (op, _t, next) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
-} as const satisfies CompilationRules<
-    LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
-    SqlTarget<'postgres' | 'duckdb'>,
-    string
->
+    {
+        name: 'cov',
+        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<string, SqlTarget<'postgres' | 'duckdb'>>) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
+    }
+] as const satisfies SqlCompilationRule<'postgres' | 'duckdb'>[]
 
 // SQLite variant: sqlite has no `covar_pop`, so emit the math directly.
 // `Supported` excludes `LitSpec<'datetime'>` so the rules statically
 // refuse to compile any tree containing a datetime literal.
-const userSqliteCompilationRules = {
+const userSqliteCompilationRules = [
     ...SQL_SQLITE_COMPILATION_RULES,
-    cov: (op, _t, next) => {
-        const l = next(op.left)
-        const r = next(op.right)
-        return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
+    {
+        name: 'cov',
+        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => {
+            const l = next(op.left)
+            const r = next(op.right)
+            return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
+        },
     },
-} as const satisfies CompilationRules<
-    LitSpec<Exclude<DataType, 'datetime'>> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
-    SqlTarget<'sqlite'>,
-    string
->
+] as const satisfies SqlCompilationRule<'sqlite'>[]
 
 // =============================================================================
 // DEMO
