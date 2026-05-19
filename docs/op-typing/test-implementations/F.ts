@@ -202,6 +202,7 @@ function compile<Supported extends keyof KindMap, Target, Out, S extends OpSpec>
     rules: CompilationRules<Supported, Target, Out>,
     op: IVOp<S>,
     target: Target,
+    // typing black magic: if the op's spec mentions any kinds not in Supported, error with a message listing the missing kinds.
     ..._proof: [Exclude<KindsOf<S>, Supported>] extends [never]
         ? []
         : [missing: MissingError<Exclude<KindsOf<S>, Supported> & string>]
