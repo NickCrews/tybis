@@ -271,7 +271,7 @@ function parseOp<K extends string>(
 ): AllowedTree<K> {
     const obj = JSON.parse(json)
     const allowedMap: Record<string, true> = {}
-    for (let i = 0; i < allowed.length; i++) allowedMap[allowed[i]] = true
+    for (let i = 0; i < allowed.length; i++) allowedMap[allowed[i]!] = true
     const walk = (n: any): void => {
         if (n && typeof n === 'object' && typeof n.kind === 'string') {
             if (!allowedMap[n.kind]) {

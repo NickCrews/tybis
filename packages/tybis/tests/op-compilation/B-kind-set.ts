@@ -183,7 +183,7 @@ function parseOp<Allowed extends string>(
     const found: Record<string, true> = {}
     collectKinds(parsed, found)
     const allowedSet: Record<string, true> = {}
-    for (let i = 0; i < allowed.length; i++) allowedSet[allowed[i]] = true
+    for (let i = 0; i < allowed.length; i++) allowedSet[allowed[i]!] = true
     for (const k in found) {
         if (!allowedSet[k]) {
             throw new Error(`parseOp: kind '${k}' not in allowed set [${allowed.join(', ')}]`)

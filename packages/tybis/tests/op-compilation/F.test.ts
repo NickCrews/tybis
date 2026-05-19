@@ -1,33 +1,37 @@
+import { describe, it, expect } from 'vitest'
+import { expectTypeOf } from 'expect-type'
+
 // =============================================================================
-// Approach F — Spec-carrying ops + registry compilers
+// Approach F — Spec-carrying ops, a compilation target, and then handlers that pair up combos of these.
 //
 // IDEA
 //   Each op carries a structured `spec` containing its kind, dtype, dshape,
 //   and the *full transitive list* of child specs. Because the spec already
-//   enumerates the tree, "what kinds does this tree use?" is a single
-//   indexed access — `S['thisKind'] | S['childSpecs'][number]['thisKind']`
-//   — instead of a recursive conditional. That sidesteps the depth cap
-//   that bites D's `AllKindsOf` and E's tree walks.
+//   enumerates the tree, "what specs does this tree use?" is a single
+//   indexed access — `SpecsOf<S> = S | S['childSpecs'][number]` — instead
+//   of a recursive conditional.
 //
-//   A `KindMap` interface (open via declaration merging) maps kind strings
-//   to the concrete op class. Handlers receive the typed op, no casts.
+//   A `SpecMap<S>` interface (open via declaration merging) maps a kind
+//   string to the concrete op class for that spec, so handlers receive
+//   the typed op with no casts.
 //
-//   A `CompilationRules<Supported, Target, Out>` is a plain handler
-//   dictionary, typed by the kinds it claims and parameterized by the
-//   *target* (e.g. a StringTarget with `precision`, or a SqlTarget with
-//   `dialect`) and the output type. The rules are just data — exposed
-//   as top-level readonly constants (`STRING_COMPILATION_RULES`, etc.)
-//   so downstream packages can spread / override / inspect them freely.
-//   Three top-level functions operate on rules: `compile`, `extend`,
-//   `supports`.
+//   A `CompilationRule<Target, Out, Supported>` is a single handler with
+//   a `canHandle` type-guard predicate (narrowing to `Supported`) and a
+//   `handle` function, parameterized by the *target* (e.g. a StringTarget
+//   with `precision`, or a SqlTarget with `dialect`) and the output type.
+//   Rule sets are plain tuples of these rules, declared with
+//   `as const satisfies CompilationRule<...>[]` and exposed as top-level
+//   readonly constants (`STRING_COMPILATION_RULES`, etc.) so downstream
+//   packages can spread / override / inspect them freely. The exported
+//   top-level functions are `compile` and `canHandle`.
 //
 // EXTENSIBILITY
 //   + 3rd-party ops: new class implementing IVOp<NewSpec>; augment
-//     `KindMap` once via `interface KindMap { ... }`.
+//     `SpecMap` once via `interface SpecMap<S> { ... }`.
 //   + 3rd-party targets: define `interface XxxTarget { ... }` and a
-//     `const XXX_COMPILATION_RULES: CompilationRules<..., XxxTarget, Out>`.
+//     `const XXX_COMPILATION_RULES` typed as `CompilationRule<XxxTarget, Out>[]`.
 //   + Teach an existing rule set about a new op: spread it into a new
-//     constant and add the missing handlers.
+//     constant and add the missing rule(s).
 // =============================================================================
 
 // This file is an exploration of how to solve the "expression problem" for tybis.
@@ -124,12 +128,12 @@ class Lit<DT extends DataType = DataType> implements IVOp<LitSpec<DT>> {
 }
 
 // dummy implementation for now
-type HighestDataType<A extends DataType, B extends DataType> = 'float'
+type HighestDataType<_A extends DataType, _B extends DataType> = 'float'
 function highestDataType<A extends DataType, B extends DataType>(_a: A, _b: B): HighestDataType<A, B> {
     return 'float' // placeholder
 }
 
-type HighestDataShape<A extends DataShape, B extends DataShape> = 'columnar'
+type HighestDataShape<_A extends DataShape, _B extends DataShape> = 'columnar'
 function highestDataShape<A extends DataShape, B extends DataShape>(_a: A, _b: B): HighestDataShape<A, B> {
     return 'columnar' // placeholder
 }
@@ -220,7 +224,7 @@ type CompilationRule<Target, Out, Supported extends OpSpec = OpSpec> = {
 // predicate and `handle` signature. We map across the tuple's numeric
 // indices and union the per-element results. `any` rest patterns are
 // required so a 2-arg handler like `(op) => x` still matches.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type AnyArgs = any[]
 type SpecsHandledBy<R> = R extends readonly unknown[] ? {
     [K in keyof R]: R[K] extends { canHandle: (spec: OpSpec, ...rest: AnyArgs) => spec is infer S extends OpSpec }
@@ -228,7 +232,7 @@ type SpecsHandledBy<R> = R extends readonly unknown[] ? {
     : never
 }[number] : never
 type TargetOf<R> = R extends readonly unknown[] ? {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     [K in keyof R]: R[K] extends { handle: (op: any, target: infer T, ...rest: AnyArgs) => unknown }
     ? T : never
 }[number] : never
@@ -352,8 +356,7 @@ const STRING_COMPILATION_RULES = [
 ] as const satisfies StringCompilationRule[]
 
 interface EvaluateTarget {
-    // No options in this demo. Real impls would carry a row context,
-    // a column-data map, etc. — same shape as StringTarget's precision.
+    dummy_connection_url?: string
 }
 
 type EvaluateCompilationRule = CompilationRule<EvaluateTarget, unknown>
@@ -441,7 +444,7 @@ const covEvaluateCompilationRules = [
             const mx = xs.reduce((a, b) => a + b, 0) / n
             const my = ys.reduce((a, b) => a + b, 0) / n
             let s = 0
-            for (let i = 0; i < n; i++) s += (xs[i] - mx) * (ys[i] - my)
+            for (let i = 0; i < n; i++) s += (xs[i]! - mx) * (ys[i]! - my)
             return s / n
         },
     },
@@ -565,121 +568,191 @@ const userSqliteCompilationRules = [
 ] as const satisfies SqlCompilationRule<'sqlite'>[]
 
 // =============================================================================
-// DEMO
+// TESTS
 // =============================================================================
 
-const log = (label: string, value: unknown) => console.log(label.padEnd(48), value)
-const section = (title: string) => console.log(`\n── ${title} ${'─'.repeat(Math.max(1, 60 - title.length))}`)
-
-section('Core ops, core compilation rules')
 const five = new Lit(5, 'int')
 const ten = new Lit(10, 'int')
 const sum = new Add(five, ten)
 
-log('compile(STRING_COMPILATION_RULES, 5 + 10)', compile(STRING_COMPILATION_RULES, sum, {}))
-log('compile(EVALUATE_COMPILATION_RULES, 5 + 10)', compile(EVALUATE_COMPILATION_RULES, sum, {}))
-
-// StringTarget option: precision applies to float literals.
 const pi = new Lit(3.14159, 'float')
 const piPlus = new Add(pi, new Lit(1, 'int'))
-log('compile(STRING_COMPILATION_RULES, pi + 1) precision=2', compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 }))
-log('compile(STRING_COMPILATION_RULES, pi + 1) no precision', compile(STRING_COMPILATION_RULES, piPlus, {}))
 
-section('Stats lib compilation rules also handle core ops')
-log('compile(covStringCompilationRules, 5 + 10)', compile(covStringCompilationRules, sum, {}))
-log('compile(covEvaluateCompilationRules, 5 + 10)', compile(covEvaluateCompilationRules, sum, {}))
-
-section('Stats op (Cov), stats compilation rules')
 // String lits standing in for column references — fine for toString/toSql.
 // Evaluate of cov needs actual numeric arrays, so a separate numeric Cov below.
 const colX = new Lit('xs' as never, 'string')
 const colY = new Lit('ys' as never, 'string')
 const cov = new Cov(colX, colY)
-log('compile(covStringCompilationRules, cov(xs, ys))', compile(covStringCompilationRules, cov, {}))
 
 const numCov = new Cov(
     new Lit([1, 2, 3, 4] as never, 'float'),
     new Lit([2, 4, 6, 8] as never, 'float'),
 )
-log('compile(covEvaluateCompilationRules, cov(...))', compile(covEvaluateCompilationRules, numCov, {}))
 
-// Wrapped in a never-called function so the @ts-expect-error lines are
-// still type-checked but the (deliberately-broken) calls don't run.
-function _typeErrorDemos() {
-    // @ts-expect-error — compilation rules don't support spec(s): cov<...>
-    compile(STRING_COMPILATION_RULES, cov, {})
-    // @ts-expect-error — compilation rules don't support spec(s): cov<...>
-    compile(EVALUATE_COMPILATION_RULES, cov, {})
-    // @ts-expect-error — sql compilation rules don't handle cov on its own
-    compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
-}
-void _typeErrorDemos
-
-section('SQL compilation rules on core ops')
-log('compile(SQL_COMPILATION_RULES, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
-log('compile(SQL_SQLITE_COMPILATION_RULES, 5 + 10, sqlite)', compile(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
-
-// Datetime literal: ok on postgres/duckdb, statically rejected by sqlite rules.
 const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
-log('compile(SQL_COMPILATION_RULES, datetime, postgres)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' }))
-log('compile(SQL_COMPILATION_RULES, datetime, duckdb)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' }))
 
-// The big payoff: sqlite + datetime is a COMPILE-TIME error, not a runtime
-// throw. `Supported` for SQL_SQLITE_COMPILATION_RULES excludes
-// `LitSpec<'datetime'>`, so feeding `dt` (or anything that transitively
-// contains a datetime literal) trips the `MissingError` template.
-function _sqliteDatetimeStaticError() {
-    // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
-    compile(SQL_SQLITE_COMPILATION_RULES, dt, { dialect: 'sqlite' })
+describe('core ops, core compilation rules', () => {
+    it('stringifies an int+int sum', () => {
+        expect(compile(STRING_COMPILATION_RULES, sum, {})).toBe('(5 + 10)')
+    })
 
-    // Even nested: an Add over a datetime descendant is also rejected,
-    // because SpecsOf<S> flattens the whole tree.
-    const dtPlus = new Add(dt, new Lit(1, 'int'))
-    // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
-    compile(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
-}
-void _sqliteDatetimeStaticError
+    it('evaluates an int+int sum', () => {
+        expect(compile(EVALUATE_COMPILATION_RULES, sum, {})).toBe(15)
+    })
 
-section('End-user glue: Cov compiled to SQL')
-log('compile(userCompilationRules, cov, postgres)', compile(userCompilationRules, cov, { dialect: 'postgres' }))
-log('compile(userCompilationRules, cov, duckdb)', compile(userCompilationRules, cov, { dialect: 'duckdb' }))
-log('compile(userSqliteCompilationRules, cov, sqlite)', compile(userSqliteCompilationRules, cov, { dialect: 'sqlite' }))
-const mixed = new Add(cov, new Lit(1, 'float'))
-log('compile(userCompilationRules, cov + 1, duckdb)', compile(userCompilationRules, mixed, { dialect: 'duckdb' }))
+    it('honors StringTarget precision for float literals', () => {
+        expect(compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 })).toBe('(3.14 + 1)')
+    })
 
-// R22 introspection: types + runtime.
-section('R22 introspection')
-type FullKinds = KindsHandledBy<typeof userCompilationRules>
-const fullKinds: FullKinds[] = ['lit', 'add', 'cov']
-log('static  KindsHandledBy<typeof userCompilationRules>', fullKinds.join(' | '))
-log("runtime canHandle(userCompilationRules, 'cov')", canHandle(userCompilationRules, 'cov'))
-log("runtime canHandle(userCompilationRules, 'nope')", canHandle(userCompilationRules, 'nope'))
+    it('falls back to full precision when no precision is set', () => {
+        expect(compile(STRING_COMPILATION_RULES, piPlus, {})).toBe('(3.14159 + 1)')
+    })
+})
 
-// Compile-time CanHandle: same question as the runtime call, answered
-// during type checking. The `const _: true = ...` / `const _: false = ...`
-// assertions would fail to compile if the inferred literal were wrong,
-// so they double as compile-time tests.
-type _StaticCovOnString = CanHandle<typeof STRING_COMPILATION_RULES, typeof cov.spec> // false — STRING rules don't know cov
-type _StaticCovOnUser   = CanHandle<typeof userCompilationRules,    typeof cov.spec> // true  — user rules teach SQL about cov
-type _StaticDtOnSqlite  = CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt.spec> // false — sqlite excludes datetime literals
-type _StaticDtOnPg      = CanHandle<typeof SQL_COMPILATION_RULES, typeof dt.spec>        // true  — postgres/duckdb handle datetime
+describe('stats lib compilation rules', () => {
+    it('still handles core ops (string)', () => {
+        expect(compile(covStringCompilationRules, sum, {})).toBe('(5 + 10)')
+    })
 
-const _covOnString: _StaticCovOnString = false
-const _covOnUser:   _StaticCovOnUser   = true
-const _dtOnSqlite:  _StaticDtOnSqlite  = false
-const _dtOnPg:      _StaticDtOnPg      = true
-log('static  CanHandle<STRING_..., cov>', _covOnString)
-log('static  CanHandle<userCompilationRules, cov>', _covOnUser)
-log('static  CanHandle<SQL_SQLITE_..., datetime>', _dtOnSqlite)
-log('static  CanHandle<SQL_COMPILATION_RULES, datetime>', _dtOnPg)
+    it('still handles core ops (evaluate)', () => {
+        expect(compile(covEvaluateCompilationRules, sum, {})).toBe(15)
+    })
 
-// Same answers reachable through the runtime overload — when called
-// with a typed IVOp, the return is narrowed to the same `true`/`false`
-// literal.
-log('runtime canHandle(STRING_..., cov op)', canHandle(STRING_COMPILATION_RULES, cov))
-log('runtime canHandle(userCompilationRules, cov op)', canHandle(userCompilationRules, cov))
-log('runtime canHandle(SQL_SQLITE_..., datetime op)', canHandle(SQL_SQLITE_COMPILATION_RULES, dt))
-log('runtime canHandle(SQL_COMPILATION_RULES, datetime op)', canHandle(SQL_COMPILATION_RULES, dt))
+    it('stringifies a cov call', () => {
+        expect(compile(covStringCompilationRules, cov, {})).toBe('cov("xs", "ys")')
+    })
+
+    it('evaluates a numeric cov', () => {
+        expect(compile(covEvaluateCompilationRules, numCov, {})).toBe(2.5)
+    })
+
+    it('rejects cov in core/SQL rules at both compile and run time', () => {
+        expect(() => {
+            // @ts-expect-error — compilation rules don't support spec(s): cov<...>
+            compile(STRING_COMPILATION_RULES, cov, {})
+        }).toThrow(/No compilation rule handles spec: cov/)
+
+        expect(() => {
+            // @ts-expect-error — compilation rules don't support spec(s): cov<...>
+            compile(EVALUATE_COMPILATION_RULES, cov, {})
+        }).toThrow(/No compilation rule handles spec: cov/)
+
+        expect(() => {
+            // @ts-expect-error — sql compilation rules don't handle cov on its own
+            compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
+        }).toThrow(/No compilation rule handles spec: cov/)
+    })
+})
+
+describe('SQL compilation rules', () => {
+    it('emits add on postgres', () => {
+        expect(compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' })).toBe('(5 + 10)')
+    })
+
+    it('emits add on sqlite', () => {
+        expect(compile(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' })).toBe('(5 + 10)')
+    })
+
+    it('emits datetime literal on postgres', () => {
+        expect(compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' })).toBe(
+            "'2026-01-01T00:00:00Z'::timestamptz",
+        )
+    })
+
+    it('emits datetime literal on duckdb', () => {
+        expect(compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' })).toBe(
+            "CAST('2026-01-01T00:00:00Z' AS TIMESTAMP)",
+        )
+    })
+
+    it('rejects datetime literal on sqlite at both compile and run time', () => {
+        expect(() => {
+            // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
+            compile(SQL_SQLITE_COMPILATION_RULES, dt, { dialect: 'sqlite' })
+        }).toThrow(/No compilation rule handles spec: lit/)
+    })
+
+    it('rejects nested datetime on sqlite at both compile and run time', () => {
+        // SpecsOf<S> flattens the whole tree, so an Add over a datetime
+        // descendant is statically rejected too. At runtime, the Add
+        // handler runs first and the inner datetime literal blows up
+        // when the recursion reaches it.
+        const dtPlus = new Add(dt, new Lit(1, 'int'))
+        expect(() => {
+            // @ts-expect-error — compilation rules don't support spec(s): lit<datetime, scalar>
+            compile(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
+        }).toThrow(/No compilation rule handles spec: lit/)
+    })
+})
+
+describe('end-user glue: cov compiled to SQL', () => {
+    it('emits covar_pop on postgres', () => {
+        expect(compile(userCompilationRules, cov, { dialect: 'postgres' })).toBe(
+            "covar_pop('xs', 'ys')",
+        )
+    })
+
+    it('emits covar_pop on duckdb', () => {
+        expect(compile(userCompilationRules, cov, { dialect: 'duckdb' })).toBe(
+            "covar_pop('xs', 'ys')",
+        )
+    })
+
+    it('emits the manual covariance math on sqlite', () => {
+        expect(compile(userSqliteCompilationRules, cov, { dialect: 'sqlite' })).toBe(
+            "(AVG('xs'*'ys') - AVG('xs')*AVG('ys'))",
+        )
+    })
+
+    it('composes cov inside an add', () => {
+        const mixed = new Add(cov, new Lit(1, 'float'))
+        expect(compile(userCompilationRules, mixed, { dialect: 'duckdb' })).toBe(
+            "(covar_pop('xs', 'ys') + 1)",
+        )
+    })
+})
+
+describe('R22 introspection', () => {
+    it('exposes KindsHandledBy as a literal-string union at the type level', () => {
+        type FullKinds = KindsHandledBy<typeof userCompilationRules>
+        expectTypeOf<FullKinds>().toEqualTypeOf<'lit' | 'add' | 'cov'>()
+    })
+
+    it('answers canHandle from a kind string, but can\'t infer the type', () => {
+        const cov = canHandle(userCompilationRules, 'cov')
+        expect(cov).toBe(true)
+        expectTypeOf(cov).toEqualTypeOf<boolean>()
+
+        const nope = canHandle(userCompilationRules, 'nope')
+        expect(nope).toBe(false)
+        expectTypeOf(nope).toEqualTypeOf<boolean>()
+    })
+
+    it('answers CanHandle at the type level', () => {
+        expectTypeOf<CanHandle<typeof STRING_COMPILATION_RULES, typeof cov.spec>>().toEqualTypeOf<false>()
+        expectTypeOf<CanHandle<typeof userCompilationRules, typeof cov.spec>>().toEqualTypeOf<true>()
+        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt.spec>>().toEqualTypeOf<false>()
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt.spec>>().toEqualTypeOf<true>()
+    })
+
+    it('answers canHandle from a typed IVOp, narrowed at the type level', () => {
+        const a = canHandle(STRING_COMPILATION_RULES, cov)
+        expectTypeOf(a).toEqualTypeOf<false>()
+        expect(a).toBe(false)
+
+        const b = canHandle(userCompilationRules, cov)
+        expectTypeOf(b).toEqualTypeOf<true>()
+        expect(b).toBe(true)
+
+        const c = canHandle(SQL_SQLITE_COMPILATION_RULES, dt)
+        expectTypeOf(c).toEqualTypeOf<false>()
+        expect(c).toBe(false)
+
+        const d = canHandle(SQL_COMPILATION_RULES, dt)
+        expectTypeOf(d).toEqualTypeOf<true>()
+        expect(d).toBe(true)
+    })
+})
 
 // =============================================================================
 // HOW IT SCORES AGAINST THE PRD

@@ -16,7 +16,7 @@
   "scripts": {
     "lint": "eslint .",
     "build": "tsup",
-    "test": "vitest --run",
+    "test": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

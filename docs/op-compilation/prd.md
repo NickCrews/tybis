@@ -1,15 +1,16 @@
-# PRD: tybis op-typing system
+# PRD: tybis Op Compilation system
 
 ## Context
 
 tybis represents expressions/queries as trees of typed ops (`IVOp` for value-level
 operations, `IROp` for relational ones). Each op holds a
 `DataType` and `DataShape` both statically *and* at runtime.
-A `Compiler` walks an op tree and produces an output:
+A `Compiler` is anything that takes an op tree and produces an output:
 SQL text for `SqlCompiler` subclasses,
 PRQL text for `PrqlCompiler`,
 a new op tree for a `LiteralOptimizer`,
-eventually in-memory data for an executor.
+a friendly string representation for `Stringifier`,
+an `Array<Record>` for an `DuckdbBackend` or a `InMemoryBackend`.
 
 This document enumerates the constraints and desired properties such a
 design must satisfy.
@@ -17,19 +18,6 @@ These serve as a north star and guiding document.
 Tybis does not yet satisfy all of these properties,
 but this serves as a checklist for when we are making changes
 to tybis to see how the proposed implementation would align with our goals.
-
----
-
-## Non-goals
-
-- **Parsing SQL back into ops.** Bidirectional compilation is a
-  separate problem; the system here only needs to *emit*.
-- **Cross-language runtime.** Ops are TS objects compiled by TS
-  compilers. Substrait-style language-agnostic IR is out of scope.
-- **Query optimization.** Cost-based optimization and join reordering
-  belong above this layer.
-- **Schema inference at the SQL boundary.** Schema introspection is
-  separate from how ops are typed.
 
 ---
 
@@ -531,7 +519,8 @@ op definition, it rots.
 at both runtime (introspection) and at the type level.
 
 **Examples.**
-- `duckdbCompiler.supports('json_extract')` → `boolean`.
+- `supports(duckdbCompiler, op)` → `boolean`.
+- `Supports<typeof duckdbCompiler, typeof op)` → `true` | `false`.
 - A `KindsHandledBy<typeof duckdbCompiler>` type alias exposes the
   full set as a union.
 
