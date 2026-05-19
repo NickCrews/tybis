@@ -384,7 +384,7 @@ const EVALUATE_COMPILATION_RULES = [
 // WITHOUT modifying the core compilation rules
 
 type CovSpec<L extends OpSpec, R extends OpSpec> = {
-    thisKind: 'cov',
+    thisKind: '@stats/cov',
     dataType: HighestDataType<L['dataType'], R['dataType']>,
     dataShape: 'scalar',  // covariance over two columns is a scalar
     childSpecs: CombineSpecs<L, R>,
@@ -393,7 +393,7 @@ type CovSpec<L extends OpSpec, R extends OpSpec> = {
 }
 function makeCovSpec<L extends OpSpec, R extends OpSpec>(left: L, right: R): CovSpec<L, R> {
     return {
-        thisKind: 'cov',
+        thisKind: '@stats/cov',
         dataType: highestDataType(left.dataType, right.dataType),
         dataShape: 'scalar',
         childSpecs: combineSpecs(left, right),
@@ -424,7 +424,7 @@ const covStringCompilationRules = [
     ...STRING_COMPILATION_RULES,
     {
         name: 'cov',
-        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('@stats/cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: StringTarget, next: VisitNext<string, StringTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies StringCompilationRule[]
@@ -433,7 +433,7 @@ const covEvaluateCompilationRules = [
     ...EVALUATE_COMPILATION_RULES,
     {
         name: 'cov',
-        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('@stats/cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
             const xs = next(op.left) as number[]
             const ys = next(op.right) as number[]
@@ -545,8 +545,8 @@ const SQL_SQLITE_COMPILATION_RULES = [
 const userCompilationRules = [
     ...SQL_COMPILATION_RULES,
     {
-        name: 'cov',
-        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        name: '@stats/cov',
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('@stats/cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<string, SqlTarget<'postgres' | 'duckdb'>>) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<'postgres' | 'duckdb'>[]
@@ -557,8 +557,8 @@ const userCompilationRules = [
 const userSqliteCompilationRules = [
     ...SQL_SQLITE_COMPILATION_RULES,
     {
-        name: 'cov',
-        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        name: '@stats/cov',
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('@stats/cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => {
             const l = next(op.left)
             const r = next(op.right)
@@ -630,17 +630,17 @@ describe('stats lib compilation rules', () => {
         expect(() => {
             // @ts-expect-error — compilation rules don't support spec(s): cov<...>
             compile(STRING_COMPILATION_RULES, cov, {})
-        }).toThrow(/No compilation rule handles spec: cov/)
+        }).toThrow(/No compilation rule handles spec: @stats\/cov/)
 
         expect(() => {
             // @ts-expect-error — compilation rules don't support spec(s): cov<...>
             compile(EVALUATE_COMPILATION_RULES, cov, {})
-        }).toThrow(/No compilation rule handles spec: cov/)
+        }).toThrow(/No compilation rule handles spec: @stats\/cov/)
 
         expect(() => {
             // @ts-expect-error — sql compilation rules don't handle cov on its own
             compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
-        }).toThrow(/No compilation rule handles spec: cov/)
+        }).toThrow(/No compilation rule handles spec: @stats\/cov/)
     })
 })
 
@@ -715,11 +715,11 @@ describe('end-user glue: cov compiled to SQL', () => {
 describe('R22 introspection', () => {
     it('exposes KindsHandledBy as a literal-string union at the type level', () => {
         type FullKinds = KindsHandledBy<typeof userCompilationRules>
-        expectTypeOf<FullKinds>().toEqualTypeOf<'lit' | 'add' | 'cov'>()
+        expectTypeOf<FullKinds>().toEqualTypeOf<'lit' | 'add' | '@stats/cov'>()
     })
 
     it('answers canHandle from a kind string, but can\'t infer the type', () => {
-        const cov = canHandle(userCompilationRules, 'cov')
+        const cov = canHandle(userCompilationRules, '@stats/cov')
         expect(cov).toBe(true)
         expectTypeOf(cov).toEqualTypeOf<boolean>()
 
@@ -772,6 +772,7 @@ describe('R22 introspection', () => {
 //     `SQL_SQLITE_COMPILATION_RULES` excludes `LitSpec<'datetime'>` and
 //     turns `compile(rules, dtLit, { dialect: 'sqlite' })` into a
 //     compile-time error.
+//   – R7 name-collision: packages namespace their kinds with a unique prefix, e.g. `@stats/cov`.
 //   + R10 multi-target: Target is a generic, so the same op tree can be
 //     compiled to string, evaluated, or emitted as SQL by different
 //     compilation rules without touching the tree.
@@ -803,8 +804,6 @@ describe('R22 introspection', () => {
 //     boundary; left as future work.
 //   – R6 wire-stability: ops carry `version` but there's no migration
 //     story yet.
-//   – R7 name-collision: kinds are bare strings. Scoped-kind convention
-//     (`'@scope/pkg/name'`) would apply identically to this approach.
 //   + R13 capability-axes: partial — targets are generic (`SqlTarget<D>`)
 //     and Supported is an OpSpec union, so per-target capability
 //     constraints can be encoded in the type (`Supported` excludes
