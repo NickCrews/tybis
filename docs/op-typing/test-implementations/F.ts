@@ -192,7 +192,7 @@ type Handler<K extends keyof KindMap, Target, Out> =
 
 // R20: template-literal error names the offending kind(s) in plain text.
 type MissingError<Missing extends string> =
-    `compiler is missing handler(s) for kind(s): ${Missing}`
+    `compilation rules are missing handler(s) for kind(s): ${Missing}`
 
 type CompilationRules<Supported extends keyof KindMap, Target, Out> = {
     readonly [K in Supported]: Handler<K, Target, Out>
@@ -271,9 +271,8 @@ const EVALUATE_COMPILATION_RULES = {
 
 // --- 3RD-PARTY STATS PACKAGE -------------------------------------------------
 //
-// Provides a `Cov` op and teaches both core compilers how to handle it,
-// WITHOUT modifying the core compiler values — `.extend()` returns new
-// compiler values whose `Supported` union widens to include `'cov'`.
+// Provides a `Cov` op and provides compilation rules to handle it,
+// WITHOUT modifying the core compilation rules
 
 type CovSpec<L extends OpSpec, R extends OpSpec> = {
     thisKind: 'cov',
@@ -303,7 +302,7 @@ class Cov<L extends OpSpec, R extends OpSpec> implements IVOp<CovSpec<L, R>> {
     dshape() { return this.spec.dataShape }
 }
 
-// The stats library augments `KindMap` so any compiler with a `cov`
+// The stats library augments `KindMap` so any compilation rules with a `cov`
 // handler gets a typed `op.left` / `op.right` for free.
 interface KindMap {
     cov: Cov<OpSpec, OpSpec>
@@ -336,7 +335,7 @@ const covEvaluateCompilationRules = {
 
 // --- 3RD-PARTY SQL PACKAGE ---------------------------------------------------
 //
-// Provides a `SqlTarget` with a `dialect` parameter and a compiler that
+// Provides a `SqlTarget` with a `dialect` parameter and set of compilation rules that
 // handles the CORE ops. Does NOT know about Cov.
 // sqlite has no datetime literal, so a datetime literal on sqlite is a
 // runtime error.
@@ -380,7 +379,7 @@ const SQL_COMPILATION_RULES = {
 // --- END-USER GLUE -----------------------------------------------------------
 //
 // The user wants Cov compiled to SQL. They didn't write Cov (stats lib did)
-// and they didn't write the SQL compiler (sql lib did) — but the SQL rules
+// and they didn't write the SQL compilation rules (sql lib did) — but the SQL rules
 // are just data, so they can spread them into a new rule set in their own
 // application code, without touching either library's source.
 
@@ -404,8 +403,7 @@ const userCompilationRules = {
 const log = (label: string, value: unknown) => console.log(label.padEnd(48), value)
 const section = (title: string) => console.log(`\n── ${title} ${'─'.repeat(Math.max(1, 60 - title.length))}`)
 
-// Core ops, core compilers --------------------------------------------------
-section('Core ops, core compilers')
+section('Core ops, core compilation rules')
 const five = new Lit(5, 'int')
 const ten = new Lit(10, 'int')
 const sum = new Add(five, ten)
@@ -419,13 +417,11 @@ const piPlus = new Add(pi, new Lit(1, 'int'))
 log('compile(STRING_COMPILATION_RULES, pi + 1) precision=2', compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 }))
 log('compile(STRING_COMPILATION_RULES, pi + 1) no precision', compile(STRING_COMPILATION_RULES, piPlus, {}))
 
-// Core ops, stats library compilers (also work on core-only trees) ----------
-section('Stats lib compilers also handle core ops')
+section('Stats lib compilation rules also handle core ops')
 log('compile(covStringCompilationRules, 5 + 10)', compile(covStringCompilationRules, sum, {}))
 log('compile(covEvaluateCompilationRules, 5 + 10)', compile(covEvaluateCompilationRules, sum, {}))
 
-// Stats op, stats compilers -------------------------------------------------
-section('Stats op (Cov), stats compilers')
+section('Stats op (Cov), stats compilation rules')
 // String lits standing in for column references — fine for toString/toSql.
 // Evaluate of cov needs actual numeric arrays, so a separate numeric Cov below.
 const colX = new Lit('xs' as never, 'string')
@@ -439,21 +435,19 @@ const numCov = new Cov(
 )
 log('compile(covEvaluateCompilationRules, cov(...))', compile(covEvaluateCompilationRules, numCov, {}))
 
-// Stats op + core compiler — type error: core compilers don't know 'cov'.
 // Wrapped in a never-called function so the @ts-expect-error lines are
 // still type-checked but the (deliberately-broken) calls don't run.
 function _typeErrorDemos() {
-    // @ts-expect-error — compiler is missing handler(s) for kind(s): cov
+    // @ts-expect-error — compilation rules are missing handler(s) for kind(s): cov
     compile(STRING_COMPILATION_RULES, cov, {})
-    // @ts-expect-error — compiler is missing handler(s) for kind(s): cov
+    // @ts-expect-error — compilation rules are missing handler(s) for kind(s): cov
     compile(EVALUATE_COMPILATION_RULES, cov, {})
-    // @ts-expect-error — sql compiler doesn't handle cov on its own
+    // @ts-expect-error — sql compilation rules don't handle cov on its own
     compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
 }
 void _typeErrorDemos
 
-// SQL package: core ops, SQL compiler ---------------------------------------
-section('SQL compiler on core ops')
+section('SQL compilation rules on core ops')
 log('compile(SQL_COMPILATION_RULES, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
 log('compile(SQL_COMPILATION_RULES, 5 + 10, sqlite)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
 
@@ -469,16 +463,10 @@ try {
     log('compile(SQL_COMPILATION_RULES, datetime, sqlite)', `throws: ${e.message}`)
 }
 
-// (Stats op + SQL compiler without user glue is a type error too —
-// see `_typeErrorDemos` above.)
-
-// End-user combo: Cov + SQL through the user's glue compiler. ---------------
 section('End-user glue: Cov compiled to SQL')
 log('compile(userCompilationRules, cov, postgres)', compile(userCompilationRules, cov, { dialect: 'postgres' }))
 log('compile(userCompilationRules, cov, duckdb)', compile(userCompilationRules, cov, { dialect: 'duckdb' }))
 log('compile(userCompilationRules, cov, sqlite)', compile(userCompilationRules, cov, { dialect: 'sqlite' }))
-
-// Nested combination: Add(cov, lit) compiles end-to-end on the glue compiler.
 const mixed = new Add(cov, new Lit(1, 'float'))
 log('compile(userCompilationRules, cov + 1, duckdb)', compile(userCompilationRules, mixed, { dialect: 'duckdb' }))
 
@@ -496,20 +484,20 @@ log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRu
 // STRONG
 //   + R1 expression-problem: both axes open. The stats package teaches
 //     CORE rules about Cov by spreading them into a new constant; an
-//     end user combines a 3rd-party op with a 3rd-party compiler the
+//     end user combines a 3rd-party op with 3rd-party compilation rules the
 //     same way (or uses the `extend()` helper).
 //   + R2 op-declares-self: ops carry their spec/kind; they say nothing
-//     about which compilers handle them.
+//     about which targets they can be compiled to.
 //   + R3 dialect-safety: `KindsOf<S>` enumerates every kind in the tree
 //     (statically, via `childSpecs`), and `compile` requires that union
 //     to be a subset of `Supported`. Missing kinds → typed error.
 //   + R10 multi-target: Target is a generic, so the same op tree can be
 //     compiled to string, evaluated, or emitted as SQL by different
-//     compilers without touching the tree.
+//     compilation rules without touching the tree.
 //   + R11/R22 static-introspection: `KindsOf<typeof tree>` is one
-//     indexed access; `KindsHandledBy<typeof c>` projects the compiler.
+//     indexed access; `KindsHandledBy<typeof c>` projects the compilation rules.
 //   + R14 fallback: rules are plain objects, so spreading (or
-//     `extend()`) lets a downstream compiler re-emit a core kind
+//     `extend()`) lets downstream compilation rules re-emit a core kind
 //     differently via last-write-wins.
 //   + R15 type-composition: lives next to existing `DataType` /
 //     `DataShape` rather than replacing them; same generic-threading
@@ -517,9 +505,9 @@ log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRu
 //   + R18 typed-handler-payload: `KindMap[K]` gives handlers the
 //     concrete class, so `op.left` / `op.right` / `op.value` are typed.
 //   + R19 exhaustiveness: `{ [K in Supported]: Handler<K, ...> }`
-//     errors at compiler construction when a handler is missing.
+//     errors at compile time if a handler is missing for any kind in `Supported`.
 //   + R20 error-clarity: template-literal error names the offending
-//     kind in plain English: `compiler is missing handler(s) for kind(s): cov`.
+//     kind in plain English: `compilation rules are missing handler(s) for kind(s): cov`.
 //   + R23 check-time: no recursive conditional on the tree — the
 //     transitive kind list is already a tuple in `childSpecs`. Should
 //     scale better than D/E on deep trees.
@@ -535,7 +523,7 @@ log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRu
 //   – R7 name-collision: kinds are bare strings. Scoped-kind convention
 //     (`'@scope/pkg/name'`) would apply identically to this approach.
 //   – R13 capability-axes: not modeled. Could add an `OpCapabilities`
-//     registry à la E and require the compiler to accept an axis set.
+//     registry à la E and require the compile rule sets to accept an axis set.
 //   – Op boilerplate (R17): each composite op threads child specs
 //     through generics and writes a `make<Op>Spec` builder. Comparable
 //     to B's phantom-threading cost. A `defineOp` helper could compress
