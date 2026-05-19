@@ -291,7 +291,6 @@ interface StringTarget {
 }
 type StringCompilationRule = CompilationRule<StringTarget, string>
 
-// type ShouldHandle<Spec extends OpSpec> = (spec: OpSpec) => spec is Spec
 function makeIsKind<Spec extends OpSpec>(kind: Spec['thisKind']): (spec: OpSpec) => spec is Spec {
     return (spec: OpSpec): spec is Spec => spec.thisKind === kind
 }
