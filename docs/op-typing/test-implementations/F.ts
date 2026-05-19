@@ -63,7 +63,7 @@
 
 // --- CORE PACKAGE ------------------------------------------------------------
 
-type DataType = 'string' | 'int' | 'float' | 'boolean' | 'datetime' | 'uuid'
+type DataType = 'string' | 'int' | 'float' | 'boolean' | 'datetime'
 type DataShape = 'scalar' | 'columnar'
 
 // statically typed info that can be known at expression construction time,
@@ -355,7 +355,6 @@ const SQL_COMPILATION_RULES = {
         const { value, spec } = op
         switch (spec.dataType) {
             case 'string':
-            case 'uuid':
                 return sqlEscapeString(String(value))
             case 'boolean':
                 return value ? 'TRUE' : 'FALSE'
