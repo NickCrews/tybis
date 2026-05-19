@@ -12,19 +12,22 @@
 //   A `KindMap` interface (open via declaration merging) maps kind strings
 //   to the concrete op class. Handlers receive the typed op, no casts.
 //
-//   A `Compiler<Supported, Target, Out>` is a handler dictionary, typed
-//   by the kinds it claims and parameterized by the *target* (e.g. a
-//   StringTarget with `precision`, or a SqlTarget with `dialect`) and
-//   the output type. `extend()` returns a new compiler value whose
-//   `Supported` widens to include the new kinds.
+//   A `CompilationRules<Supported, Target, Out>` is a plain handler
+//   dictionary, typed by the kinds it claims and parameterized by the
+//   *target* (e.g. a StringTarget with `precision`, or a SqlTarget with
+//   `dialect`) and the output type. The rules are just data — exposed
+//   as top-level readonly constants (`STRING_COMPILATION_RULES`, etc.)
+//   so downstream packages can spread / override / inspect them freely.
+//   Three top-level functions operate on rules: `compile`, `extend`,
+//   `supports`.
 //
 // EXTENSIBILITY
 //   + 3rd-party ops: new class implementing IVOp<NewSpec>; augment
 //     `KindMap` once via `interface KindMap { ... }`.
 //   + 3rd-party targets: define `interface XxxTarget { ... }` and a
-//     `new Compiler<..., XxxTarget, Out>(...)`.
-//   + Teach an existing compiler about a new op: `c.extend({ ... })`
-//     — produces a NEW compiler value, original untouched.
+//     `const XXX_COMPILATION_RULES: CompilationRules<..., XxxTarget, Out>`.
+//   + Teach an existing rule set about a new op: spread it into a new
+//     constant and add the missing handlers (or use `extend()`).
 // =============================================================================
 
 // This file is an exploration of how to solve the "expression problem" for tybis.
@@ -191,38 +194,41 @@ type Handler<K extends keyof KindMap, Target, Out> =
 type MissingError<Missing extends string> =
     `compiler is missing handler(s) for kind(s): ${Missing}`
 
-class Compiler<Supported extends keyof KindMap, Target, Out> {
-    constructor(readonly handlers: { [K in Supported]: Handler<K, Target, Out> }) { }
+type CompilationRules<Supported extends keyof KindMap, Target, Out> = {
+    readonly [K in Supported]: Handler<K, Target, Out>
+}
 
-    compile<S extends OpSpec>(
-        op: IVOp<S>,
-        target: Target,
-        ..._proof: [Exclude<KindsOf<S>, Supported>] extends [never]
-            ? []
-            : [missing: MissingError<Exclude<KindsOf<S>, Supported> & string>]
-    ): Out {
-        const handlers = this.handlers as unknown as Record<string, (op: IVOp, target: Target, recurse: Recurse<Out>) => Out>
-        const rec: Recurse<Out> = (sub) => handlers[sub.spec.thisKind](sub, target, rec)
-        return rec(op as IVOp)
-    }
+function compile<Supported extends keyof KindMap, Target, Out, S extends OpSpec>(
+    rules: CompilationRules<Supported, Target, Out>,
+    op: IVOp<S>,
+    target: Target,
+    ..._proof: [Exclude<KindsOf<S>, Supported>] extends [never]
+        ? []
+        : [missing: MissingError<Exclude<KindsOf<S>, Supported> & string>]
+): Out {
+    const handlers = rules as unknown as Record<string, (op: IVOp, target: Target, recurse: Recurse<Out>) => Out>
+    const rec: Recurse<Out> = (sub) => handlers[sub.spec.thisKind](sub, target, rec)
+    return rec(op as IVOp)
+}
 
-    // R1 + R14: extend produces a NEW compiler value. The handler dict
-    // accepts overrides for existing kinds (last-write-wins via spread),
-    // so 3rd parties can either ADD new kinds or REPLACE core emits.
-    extend<New extends keyof KindMap>(
-        more: { [K in New]: Handler<K, Target, Out> },
-    ): Compiler<Supported | New, Target, Out> {
-        return new Compiler({ ...this.handlers, ...more } as { [K in Supported | New]: Handler<K, Target, Out> })
-    }
+// R1 + R14: extend produces a NEW rules object. The added handler dict
+// accepts overrides for existing kinds (last-write-wins via spread), so
+// 3rd parties can either ADD new kinds or REPLACE core emits. Callers
+// who want full control can spread the base rules directly instead.
+function extend<Supported extends keyof KindMap, New extends keyof KindMap, Target, Out>(
+    rules: CompilationRules<Supported, Target, Out>,
+    more: { [K in New]: Handler<K, Target, Out> },
+): CompilationRules<Supported | New, Target, Out> {
+    return { ...rules, ...more } as CompilationRules<Supported | New, Target, Out>
+}
 
-    // R22: runtime introspection mirror of the static `Supported` union.
-    supports(kind: string): boolean {
-        return Object.prototype.hasOwnProperty.call(this.handlers, kind)
-    }
+// R22: runtime introspection mirror of the static `Supported` union.
+function supports(rules: object, kind: string): boolean {
+    return Object.prototype.hasOwnProperty.call(rules, kind)
 }
 
 // R22 (type side).
-type KindsHandledBy<C> = C extends Compiler<infer S, infer _T, infer _O> ? S : never
+type KindsHandledBy<R> = R extends CompilationRules<infer S, infer _T, infer _O> ? S : never
 
 // ---- Core compilation targets ----
 //
@@ -236,7 +242,7 @@ interface StringTarget {
     precision?: number
 }
 
-const stringCompiler = new Compiler<'lit' | 'add', StringTarget, string>({
+const STRING_COMPILATION_RULES = {
     lit: (op, target) => {
         const { value, spec } = op
         if (spec.dataType === 'float' && target.precision !== undefined && typeof value === 'number') {
@@ -246,21 +252,21 @@ const stringCompiler = new Compiler<'lit' | 'add', StringTarget, string>({
         return String(value)
     },
     add: (op, _target, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
-})
+} as const satisfies CompilationRules<'lit' | 'add', StringTarget, string>
 
 interface EvaluateTarget {
     // No options in this demo. Real impls would carry a row context,
     // a column-data map, etc. — same shape as StringTarget's precision.
 }
 
-const evaluateCompiler = new Compiler<'lit' | 'add', EvaluateTarget, unknown>({
+const EVALUATE_COMPILATION_RULES = {
     lit: (op) => op.value,
     add: (op, _t, rec) => {
         const l = rec(op.left) as number
         const r = rec(op.right) as number
         return l + r
     },
-})
+} as const satisfies CompilationRules<'lit' | 'add', EvaluateTarget, unknown>
 
 // --- 3RD-PARTY STATS PACKAGE -------------------------------------------------
 //
@@ -302,12 +308,16 @@ interface KindMap {
     cov: Cov<OpSpec, OpSpec>
 }
 
-// Compilers exported by the stats package: the core ones, taught about Cov.
-const stringCompilerWithCov = stringCompiler.extend<'cov'>({
+// Rules exported by the stats package: the core ones, taught about Cov.
+// We spread the builtin rules directly to demonstrate that they're plain
+// data — a 3rd party could just as easily override an existing kind.
+const stringCompilerWithCov = {
+    ...STRING_COMPILATION_RULES,
     cov: (op, _t, rec) => `cov(${rec(op.left)}, ${rec(op.right)})`,
-})
+} as const satisfies CompilationRules<'lit' | 'add' | 'cov', StringTarget, string>
 
-const evaluateCompilerWithCov = evaluateCompiler.extend<'cov'>({
+const evaluateCompilerWithCov = {
+    ...EVALUATE_COMPILATION_RULES,
     cov: (op, _t, rec) => {
         const xs = rec(op.left) as number[]
         const ys = rec(op.right) as number[]
@@ -321,7 +331,7 @@ const evaluateCompilerWithCov = evaluateCompiler.extend<'cov'>({
         for (let i = 0; i < n; i++) s += (xs[i] - mx) * (ys[i] - my)
         return s / n
     },
-})
+} as const satisfies CompilationRules<'lit' | 'add' | 'cov', EvaluateTarget, unknown>
 
 // --- 3RD-PARTY SQL PACKAGE ---------------------------------------------------
 //
@@ -340,7 +350,7 @@ function sqlEscapeString(s: string): string {
     return `'${s.replace(/'/g, "''")}'`
 }
 
-const sqlCompiler = new Compiler<'lit' | 'add', SqlTarget, string>({
+const SQL_COMPILATION_RULES = {
     lit: (op, target) => {
         const { value, spec } = op
         switch (spec.dataType) {
@@ -364,16 +374,17 @@ const sqlCompiler = new Compiler<'lit' | 'add', SqlTarget, string>({
         }
     },
     add: (op, _t, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
-})
+} as const satisfies CompilationRules<'lit' | 'add', SqlTarget, string>
 
 // --- END-USER GLUE -----------------------------------------------------------
 //
 // The user wants Cov compiled to SQL. They didn't write Cov (stats lib did)
-// and they didn't write the SQL compiler (sql lib did) — but `extend()`
-// lets them combine the two in their own application code, without
-// touching either library's source.
+// and they didn't write the SQL compiler (sql lib did) — but the SQL rules
+// are just data, so they can spread them into a new rule set in their own
+// application code, without touching either library's source.
 
-const fullSqlCompiler = sqlCompiler.extend<'cov'>({
+const fullSqlCompiler = {
+    ...SQL_COMPILATION_RULES,
     cov: (op, target, rec) => {
         const l = rec(op.left)
         const r = rec(op.right)
@@ -383,7 +394,7 @@ const fullSqlCompiler = sqlCompiler.extend<'cov'>({
         }
         return `covar_pop(${l}, ${r})`
     },
-})
+} as const satisfies CompilationRules<'lit' | 'add' | 'cov', SqlTarget, string>
 
 // =============================================================================
 // DEMO
@@ -398,19 +409,19 @@ const five = new Lit(5, 'int')
 const ten = new Lit(10, 'int')
 const sum = new Add(five, ten)
 
-log('stringCompiler.compile(5 + 10)', stringCompiler.compile(sum, {}))
-log('evaluateCompiler.compile(5 + 10)', evaluateCompiler.compile(sum, {}))
+log('compile(STRING, 5 + 10)', compile(STRING_COMPILATION_RULES, sum, {}))
+log('compile(EVALUATE, 5 + 10)', compile(EVALUATE_COMPILATION_RULES, sum, {}))
 
 // StringTarget option: precision applies to float literals.
 const pi = new Lit(3.14159, 'float')
 const piPlus = new Add(pi, new Lit(1, 'int'))
-log('stringCompiler.compile(pi + 1) precision=2', stringCompiler.compile(piPlus, { precision: 2 }))
-log('stringCompiler.compile(pi + 1) no precision', stringCompiler.compile(piPlus, {}))
+log('compile(STRING, pi + 1) precision=2', compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 }))
+log('compile(STRING, pi + 1) no precision', compile(STRING_COMPILATION_RULES, piPlus, {}))
 
 // Core ops, stats library compilers (also work on core-only trees) ----------
 section('Stats lib compilers also handle core ops')
-log('stringCompilerWithCov.compile(5 + 10)', stringCompilerWithCov.compile(sum, {}))
-log('evaluateCompilerWithCov.compile(5 + 10)', evaluateCompilerWithCov.compile(sum, {}))
+log('compile(stringCompilerWithCov, 5 + 10)', compile(stringCompilerWithCov, sum, {}))
+log('compile(evaluateCompilerWithCov, 5 + 10)', compile(evaluateCompilerWithCov, sum, {}))
 
 // Stats op, stats compilers -------------------------------------------------
 section('Stats op (Cov), stats compilers')
@@ -419,42 +430,42 @@ section('Stats op (Cov), stats compilers')
 const colX = new Lit('xs' as never, 'string')
 const colY = new Lit('ys' as never, 'string')
 const cov = new Cov(colX, colY)
-log('stringCompilerWithCov.compile(cov(xs, ys))', stringCompilerWithCov.compile(cov, {}))
+log('compile(stringCompilerWithCov, cov(xs, ys))', compile(stringCompilerWithCov, cov, {}))
 
 const numCov = new Cov(
     new Lit([1, 2, 3, 4] as never, 'float'),
     new Lit([2, 4, 6, 8] as never, 'float'),
 )
-log('evaluateCompilerWithCov.compile(cov([1..4],[2..8]))', evaluateCompilerWithCov.compile(numCov, {}))
+log('compile(evaluateCompilerWithCov, cov(...))', compile(evaluateCompilerWithCov, numCov, {}))
 
 // Stats op + core compiler — type error: core compilers don't know 'cov'.
 // Wrapped in a never-called function so the @ts-expect-error lines are
 // still type-checked but the (deliberately-broken) calls don't run.
 function _typeErrorDemos() {
     // @ts-expect-error — compiler is missing handler(s) for kind(s): cov
-    stringCompiler.compile(cov, {})
+    compile(STRING_COMPILATION_RULES, cov, {})
     // @ts-expect-error — compiler is missing handler(s) for kind(s): cov
-    evaluateCompiler.compile(cov, {})
+    compile(EVALUATE_COMPILATION_RULES, cov, {})
     // @ts-expect-error — sql compiler doesn't handle cov on its own
-    sqlCompiler.compile(cov, { dialect: 'postgres' })
+    compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
 }
 void _typeErrorDemos
 
 // SQL package: core ops, SQL compiler ---------------------------------------
 section('SQL compiler on core ops')
-log('sqlCompiler.compile(5 + 10, postgres)', sqlCompiler.compile(sum, { dialect: 'postgres' }))
-log('sqlCompiler.compile(5 + 10, sqlite)', sqlCompiler.compile(sum, { dialect: 'sqlite' }))
+log('compile(SQL, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
+log('compile(SQL, 5 + 10, sqlite)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
 
 // Datetime literal: ok on postgres/duckdb, throws on sqlite.
 const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
-log('sqlCompiler.compile(datetime, postgres)', sqlCompiler.compile(dt, { dialect: 'postgres' }))
-log('sqlCompiler.compile(datetime, duckdb)', sqlCompiler.compile(dt, { dialect: 'duckdb' }))
+log('compile(SQL, datetime, postgres)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' }))
+log('compile(SQL, datetime, duckdb)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' }))
 try {
-    sqlCompiler.compile(dt, { dialect: 'sqlite' })
+    compile(SQL_COMPILATION_RULES, dt, { dialect: 'sqlite' })
     throw new Error('expected throw')
 } catch (e) {
     if (!(e instanceof Error) || !e.message.includes('sqlite has no datetime literal')) throw e
-    log('sqlCompiler.compile(datetime, sqlite)', `throws: ${e.message}`)
+    log('compile(SQL, datetime, sqlite)', `throws: ${e.message}`)
 }
 
 // (Stats op + SQL compiler without user glue is a type error too —
@@ -462,29 +473,30 @@ try {
 
 // End-user combo: Cov + SQL through the user's glue compiler. ---------------
 section('End-user glue: Cov compiled to SQL')
-log('fullSqlCompiler.compile(cov, postgres)', fullSqlCompiler.compile(cov, { dialect: 'postgres' }))
-log('fullSqlCompiler.compile(cov, duckdb)', fullSqlCompiler.compile(cov, { dialect: 'duckdb' }))
-log('fullSqlCompiler.compile(cov, sqlite)', fullSqlCompiler.compile(cov, { dialect: 'sqlite' }))
+log('compile(fullSqlCompiler, cov, postgres)', compile(fullSqlCompiler, cov, { dialect: 'postgres' }))
+log('compile(fullSqlCompiler, cov, duckdb)', compile(fullSqlCompiler, cov, { dialect: 'duckdb' }))
+log('compile(fullSqlCompiler, cov, sqlite)', compile(fullSqlCompiler, cov, { dialect: 'sqlite' }))
 
 // Nested combination: Add(cov, lit) compiles end-to-end on the glue compiler.
 const mixed = new Add(cov, new Lit(1, 'float'))
-log('fullSqlCompiler.compile(cov + 1, duckdb)', fullSqlCompiler.compile(mixed, { dialect: 'duckdb' }))
+log('compile(fullSqlCompiler, cov + 1, duckdb)', compile(fullSqlCompiler, mixed, { dialect: 'duckdb' }))
 
 // R22 introspection: types + runtime.
 section('R22 introspection')
 type FullKinds = KindsHandledBy<typeof fullSqlCompiler>
 const fullKinds: FullKinds[] = ['lit', 'add', 'cov']
 log('static  KindsHandledBy<typeof fullSqlCompiler>', fullKinds.join(' | '))
-log("runtime fullSqlCompiler.supports('cov')", fullSqlCompiler.supports('cov'))
-log("runtime fullSqlCompiler.supports('nope')", fullSqlCompiler.supports('nope'))
+log("runtime supports(fullSqlCompiler, 'cov')", supports(fullSqlCompiler, 'cov'))
+log("runtime supports(fullSqlCompiler, 'nope')", supports(fullSqlCompiler, 'nope'))
 
 // =============================================================================
 // HOW IT SCORES AGAINST THE PRD
 //
 // STRONG
 //   + R1 expression-problem: both axes open. The stats package teaches
-//     CORE compilers about Cov via `.extend()`; an end user combines
-//     a 3rd-party op with a 3rd-party compiler the same way.
+//     CORE rules about Cov by spreading them into a new constant; an
+//     end user combines a 3rd-party op with a 3rd-party compiler the
+//     same way (or uses the `extend()` helper).
 //   + R2 op-declares-self: ops carry their spec/kind; they say nothing
 //     about which compilers handle them.
 //   + R3 dialect-safety: `KindsOf<S>` enumerates every kind in the tree
@@ -495,8 +507,9 @@ log("runtime fullSqlCompiler.supports('nope')", fullSqlCompiler.supports('nope')
 //     compilers without touching the tree.
 //   + R11/R22 static-introspection: `KindsOf<typeof tree>` is one
 //     indexed access; `KindsHandledBy<typeof c>` projects the compiler.
-//   + R14 fallback: `extend()` accepts overrides, so a downstream
-//     compiler can re-emit a core kind differently.
+//   + R14 fallback: rules are plain objects, so spreading (or
+//     `extend()`) lets a downstream compiler re-emit a core kind
+//     differently via last-write-wins.
 //   + R15 type-composition: lives next to existing `DataType` /
 //     `DataShape` rather than replacing them; same generic-threading
 //     pattern as the rest of the codebase.
@@ -509,8 +522,8 @@ log("runtime fullSqlCompiler.supports('nope')", fullSqlCompiler.supports('nope')
 //   + R23 check-time: no recursive conditional on the tree — the
 //     transitive kind list is already a tuple in `childSpecs`. Should
 //     scale better than D/E on deep trees.
-//   + R24 tree-shaking: `extend()` produces new VALUES; no load-time
-//     side effects mutating shared state.
+//   + R24 tree-shaking: spreads / `extend()` produce new VALUES; no
+//     load-time side effects mutating shared state.
 //
 // WEAK / OPEN
 //   – R5 typed-deserialization: not addressed here. A `parseOp<Allowed>`
