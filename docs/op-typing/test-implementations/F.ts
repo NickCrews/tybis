@@ -212,18 +212,18 @@ type MissingError<Missing extends OpSpec> =
 // can be excluded for sqlite while `LitSpec<'int'>` is fine.
 type CompilationRule<Target, Out, Supported extends OpSpec = OpSpec> = {
     name?: string;
-    shouldHandle: (spec: Partial<OpSpec>) => spec is Supported;
+    canHandle: (spec: Partial<OpSpec>, target: Target) => spec is Supported;
     handle: Handler<Supported, Target, Out>;
 }
 
-// Inference helpers that look directly at each rule's `shouldHandle`
+// Inference helpers that look directly at each rule's `canHandle`
 // predicate and `handle` signature. We map across the tuple's numeric
 // indices and union the per-element results. `any` rest patterns are
 // required so a 2-arg handler like `(op) => x` still matches.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyArgs = any[]
 type SpecsHandledBy<R> = R extends readonly unknown[] ? {
-    [K in keyof R]: R[K] extends { shouldHandle: (spec: OpSpec) => spec is infer S extends OpSpec }
+    [K in keyof R]: R[K] extends { canHandle: (spec: OpSpec, ...rest: AnyArgs) => spec is infer S extends OpSpec }
     ? S
     : never
 }[number] : never
@@ -254,30 +254,32 @@ function compile<R extends readonly unknown[], S extends OpSpec>(
     type T = TargetOf<R>
     type O = OutOf<R>
     const handlers = rules as unknown as readonly {
-        shouldHandle: (spec: OpSpec) => boolean
+        canHandle: (spec: OpSpec, target: T) => boolean
         handle: (op: IVOp, target: T, visitNext: VisitNext<O, T>) => O
     }[]
     const next: VisitNext<O, T> = (sub, passedTarget) => {
-        const rule = handlers.find(r => r.shouldHandle(sub.spec))
+        const effectiveTarget = (passedTarget ?? target) as T
+        const rule = handlers.find(r => r.canHandle(sub.spec, effectiveTarget))
         if (!rule) throw new Error(`No compilation rule handles spec: ${sub.spec.thisKind}`)
-        return rule.handle(sub, passedTarget ?? target, next)
+        return rule.handle(sub, effectiveTarget, next)
     }
     return next(op, target)
 }
 
 // R22: runtime introspection
-type HasShouldHandle<Spec extends OpSpec> = { shouldHandle: (spec: Partial<OpSpec>) => spec is Spec }
-function canHandle(
-    ruleOrRules: HasShouldHandle<OpSpec> | readonly HasShouldHandle<OpSpec>[],
-    kindOrSpec: string | Partial<OpSpec>
+type HasShouldHandle<Spec extends OpSpec, Target = unknown> = { canHandle: (spec: Partial<OpSpec>, target: Target) => spec is Spec }
+function canHandle<T = unknown>(
+    ruleOrRules: HasShouldHandle<OpSpec, T> | readonly HasShouldHandle<OpSpec, T>[],
+    kindOrSpec: string | Partial<OpSpec>,
+    target?: T
 ): boolean {
     const spec: Partial<OpSpec> = typeof kindOrSpec === 'string'
         ? { thisKind: kindOrSpec }
         : kindOrSpec
     if (Array.isArray(ruleOrRules)) {
-        return ruleOrRules.some(r => r.shouldHandle(spec))
+        return ruleOrRules.some(r => r.canHandle(spec, target as T))
     }
-    return (ruleOrRules as HasShouldHandle<OpSpec>).shouldHandle(spec)
+    return (ruleOrRules as HasShouldHandle<OpSpec, T>).canHandle(spec, target as T)
 }
 
 // ---- Core compilation targets ----
@@ -293,14 +295,14 @@ interface StringTarget {
 }
 type StringCompilationRule = CompilationRule<StringTarget, string>
 
-function makeIsKind<Spec extends Extract<OpSpec, { thisKind: string }>>(kind: Spec['thisKind']): (spec: Partial<OpSpec>) => spec is Spec {
-    return (spec: Partial<OpSpec>): spec is Spec => spec.thisKind === kind
+function makeIsKind<Spec extends Extract<OpSpec, { thisKind: string }>>(kind: Spec['thisKind']): (spec: Partial<OpSpec>, target: unknown) => spec is Spec {
+    return (spec: Partial<OpSpec>, _target: unknown): spec is Spec => spec.thisKind === kind
 }
 
 const STRING_COMPILATION_RULES = [
     {
         name: 'lit',
-        shouldHandle: makeIsKind<LitSpec>('lit'),
+        canHandle: makeIsKind<LitSpec>('lit'),
         handle: (op: Lit, target: StringTarget) => {
             const { value, spec } = op
             if (spec.dataType === 'float' && target.precision !== undefined && typeof value === 'number') {
@@ -313,7 +315,7 @@ const STRING_COMPILATION_RULES = [
     {
         // add: (op, _target, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
         name: 'add',
-        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        canHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
         handle: (op: Add<OpSpec, OpSpec>, _target: StringTarget, next: VisitNext<string, StringTarget>) => `(${next(op.left)} + ${next(op.right)})`,
 
     }
@@ -329,12 +331,12 @@ type EvaluateCompilationRule = CompilationRule<EvaluateTarget, unknown>
 const EVALUATE_COMPILATION_RULES = [
     {
         name: 'lit',
-        shouldHandle: makeIsKind<LitSpec>('lit'),
+        canHandle: makeIsKind<LitSpec>('lit'),
         handle: (op: Lit) => op.value,
     },
     {
         name: 'add',
-        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        canHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
         handle: (op: Add<OpSpec, OpSpec>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
             const l = next(op.left) as number
             const r = next(op.right) as number
@@ -389,7 +391,7 @@ const covStringCompilationRules = [
     ...STRING_COMPILATION_RULES,
     {
         name: 'cov',
-        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: StringTarget, next: VisitNext<string, StringTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies StringCompilationRule[]
@@ -398,7 +400,7 @@ const covEvaluateCompilationRules = [
     ...EVALUATE_COMPILATION_RULES,
     {
         name: 'cov',
-        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
             const xs = next(op.left) as number[]
             const ys = next(op.right) as number[]
@@ -440,7 +442,7 @@ type PgDuckDialect = 'postgres' | 'duckdb'
 const SQL_COMPILATION_RULES = [
     {
         name: 'lit',
-        shouldHandle: makeIsKind<LitSpec>('lit'),
+        canHandle: makeIsKind<LitSpec>('lit'),
         handle: (op: Lit, target: SqlTarget<PgDuckDialect>) => {
             const { value, spec } = op
             switch (spec.dataType) {
@@ -464,7 +466,7 @@ const SQL_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        canHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
         handle: (op: Add<OpSpec, OpSpec>, _t: SqlTarget<PgDuckDialect>, next: VisitNext<string, SqlTarget<PgDuckDialect>>) => `(${next(op.left)} + ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<PgDuckDialect>[]
@@ -477,7 +479,7 @@ type NonDatetime = Exclude<DataType, 'datetime'>
 const SQL_SQLITE_COMPILATION_RULES = [
     {
         name: 'any_lit_except_datetime',
-        shouldHandle: (spec: Partial<OpSpec>): spec is LitSpec<NonDatetime> => spec.thisKind === 'lit' && spec.dataType !== 'datetime',
+        canHandle: (spec: Partial<OpSpec>, _target: SqlTarget<'sqlite'>): spec is LitSpec<NonDatetime> => spec.thisKind === 'lit' && spec.dataType !== 'datetime',
         handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
             const { value, spec } = op
             switch (spec.dataType) {
@@ -495,7 +497,7 @@ const SQL_SQLITE_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        shouldHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
+        canHandle: makeIsKind<AddSpec<OpSpec, OpSpec>>('add'),
         handle: (op: Add<OpSpec, OpSpec>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => `(${next(op.left)} + ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<'sqlite'>[]
@@ -511,7 +513,7 @@ const userCompilationRules = [
     ...SQL_COMPILATION_RULES,
     {
         name: 'cov',
-        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<string, SqlTarget<'postgres' | 'duckdb'>>) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<'postgres' | 'duckdb'>[]
@@ -523,7 +525,7 @@ const userSqliteCompilationRules = [
     ...SQL_SQLITE_COMPILATION_RULES,
     {
         name: 'cov',
-        shouldHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
+        canHandle: makeIsKind<CovSpec<OpSpec, OpSpec>>('cov'),
         handle: (op: Cov<OpSpec, OpSpec>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => {
             const l = next(op.left)
             const r = next(op.right)
