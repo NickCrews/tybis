@@ -312,12 +312,12 @@ interface KindMap {
 // Rules exported by the stats package: the core ones, taught about Cov.
 // We spread the builtin rules directly to demonstrate that they're plain
 // data — a 3rd party could just as easily override an existing kind.
-const stringCompilerWithCov = {
+const covStringCompilationRules = {
     ...STRING_COMPILATION_RULES,
     cov: (op, _t, rec) => `cov(${rec(op.left)}, ${rec(op.right)})`,
 } as const satisfies CompilationRules<'lit' | 'add' | 'cov', StringTarget, string>
 
-const evaluateCompilerWithCov = {
+const covEvaluateCompilationRules = {
     ...EVALUATE_COMPILATION_RULES,
     cov: (op, _t, rec) => {
         const xs = rec(op.left) as number[]
@@ -384,7 +384,7 @@ const SQL_COMPILATION_RULES = {
 // are just data, so they can spread them into a new rule set in their own
 // application code, without touching either library's source.
 
-const fullSqlCompiler = {
+const userCompilationRules = {
     ...SQL_COMPILATION_RULES,
     cov: (op, target, rec) => {
         const l = rec(op.left)
@@ -410,19 +410,19 @@ const five = new Lit(5, 'int')
 const ten = new Lit(10, 'int')
 const sum = new Add(five, ten)
 
-log('compile(STRING, 5 + 10)', compile(STRING_COMPILATION_RULES, sum, {}))
-log('compile(EVALUATE, 5 + 10)', compile(EVALUATE_COMPILATION_RULES, sum, {}))
+log('compile(STRING_COMPILATION_RULES, 5 + 10)', compile(STRING_COMPILATION_RULES, sum, {}))
+log('compile(EVALUATE_COMPILATION_RULES, 5 + 10)', compile(EVALUATE_COMPILATION_RULES, sum, {}))
 
 // StringTarget option: precision applies to float literals.
 const pi = new Lit(3.14159, 'float')
 const piPlus = new Add(pi, new Lit(1, 'int'))
-log('compile(STRING, pi + 1) precision=2', compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 }))
-log('compile(STRING, pi + 1) no precision', compile(STRING_COMPILATION_RULES, piPlus, {}))
+log('compile(STRING_COMPILATION_RULES, pi + 1) precision=2', compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 }))
+log('compile(STRING_COMPILATION_RULES, pi + 1) no precision', compile(STRING_COMPILATION_RULES, piPlus, {}))
 
 // Core ops, stats library compilers (also work on core-only trees) ----------
 section('Stats lib compilers also handle core ops')
-log('compile(stringCompilerWithCov, 5 + 10)', compile(stringCompilerWithCov, sum, {}))
-log('compile(evaluateCompilerWithCov, 5 + 10)', compile(evaluateCompilerWithCov, sum, {}))
+log('compile(covStringCompilationRules, 5 + 10)', compile(covStringCompilationRules, sum, {}))
+log('compile(covEvaluateCompilationRules, 5 + 10)', compile(covEvaluateCompilationRules, sum, {}))
 
 // Stats op, stats compilers -------------------------------------------------
 section('Stats op (Cov), stats compilers')
@@ -431,13 +431,13 @@ section('Stats op (Cov), stats compilers')
 const colX = new Lit('xs' as never, 'string')
 const colY = new Lit('ys' as never, 'string')
 const cov = new Cov(colX, colY)
-log('compile(stringCompilerWithCov, cov(xs, ys))', compile(stringCompilerWithCov, cov, {}))
+log('compile(covStringCompilationRules, cov(xs, ys))', compile(covStringCompilationRules, cov, {}))
 
 const numCov = new Cov(
     new Lit([1, 2, 3, 4] as never, 'float'),
     new Lit([2, 4, 6, 8] as never, 'float'),
 )
-log('compile(evaluateCompilerWithCov, cov(...))', compile(evaluateCompilerWithCov, numCov, {}))
+log('compile(covEvaluateCompilationRules, cov(...))', compile(covEvaluateCompilationRules, numCov, {}))
 
 // Stats op + core compiler — type error: core compilers don't know 'cov'.
 // Wrapped in a never-called function so the @ts-expect-error lines are
@@ -454,19 +454,19 @@ void _typeErrorDemos
 
 // SQL package: core ops, SQL compiler ---------------------------------------
 section('SQL compiler on core ops')
-log('compile(SQL, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
-log('compile(SQL, 5 + 10, sqlite)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
+log('compile(SQL_COMPILATION_RULES, 5 + 10, postgres)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' }))
+log('compile(SQL_COMPILATION_RULES, 5 + 10, sqlite)', compile(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' }))
 
 // Datetime literal: ok on postgres/duckdb, throws on sqlite.
 const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
-log('compile(SQL, datetime, postgres)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' }))
-log('compile(SQL, datetime, duckdb)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' }))
+log('compile(SQL_COMPILATION_RULES, datetime, postgres)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' }))
+log('compile(SQL_COMPILATION_RULES, datetime, duckdb)', compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' }))
 try {
     compile(SQL_COMPILATION_RULES, dt, { dialect: 'sqlite' })
     throw new Error('expected throw')
 } catch (e) {
     if (!(e instanceof Error) || !e.message.includes('sqlite has no datetime literal')) throw e
-    log('compile(SQL, datetime, sqlite)', `throws: ${e.message}`)
+    log('compile(SQL_COMPILATION_RULES, datetime, sqlite)', `throws: ${e.message}`)
 }
 
 // (Stats op + SQL compiler without user glue is a type error too —
@@ -474,21 +474,21 @@ try {
 
 // End-user combo: Cov + SQL through the user's glue compiler. ---------------
 section('End-user glue: Cov compiled to SQL')
-log('compile(fullSqlCompiler, cov, postgres)', compile(fullSqlCompiler, cov, { dialect: 'postgres' }))
-log('compile(fullSqlCompiler, cov, duckdb)', compile(fullSqlCompiler, cov, { dialect: 'duckdb' }))
-log('compile(fullSqlCompiler, cov, sqlite)', compile(fullSqlCompiler, cov, { dialect: 'sqlite' }))
+log('compile(userCompilationRules, cov, postgres)', compile(userCompilationRules, cov, { dialect: 'postgres' }))
+log('compile(userCompilationRules, cov, duckdb)', compile(userCompilationRules, cov, { dialect: 'duckdb' }))
+log('compile(userCompilationRules, cov, sqlite)', compile(userCompilationRules, cov, { dialect: 'sqlite' }))
 
 // Nested combination: Add(cov, lit) compiles end-to-end on the glue compiler.
 const mixed = new Add(cov, new Lit(1, 'float'))
-log('compile(fullSqlCompiler, cov + 1, duckdb)', compile(fullSqlCompiler, mixed, { dialect: 'duckdb' }))
+log('compile(userCompilationRules, cov + 1, duckdb)', compile(userCompilationRules, mixed, { dialect: 'duckdb' }))
 
 // R22 introspection: types + runtime.
 section('R22 introspection')
-type FullKinds = KindsHandledBy<typeof fullSqlCompiler>
+type FullKinds = KindsHandledBy<typeof userCompilationRules>
 const fullKinds: FullKinds[] = ['lit', 'add', 'cov']
-log('static  KindsHandledBy<typeof fullSqlCompiler>', fullKinds.join(' | '))
-log("runtime supports(fullSqlCompiler, 'cov')", supports(fullSqlCompiler, 'cov'))
-log("runtime supports(fullSqlCompiler, 'nope')", supports(fullSqlCompiler, 'nope'))
+log('static  KindsHandledBy<typeof userCompilationRules>', fullKinds.join(' | '))
+log("runtime supports(userCompilationRules, 'cov')", supports(userCompilationRules, 'cov'))
+log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRules, 'nope'))
 
 // =============================================================================
 // HOW IT SCORES AGAINST THE PRD
