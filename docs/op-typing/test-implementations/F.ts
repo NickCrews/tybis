@@ -192,10 +192,10 @@ type OpFor<S extends OpSpec> = S extends OpSpec
 // One indexed access — no recursive conditional, no depth cap (R23).
 type SpecsOf<S extends OpSpec> = S | S['childSpecs'][number]
 
-type Recurse<Out> = (sub: IVOp) => Out
+type VisitNext<Out, Target> = (sub: IVOp, target?: Target) => Out
 
 type Handler<S extends OpSpec, Target, Out> =
-    (op: OpFor<S>, target: Target, recurse: Recurse<Out>) => Out
+    (op: OpFor<S>, target: Target, visit: VisitNext<Out, Target>) => Out
 
 // R20: template-literal error names the offending spec(s) in plain
 // text. Surfaces kind + dtype + dshape so e.g. "lit<datetime, scalar>"
@@ -247,9 +247,9 @@ function compile<R, S extends OpSpec>(
         ? []
         : [missing: MissingError<Exclude<SpecsOf<S>, SpecsHandledBy<R>>>]
 ): OutOf<R> {
-    const handlers = rules as unknown as Record<string, (op: IVOp, target: TargetOf<R>, recurse: Recurse<OutOf<R>>) => OutOf<R>>
-    const rec: Recurse<OutOf<R>> = (sub) => handlers[sub.spec.thisKind](sub, target, rec)
-    return rec(op as IVOp)
+    const handlers = rules as unknown as Record<string, (op: IVOp, target: TargetOf<R>, visitNext: VisitNext<OutOf<R>, TargetOf<R>>) => OutOf<R>>
+    const next: VisitNext<OutOf<R>, TargetOf<R>> = (sub, passedTarget) => handlers[sub.spec.thisKind](sub, passedTarget ?? target, next)
+    return next(op, target)
 }
 
 // R22: runtime introspection mirror of the static `Supported` union.
@@ -339,7 +339,7 @@ interface SpecMap<S extends OpSpec> {
 // data — a 3rd party could just as easily override an existing kind.
 const covStringCompilationRules = {
     ...STRING_COMPILATION_RULES,
-    cov: (op, _t, rec) => `cov(${rec(op.left)}, ${rec(op.right)})`,
+    cov: (op, _t, next) => `cov(${next(op.left)}, ${next(op.right)})`,
 } as const satisfies CompilationRules<
     LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
     StringTarget,
@@ -348,9 +348,9 @@ const covStringCompilationRules = {
 
 const covEvaluateCompilationRules = {
     ...EVALUATE_COMPILATION_RULES,
-    cov: (op, _t, rec) => {
-        const xs = rec(op.left) as number[]
-        const ys = rec(op.right) as number[]
+    cov: (op, _t, next) => {
+        const xs = next(op.left) as number[]
+        const ys = next(op.right) as number[]
         if (xs.length !== ys.length || xs.length === 0) {
             throw new Error('cov: inputs must be same-length non-empty arrays')
         }
@@ -407,7 +407,7 @@ const SQL_COMPILATION_RULES = {
                 throw new Error(`Unsupported data type for SQL: ${spec.dataType satisfies never}`)
         }
     },
-    add: (op, _t, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
+    add: (op, _t, next) => `(${next(op.left)} + ${next(op.right)})`,
 } as const satisfies CompilationRules<
     LitSpec<DataType> | AddSpec<OpSpec, OpSpec>,
     SqlTarget<'postgres' | 'duckdb'>,
@@ -433,7 +433,7 @@ const SQL_SQLITE_COMPILATION_RULES = {
                 throw new Error(`Unsupported data type for SQLite: ${spec.dataType satisfies never}`)
         }
     },
-    add: (op, _t, rec) => `(${rec(op.left)} + ${rec(op.right)})`,
+    add: (op, _t, next) => `(${next(op.left)} + ${next(op.right)})`,
 } as const satisfies CompilationRules<
     LitSpec<Exclude<DataType, 'datetime'>> | AddSpec<OpSpec, OpSpec>,
     SqlTarget<'sqlite'>,
@@ -449,7 +449,7 @@ const SQL_SQLITE_COMPILATION_RULES = {
 
 const userCompilationRules = {
     ...SQL_COMPILATION_RULES,
-    cov: (op, _t, rec) => `covar_pop(${rec(op.left)}, ${rec(op.right)})`,
+    cov: (op, _t, next) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
 } as const satisfies CompilationRules<
     LitSpec<DataType> | AddSpec<OpSpec, OpSpec> | CovSpec<OpSpec, OpSpec>,
     SqlTarget<'postgres' | 'duckdb'>,
@@ -461,9 +461,9 @@ const userCompilationRules = {
 // refuse to compile any tree containing a datetime literal.
 const userSqliteCompilationRules = {
     ...SQL_SQLITE_COMPILATION_RULES,
-    cov: (op, _t, rec) => {
-        const l = rec(op.left)
-        const r = rec(op.right)
+    cov: (op, _t, next) => {
+        const l = next(op.left)
+        const r = next(op.right)
         return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
     },
 } as const satisfies CompilationRules<
