@@ -212,7 +212,7 @@ type MissingError<Missing extends OpSpec> =
 // can be excluded for sqlite while `LitSpec<'int'>` is fine.
 type CompilationRule<Target, Out, Supported extends OpSpec = OpSpec> = {
     name?: string;
-    shouldHandle: (spec: OpSpec) => spec is Supported;
+    shouldHandle: (spec: Partial<OpSpec>) => spec is Supported;
     handle: Handler<Supported, Target, Out>;
 }
 
@@ -265,17 +265,19 @@ function compile<R extends readonly unknown[], S extends OpSpec>(
     return next(op, target)
 }
 
-// R22: runtime introspection mirror of the static `Supported` union.
-// Accepts either a bare kind string (matched against a synthetic spec)
-// or a fully-formed spec for predicates that discriminate on dtype/dshape.
-function supports(
-    rules: readonly { shouldHandle: (spec: OpSpec) => boolean }[],
-    kindOrSpec: string | OpSpec,
+// R22: runtime introspection
+type HasShouldHandle<Spec extends OpSpec> = { shouldHandle: (spec: Partial<OpSpec>) => spec is Spec }
+function canHandle(
+    ruleOrRules: HasShouldHandle<OpSpec> | readonly HasShouldHandle<OpSpec>[],
+    kindOrSpec: string | Partial<OpSpec>
 ): boolean {
-    const spec: OpSpec = typeof kindOrSpec === 'string'
-        ? { thisKind: kindOrSpec, dataType: 'int', dataShape: 'scalar', childSpecs: [], version: 1 }
+    const spec: Partial<OpSpec> = typeof kindOrSpec === 'string'
+        ? { thisKind: kindOrSpec }
         : kindOrSpec
-    return rules.some(r => r.shouldHandle(spec))
+    if (Array.isArray(ruleOrRules)) {
+        return ruleOrRules.some(r => r.shouldHandle(spec))
+    }
+    return (ruleOrRules as HasShouldHandle<OpSpec>).shouldHandle(spec)
 }
 
 // ---- Core compilation targets ----
@@ -291,8 +293,8 @@ interface StringTarget {
 }
 type StringCompilationRule = CompilationRule<StringTarget, string>
 
-function makeIsKind<Spec extends OpSpec>(kind: Spec['thisKind']): (spec: OpSpec) => spec is Spec {
-    return (spec: OpSpec): spec is Spec => spec.thisKind === kind
+function makeIsKind<Spec extends Extract<OpSpec, { thisKind: string }>>(kind: Spec['thisKind']): (spec: Partial<OpSpec>) => spec is Spec {
+    return (spec: Partial<OpSpec>): spec is Spec => spec.thisKind === kind
 }
 
 const STRING_COMPILATION_RULES = [
@@ -475,7 +477,7 @@ type NonDatetime = Exclude<DataType, 'datetime'>
 const SQL_SQLITE_COMPILATION_RULES = [
     {
         name: 'any_lit_except_datetime',
-        shouldHandle: (spec: OpSpec): spec is LitSpec<NonDatetime> => spec.thisKind === 'lit' && spec.dataType !== 'datetime',
+        shouldHandle: (spec: Partial<OpSpec>): spec is LitSpec<NonDatetime> => spec.thisKind === 'lit' && spec.dataType !== 'datetime',
         handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
             const { value, spec } = op
             switch (spec.dataType) {
@@ -618,8 +620,8 @@ section('R22 introspection')
 type FullKinds = KindsHandledBy<typeof userCompilationRules>
 const fullKinds: FullKinds[] = ['lit', 'add', 'cov']
 log('static  KindsHandledBy<typeof userCompilationRules>', fullKinds.join(' | '))
-log("runtime supports(userCompilationRules, 'cov')", supports(userCompilationRules, 'cov'))
-log("runtime supports(userCompilationRules, 'nope')", supports(userCompilationRules, 'nope'))
+log("runtime canHandle(userCompilationRules, 'cov')", canHandle(userCompilationRules, 'cov'))
+log("runtime canHandle(userCompilationRules, 'nope')", canHandle(userCompilationRules, 'nope'))
 
 // =============================================================================
 // HOW IT SCORES AGAINST THE PRD
