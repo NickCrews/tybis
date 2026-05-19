@@ -1,6 +1,38 @@
+
+// This file is an exploration of how to solve the "expression problem" for tybis.
+//
+// We work through a toy example:
+//
+//      \ target | Evaluate | Stringify|     toSql    |
+//    op \       |  (core)  |  (core)  |(SaaS service)|
+// --------------+----------+----------+--------------+
+//               |          |          |              |
+//    Literal    |    ✓     |    ✓     |   from SaaS  |
+//     (core)    |          |          |              |
+// --------------+----------+----------+--------------+
+//               |          |          |              |
+//      Add      |    ✓     |    ✓     |   from SaaS  |
+//     (core)    |          |          |              |
+// --------------+----------+----------+--------------+
+//               |          |          |
+//      Cov      |  from    |  from    |   end user
+//(stats package)|  stats   |  stats   |
+// --------------+----------+----------+
+//
+// We say that core tybis provides
+// - two core ops: a literal and an addition.
+// - two core compilation targets: a StringTarget, eg "5 + 10", and an EvaluateTarget eg `15`
+
+// Then we have two different 3rd party libraries:
+// - a stats library that provides a covariance op, and defines how to compile that to the core targets, eg to the StringTarget and how to evaluate.
+// - a sql target that defines how to compile the core ops to SQL, but they don't know about the covariance op, so they don't define how to compile that. The sql target should take a dialect parameter. But sqlite has no way to represent datetimes, so if it encounters a datetime literal, it should throw an error.
+//
+// Finally, a user wants to be able to COMBINE these,
+// and define how to compile the covariance op to SQL without needing to modify the core library or the stats library.
+
 // --- CORE PACKAGE ------------------------------------------------------------
 
-type DataType = 'string' | 'int' | 'float' | 'boolean' | 'date' | 'time' | 'datetime' | 'interval' | 'uuid'
+type DataType = 'string' | 'int' | 'float' | 'boolean' | 'datetime' | 'uuid'
 type DataShape = 'scalar' | 'columnar'
 
 // statically typed info that can be known at expression construction time,
@@ -98,20 +130,31 @@ class Add<L extends OpSpec, R extends OpSpec> implements IVOp<AddSpec<L, R>> {
     dshape() { return this.spec.dataShape }
 }
 
-// ---- core compilers ----
-// The core implements two builtin compilers:
-// - a SerializableCompiler that provides a toSerializable() method that turns an expression tree into something that is JSON-serializable (eg removing circular references or methods)
-// - a StringCompiler that provides a toString() method that gives eg `5 + 10`
+// ---- core target ----
+// The core implements two builtin compilation targets:
+// - a StringTarget that provides a toString() function that gives eg `5 + 10`
+// - a EvaluateTarget that provides a evaluate() function that evaluates the expression to get a result.
 // 
 // To make this trickier, there are two different sorts of paramaterization we need to
 // think about during this compilation step:
-// - The parameters of the compiler:
-//      The stringCompiler has an additional option of `precision` that
+// - The parameters of the target:
+//      The StringTarget has an additional option of `precision` that
 //      determines how many decimal places to include when compiling float literals.
 // - The parameters of the expression:
-//      The SerializableCompiler doesn't know how to compile UUIDs! So if it encounters a UUID literal, it should throw an error.
+//      
 
 // TODO
+// something like this??
+// import { builtinStringCompiler } from 'core-target-string/compiler'
+// type ToStringCompiler<OS extends OpSpec, Targ extends StringTarget> = (op: IVOp<OS>, target: Targ, compiler: ToStringCompiler<OS, Targ>) => string
+// interface StringTarget { precision?: number }
+// export function toString<OS extends OpSpec, Targ extends StringTarget>(op: IVOp<OS>, target: Targ, compiler: ToStringCompiler<OS, Targ> = builtinStringCompiler): string {
+//     return compiler(op, target, compiler)
+// }
+// 
+// The 3rd parties can either just use the `toString(expr, { precision: 2 })` function with the builtin compiler,
+// or they can write their own compiler function (optionally that uses the builtinStringCompiler internally?)
+// and pass that in.
 
 // This is in some 3rd party stats library that wants to provide a covariance op.
 
@@ -143,10 +186,15 @@ class Cov<L extends OpSpec, R extends OpSpec> implements IVOp<CovSpec<L, R>> {
     dshape() { return this.spec.dataShape }
 }
 
-// And in a DIFFERENT 3rd party library, they provide a sql compiler.
+// The stats library can define how to compile the covariance op to the core targets,
+// eg to the StringTarget and how to evaluate.
+
+// TODO
+
+// And in a DIFFERENT 3rd party library, they provide a sql target.
 // They define how to compile the core ops to SQL,
 // but they don't know about the covariance op, so they don't define how to compile that.
-// The sql compiler should take a dialect parameter.
+// The sql target should take a dialect parameter.
 // But sqlite has no way to represent datetimes, so if it encounters a datetime literal, it should throw an error.
 
 // TODO
