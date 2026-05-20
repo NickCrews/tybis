@@ -77,8 +77,6 @@ interface OpSpec {
     readonly dataType: DataType
     readonly dataShape: DataShape
     readonly childSpecs: readonly OpSpec[]
-    readonly description?: string
-    readonly version: number
 }
 
 interface IVOp<T extends OpSpec = OpSpec> {
@@ -97,8 +95,6 @@ type LitSpec<DT extends DataType = DataType> = {
     dataType: DT,
     dataShape: 'scalar',
     childSpecs: [],
-    version: 1,
-    description: string,
 }
 function makeLitSpec<DT extends DataType>(dataType: DT): LitSpec<DT> {
     return {
@@ -106,8 +102,6 @@ function makeLitSpec<DT extends DataType>(dataType: DT): LitSpec<DT> {
         dataType,
         dataShape: 'scalar',
         childSpecs: [],
-        version: 1,
-        description: `${dataType} literal`,
     }
 }
 
@@ -148,8 +142,6 @@ type AddSpec<L extends OpSpec, R extends OpSpec> = {
     dataType: HighestDataType<L['dataType'], R['dataType']>,
     dataShape: HighestDataShape<L['dataShape'], R['dataShape']>,
     childSpecs: CombineSpecs<L, R>,
-    version: 1,
-    description: 'Binary addition',
 }
 function makeAddSpec<L extends OpSpec, R extends OpSpec>(left: L, right: R): AddSpec<L, R> {
     return {
@@ -157,8 +149,6 @@ function makeAddSpec<L extends OpSpec, R extends OpSpec>(left: L, right: R): Add
         dataType: highestDataType(left.dataType, right.dataType),
         dataShape: highestDataShape(left.dataShape, right.dataShape),
         childSpecs: combineSpecs(left, right),
-        version: 1,
-        description: 'Binary addition',
     }
 }
 
@@ -388,8 +378,6 @@ type CovSpec<L extends OpSpec, R extends OpSpec> = {
     dataType: HighestDataType<L['dataType'], R['dataType']>,
     dataShape: 'scalar',  // covariance over two columns is a scalar
     childSpecs: CombineSpecs<L, R>,
-    version: 1,
-    description: 'Covariance of two columnar expressions',
 }
 function makeCovSpec<L extends OpSpec, R extends OpSpec>(left: L, right: R): CovSpec<L, R> {
     return {
@@ -397,8 +385,6 @@ function makeCovSpec<L extends OpSpec, R extends OpSpec>(left: L, right: R): Cov
         dataType: highestDataType(left.dataType, right.dataType),
         dataShape: 'scalar',
         childSpecs: combineSpecs(left, right),
-        version: 1,
-        description: 'Covariance of two columnar expressions',
     }
 }
 
@@ -802,8 +788,8 @@ describe('R22 introspection', () => {
 //   – R5 typed-deserialization: not addressed here. A `parseOp<Allowed>`
 //     gate like B/E's would re-assert the spec phantom at the wire
 //     boundary; left as future work.
-//   – R6 wire-stability: ops carry `version` but there's no migration
-//     story yet.
+//   – R6 wire-stability: ops carry no `version`. Perhaps that should be
+//     the responsibility of the serializer/deserializer instead of the indiviudal op classes?
 //   + R13 capability-axes: partial — targets are generic (`SqlTarget<D>`)
 //     and Supported is an OpSpec union, so per-target capability
 //     constraints can be encoded in the type (`Supported` excludes
