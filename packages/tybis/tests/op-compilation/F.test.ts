@@ -126,7 +126,6 @@ class Add<L extends IVOp, R extends IVOp> implements IVOp<'add'> {
 //
 // Each rule's `canHandle` is a type predicate over `IVOp` itself, so
 // `handle` receives the typed op (e.g. `Lit<'datetime'>`) with no casts.
-// There's no separate spec registry — the op IS the spec.
 
 // Direct child ops of `O`: every property whose type is itself an IVOp
 // (e.g. Add's `left` and `right`). Derives the tree structure from the
@@ -177,9 +176,19 @@ type CompilationRule<Target, Out, Supported extends IVOp = IVOp> = {
 // required so a 2-arg handler like `(op) => x` still matches.
 
 type AnyArgs = any[]
-type OpsHandledBy<R> = R extends readonly unknown[] ? {
-    [K in keyof R]: R[K] extends { canHandle: (op: IVOp, ...rest: AnyArgs) => op is infer O extends IVOp }
-    ? O
+// Ops handled by `R` FOR A GIVEN TARGET `T`. A rule contributes its
+// `Supported` ops only when `T` is assignable to the target type its
+// `canHandle` accepts. This is what lets dialect-specific siblings coexist
+// in one list: the postgres/duckdb `lit` rule accepts `SqlTarget<'postgres'
+// | 'duckdb'>`, so it drops out when `T` is `SqlTarget<'sqlite'>`, while the
+// sqlite `lit` rule (which excludes `Lit<'datetime'>`) is the only one left.
+// Rules built with `makeIsKind` accept `unknown`, so they apply to every
+// target. The default `T = never` reproduces the old target-agnostic union
+// (`never` is assignable to every target), so callers that don't care about
+// the target still see every rule.
+type OpsHandledBy<R, T = never> = R extends readonly unknown[] ? {
+    [K in keyof R]: R[K] extends { canHandle: (op: IVOp, target: infer RT, ...rest: AnyArgs) => op is infer O extends IVOp }
+    ? [T] extends [RT] ? O : never
     : never
 }[number] : never
 type TargetOf<R> = R extends readonly unknown[] ? {
@@ -203,47 +212,55 @@ type OutOf<R> = R extends readonly unknown[] ? {
 // `compile`'s `_proof` and `CanHandle` consume it, so the static and
 // runtime answers can't drift.
 //
-// `Depth` bounds the structural recursion so the type checker can see it
-// terminates. The budget far exceeds any realistic op tree; it is the
-// price of dropping the precomputed `childOps` tuple (whose flat indexing
-// needed no recursion).
+// `T` is the compilation target: only rules that accept it count as handlers
+// (see `OpsHandledBy`), so `lit<datetime>` is handleable when `T` is a
+// postgres target but not when it's a sqlite one — even though both `lit`
+// rules live in the same list.
+//
+// `Depth` bounds the structural recursion so the type checker can see it terminates.
 type Decr = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-type UnhandledOps<R, O extends IVOp, Depth extends number = 16> =
+type UnhandledOps<R, O extends IVOp, T = never, Depth extends number = 16> =
     [Depth] extends [never] ? never
     : O extends IVOp
-    ? O extends OpsHandledBy<R>
-    ? UnhandledOps<R, DirectChildren<O>, Decr[Depth]>
+    ? O extends OpsHandledBy<R, T>
+    ? UnhandledOps<R, DirectChildren<O>, T, Decr[Depth]>
     : O
     : never
 
-function compile<O extends IVOp, R extends readonly unknown[],>(
+// `T` captures the ACTUAL target passed at the call site (e.g.
+// `SqlTarget<'sqlite'>`, not the rule set's full `SqlTarget<SqlDialect>`),
+// so the `_proof` check below filters the rules to just those that apply to
+// this target. That's what makes `compile(dt, { dialect: 'sqlite' }, RULES)`
+// a compile-time error even though `RULES` also contains a postgres `lit`
+// rule that would happily handle the datetime.
+function compile<O extends IVOp, R extends readonly unknown[], const T extends TargetOf<R>>(
     op: O,
-    target: TargetOf<R>,
+    target: T,
     rules: R,
     // typing black magic: if the op tree contains any op that no rule can
-    // handle (the same rule-driven recursion as `canHandle`), error with a
-    // message listing the offenders. This is what gives us "lit<datetime>
-    // on sqlite is rejected at compile time" — see SQL_SQLITE_COMPILATION_RULES.
-    ..._proof: [UnhandledOps<R, O>] extends [never]
+    // handle FOR THIS TARGET (the same rule-driven recursion as `canHandle`),
+    // error with a message listing the offenders. This is what gives us
+    // "lit<datetime> on sqlite is rejected at compile time".
+    ..._proof: [UnhandledOps<R, O, T>] extends [never]
         ? []
-        : [missing: MissingError<UnhandledOps<R, O>>]
+        : [missing: MissingError<UnhandledOps<R, O, T>>]
 ): OutOf<R> {
-    type T = TargetOf<R>
+    type Tgt = TargetOf<R>
     type Out = OutOf<R>
     const handlers = rules as unknown as readonly {
-        canHandle: (op: IVOp, target: T, canHandleChild: CanHandleChild) => boolean
-        handle: (op: IVOp, target: T, visitNext: VisitNext<Out, T>) => Out
+        canHandle: (op: IVOp, target: Tgt, canHandleChild: CanHandleChild) => boolean
+        handle: (op: IVOp, target: Tgt, visitNext: VisitNext<Out, Tgt>) => Out
     }[]
     // A composite rule only matches when its children are handleable, so
     // dispatch needs a target-bound recursion callback for the rule lookup.
     // (This re-verifies subtrees during dispatch — minor redundancy, fine
     // for this exploration file.)
-    const makeCanHandleChild = (t: T): CanHandleChild => {
+    const makeCanHandleChild = (t: Tgt): CanHandleChild => {
         const fn: CanHandleChild = (child) => handlers.some(r => r.canHandle(child, t, fn))
         return fn
     }
-    const next: VisitNext<Out, T> = (sub, passedTarget) => {
-        const effectiveTarget = (passedTarget ?? target) as T
+    const next: VisitNext<Out, Tgt> = (sub, passedTarget) => {
+        const effectiveTarget = (passedTarget ?? target) as Tgt
         const rule = handlers.find(r => r.canHandle(sub, effectiveTarget, makeCanHandleChild(effectiveTarget)))
         if (!rule) throw new Error(`No compilation rule handles op: ${sub.kind}`)
         return rule.handle(sub, effectiveTarget, next)
@@ -253,22 +270,24 @@ function compile<O extends IVOp, R extends readonly unknown[],>(
 
 // R22: introspection — both runtime AND compile-time.
 //
-// `CanHandle<R, O>` is the type-level twin of the runtime `canHandle()`:
-// given a rule set R and an op O, it resolves to the literal `true` if
-// every op in the tree is handleable by the rules, otherwise `false`.
-// Same `UnhandledOps` machinery as `compile()`'s `_proof` parameter, just
-// exposed as a boolean instead of a `MissingError` template.
-type CanHandle<R, O extends IVOp> =
-    [UnhandledOps<R, O>] extends [never] ? true : false
+// `CanHandle<R, O, T>` is the type-level twin of the runtime `canHandle()`:
+// given a rule set R, an op O, and a target T, it resolves to the literal
+// `true` if every op in the tree is handleable by the rules FOR THAT TARGET,
+// otherwise `false`. Same `UnhandledOps` machinery as `compile()`'s `_proof`
+// parameter, just exposed as a boolean instead of a `MissingError` template.
+// `T` defaults to `never`, which considers every rule regardless of target.
+type CanHandle<R, O extends IVOp, T = never> =
+    [UnhandledOps<R, O, T>] extends [never] ? true : false
 
-// Typed `IVOp` — return value is narrowed to `true` or `false` at
-// compile time via `CanHandle<R, O>`. The runtime walks the full op
-// tree and requires every op be handled by some rule.
-function canHandle<R extends readonly unknown[], O extends IVOp>(
+// Typed `IVOp` — return value is narrowed to `true` or `false` at compile
+// time via `CanHandle<R, O, T>`, where `T` is the type of the `target`
+// argument. The runtime walks the full op tree and requires every op be
+// handled by some rule for that target.
+function canHandle<R extends readonly unknown[], O extends IVOp, const T extends TargetOf<R> = never>(
     rules: R,
     op: O,
-    target?: TargetOf<R>
-): CanHandle<R, O>
+    target?: T
+): CanHandle<R, O, T>
 function canHandle(
     rules: readonly { canHandle: (op: IVOp, target: unknown, canHandleChild: CanHandleChild) => boolean }[],
     op: IVOp,
@@ -394,11 +413,20 @@ const covEvaluateCompilationRules = [
 
 // --- 3RD-PARTY SQL PACKAGE ---------------------------------------------------
 //
-// Provides a `SqlTarget<D>` with a `dialect` parameter and two rule
-// sets that handle the CORE ops. Does NOT know about Cov.
-// sqlite has no datetime literal — the sqlite rules statically exclude
-// `Lit<'datetime'>` from their Supported union, so feeding a datetime
-// tree to them is a COMPILE-TIME error in addition to a runtime error.
+// Provides a `SqlTarget<D>` with a `dialect` parameter and ONE rule set that
+// handles the CORE ops across every dialect. Does NOT know about Cov.
+//
+// The literal compiler comes in two SIBLING rules that live side by side in
+// the same list and discriminate on `target.dialect`:
+//   - one for postgres/duckdb, which supports every dtype including datetime;
+//   - one for sqlite, which excludes `Lit<'datetime'>` because sqlite has no
+//     datetime literal.
+// At runtime, `compile` picks the matching sibling via each rule's dialect
+// check. At compile time, the target type flows through `UnhandledOps`, so a
+// datetime literal is rejected on sqlite (the postgres rule's target type
+// doesn't accept a sqlite target, so it drops out of the handler set) while
+// still compiling fine on postgres/duckdb — a COMPILE-TIME error in addition
+// to a runtime one.
 
 type SqlDialect = 'postgres' | 'duckdb' | 'sqlite'
 
@@ -406,19 +434,25 @@ interface SqlTarget<D extends SqlDialect = SqlDialect> {
     dialect: D
 }
 
-type SqlCompilationRule<D extends SqlDialect> = CompilationRule<SqlTarget<D>, string>
-
 function sqlEscapeString(s: string): string {
     return `'${s.replace(/'/g, "''")}'`
 }
 
-// Postgres / DuckDB rules support every dtype, including datetime.
-type PgDuckDialect = 'postgres' | 'duckdb'
+type NonDatetime = Exclude<DataType, 'datetime'>
+
+// One combined list. Each rule annotates its `canHandle`/`handle` target with
+// the dialects it serves; that annotation is the discriminator the type
+// machinery reads (via `OpsHandledBy`). Because the per-rule targets differ,
+// the list can't carry a single uniform `satisfies CompilationRule<...>[]`
+// (target params are contravariant) — the explicit signatures on each rule
+// do the shape-checking instead.
 const SQL_COMPILATION_RULES = [
+    // Postgres / DuckDB literal — supports every dtype, including datetime.
     {
-        name: 'lit',
-        canHandle: makeIsKind<Lit>('lit'),
-        handle: (op: Lit, target: SqlTarget<PgDuckDialect>) => {
+        name: 'lit (postgres/duckdb)',
+        canHandle: (op: IVOp, target: SqlTarget<'postgres' | 'duckdb'>): op is Lit =>
+            op.kind === 'lit' && (target.dialect === 'postgres' || target.dialect === 'duckdb'),
+        handle: (op: Lit, target: SqlTarget<'postgres' | 'duckdb'>): string => {
             const { value } = op
             const dt = op.dtype()
             switch (dt) {
@@ -440,24 +474,14 @@ const SQL_COMPILATION_RULES = [
             }
         },
     },
+    // SQLite literal — sibling of the rule above, selected when the dialect is
+    // sqlite. Its `Supported` union omits `Lit<'datetime'>`, so a datetime
+    // literal anywhere in the tree is rejected at compile time on sqlite.
     {
-        name: 'add',
-        canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
-        handle: (op: Add<IVOp, IVOp>, _t: SqlTarget<PgDuckDialect>, next: VisitNext<string, SqlTarget<PgDuckDialect>>) => `(${next(op.left)} + ${next(op.right)})`,
-    }
-] as const satisfies SqlCompilationRule<PgDuckDialect>[]
-
-// SQLite rules: identical at runtime, but the type-level `Supported`
-// union omits `Lit<'datetime'>`, turning the old runtime check into a
-// compile-time check. Add/Cov over a datetime descendant is also
-// rejected because the static check (`UnhandledOps`) recurses the whole
-// op tree via `DirectChildren`.
-type NonDatetime = Exclude<DataType, 'datetime'>
-const SQL_SQLITE_COMPILATION_RULES = [
-    {
-        name: 'any_lit_except_datetime',
-        canHandle: (op: IVOp, _target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> => op.kind === 'lit' && op.dtype() !== 'datetime',
-        handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
+        name: 'lit (sqlite)',
+        canHandle: (op: IVOp, target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> =>
+            op.kind === 'lit' && target.dialect === 'sqlite' && op.dtype() !== 'datetime',
+        handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>): string => {
             const { value } = op
             const dt = op.dtype()
             switch (dt) {
@@ -471,46 +495,57 @@ const SQL_SQLITE_COMPILATION_RULES = [
                 default:
                     throw new Error(`Unsupported data type for SQLite: ${dt satisfies never}`)
             }
-        }
+        },
     },
+    // Addition — identical across dialects, so a single rule serves them all.
     {
         name: 'add',
         canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
-        handle: (op: Add<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => `(${next(op.left)} + ${next(op.right)})`,
-    }
-] as const satisfies SqlCompilationRule<'sqlite'>[]
+        handle: (op: Add<IVOp, IVOp>, _t: SqlTarget, next: VisitNext<string, SqlTarget>): string => `(${next(op.left)} + ${next(op.right)})`,
+    },
+] as const
 
 // --- END-USER GLUE -----------------------------------------------------------
 //
 // The user wants Cov compiled to SQL. They didn't write Cov (stats lib did)
-// and they didn't write the SQL compilation rules (sql lib did) — but the SQL rules
-// are just data, so they can spread them into a new rule set in their own
-// application code, without touching either library's source.
+// and they didn't write the SQL compilation rules (sql lib did) — but the SQL
+// rules are just data, so they spread them into ONE combined rule set in their
+// own application code, without touching either library's source.
+//
+// As with the literal compiler, the cov compiler is two dialect-discriminated
+// siblings in the same list: postgres/duckdb emit `covar_pop`, while sqlite —
+// which has no `covar_pop` — emits the math directly. `compile` selects the
+// right one from `target.dialect`.
+
+// A dialect-gated `canHandle` for Cov. The narrow `SqlTarget<D>` annotation
+// is what the type machinery reads to keep the siblings apart (a postgres cov
+// rule drops out under a sqlite target); the runtime `target.dialect` check
+// does the actual selection. Like `makeIsKind`, it recurses into children so
+// the rule only matches when both operands are themselves handleable.
+const isCovFor = <Ds extends SqlDialect[]>(dialects: Ds) =>
+    (op: IVOp, target: SqlTarget<Ds[number]>, canHandleChild: CanHandleChild): op is Cov<IVOp, IVOp> => {
+        if (op.kind !== '@stats/cov' || !dialects.includes(target.dialect)) return false
+        const cov = op as Cov<IVOp, IVOp>
+        return canHandleChild(cov.left) && canHandleChild(cov.right)
+    }
 
 const userCompilationRules = [
     ...SQL_COMPILATION_RULES,
     {
-        name: '@stats/cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
-        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<string, SqlTarget<'postgres' | 'duckdb'>>) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
-    }
-] as const satisfies SqlCompilationRule<'postgres' | 'duckdb'>[]
-
-// SQLite variant: sqlite has no `covar_pop`, so emit the math directly.
-// `Supported` excludes `Lit<'datetime'>` so the rules statically refuse
-// to compile any tree containing a datetime literal.
-const userSqliteCompilationRules = [
-    ...SQL_SQLITE_COMPILATION_RULES,
+        name: '@stats/cov (postgres + duckdb)',
+        canHandle: isCovFor(['postgres', 'duckdb']),
+        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'postgres'>, next: VisitNext<string, SqlTarget<'postgres'>>): string => `covar_pop(${next(op.left)}, ${next(op.right)})`,
+    },
     {
-        name: '@stats/cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
-        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => {
+        name: '@stats/cov (sqlite)',
+        canHandle: isCovFor(['sqlite']),
+        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>): string => {
             const l = next(op.left)
             const r = next(op.right)
             return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
         },
     },
-] as const satisfies SqlCompilationRule<'sqlite'>[]
+] as const
 
 // =============================================================================
 // TESTS
@@ -595,7 +630,7 @@ describe('SQL compilation rules', () => {
     })
 
     it('emits add on sqlite', () => {
-        expect(compile(sum, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)).toBe('(5 + 10)')
+        expect(compile(sum, { dialect: 'sqlite' }, SQL_COMPILATION_RULES)).toBe('(5 + 10)')
     })
 
     it('emits datetime literal on postgres', () => {
@@ -611,9 +646,12 @@ describe('SQL compilation rules', () => {
     })
 
     it('rejects datetime literal on sqlite at both compile and run time', () => {
+        // Same combined list as postgres/duckdb above — but the sqlite target
+        // drops the postgres `lit` rule from the handler set, leaving only the
+        // sqlite `lit` rule, which excludes datetime. So this is rejected.
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): lit<datetime, scalar>
-            compile(dt, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)
+            compile(dt, { dialect: 'sqlite' }, SQL_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: lit/)
     })
 
@@ -628,7 +666,7 @@ describe('SQL compilation rules', () => {
         const dtPlus = new Add(dt, new Lit(1, 'int'))
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): lit<datetime, scalar>
-            compile(dtPlus, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)
+            compile(dtPlus, { dialect: 'sqlite' }, SQL_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: add/)
     })
 })
@@ -647,7 +685,7 @@ describe('end-user glue: cov compiled to SQL', () => {
     })
 
     it('emits the manual covariance math on sqlite', () => {
-        expect(compile(cov, { dialect: 'sqlite' }, userSqliteCompilationRules)).toBe(
+        expect(compile(cov, { dialect: 'sqlite' }, userCompilationRules)).toBe(
             "(AVG('xs'*'ys') - AVG('xs')*AVG('ys'))",
         )
     })
@@ -677,17 +715,20 @@ describe('R22 introspection', () => {
         expect(a).toBe(false)
 
         expectTypeOf<CanHandle<typeof userCompilationRules, typeof cov>>().toEqualTypeOf<true>()
-        const b = canHandle(userCompilationRules, cov)
+        const b = canHandle(userCompilationRules, cov, { dialect: 'postgres' })
         expectTypeOf(b).toEqualTypeOf<true>()
         expect(b).toBe(true)
 
-        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<false>()
-        const c = canHandle(SQL_SQLITE_COMPILATION_RULES, dt)
+        // Same combined SQL list, asked about the same datetime literal, but a
+        // different target flips the answer: handleable on postgres, not on
+        // sqlite. The target type drives both the static and runtime answers.
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt, SqlTarget<'sqlite'>>>().toEqualTypeOf<false>()
+        const c = canHandle(SQL_COMPILATION_RULES, dt, { dialect: 'sqlite' })
         expectTypeOf(c).toEqualTypeOf<false>()
         expect(c).toBe(false)
 
-        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<true>()
-        const d = canHandle(SQL_COMPILATION_RULES, dt)
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt, SqlTarget<'postgres'>>>().toEqualTypeOf<true>()
+        const d = canHandle(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' })
         expectTypeOf(d).toEqualTypeOf<true>()
         expect(d).toBe(true)
 
@@ -696,14 +737,14 @@ describe('R22 introspection', () => {
         // refuses the moment the datetime lit is rejected — the runtime walk
         // and the recursive type-level check agree.
         const dtPlus = new Add(dt, new Lit(1, 'int'))
-        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dtPlus>>().toEqualTypeOf<false>()
-        const e = canHandle(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dtPlus, SqlTarget<'sqlite'>>>().toEqualTypeOf<false>()
+        const e = canHandle(SQL_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
         expectTypeOf(e).toEqualTypeOf<false>()
         expect(e).toBe(false)
 
         // ...but an all-int Add is handled.
-        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof sum>>().toEqualTypeOf<true>()
-        const f = canHandle(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' })
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof sum, SqlTarget<'sqlite'>>>().toEqualTypeOf<true>()
+        const f = canHandle(SQL_COMPILATION_RULES, sum, { dialect: 'sqlite' })
         expectTypeOf(f).toEqualTypeOf<true>()
         expect(f).toBe(true)
     })
