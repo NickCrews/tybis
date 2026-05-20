@@ -142,15 +142,18 @@ type OpsOf<O extends IVOp> = O | O['childOps'][number]
 
 type VisitNext<Out, Target> = (sub: IVOp, target?: Target) => Out
 
+// Recursion callback threaded into each rule's `canHandle`. A composite-op
+// rule calls it on each direct child to verify the child is itself handleable
+// (and may add its own parent-imposed cross-child constraints). Leaf rules
+// ignore it.
+type CanHandleChild = (child: IVOp) => boolean
+
 // `OpFor<S>` collapses a still-generic `IVOp<string>` to `never` so that
 // the handler signature `(op: never, ...) => Out` accepts any concrete
 // handler. Once `Supported` narrows to e.g. `Lit` (whose `thisKind` is
 // the literal `'lit'`, not the generic `string`), `OpFor` is identity
 // and the handler gets the typed op.
 type OpFor<S extends IVOp> = string extends S['thisKind'] ? never : S
-
-type Handler<S extends IVOp, Target, Out> =
-    (op: OpFor<S>, target: Target, visit: VisitNext<Out, Target>) => Out
 
 // R20: template-literal error names the offending op(s) in plain text.
 // Surfaces kind + dtype + dshape so e.g. "lit<datetime, scalar>" makes
@@ -167,8 +170,8 @@ type MissingError<Missing extends IVOp> =
 // excluded for sqlite while `Lit<'int'>` is fine.
 type CompilationRule<Target, Out, Supported extends IVOp = IVOp> = {
     name?: string;
-    canHandle: (op: IVOp, target: Target) => op is Supported;
-    handle: Handler<Supported, Target, Out>;
+    canHandle: (op: IVOp, target: Target, canHandleChild: CanHandleChild) => op is Supported;
+    handle: (op: OpFor<Supported>, target: Target, visit: VisitNext<Out, Target>) => Out
 }
 
 // Inference helpers that look directly at each rule's `canHandle`
@@ -189,9 +192,6 @@ type TargetOf<R> = R extends readonly unknown[] ? {
 type OutOf<R> = R extends readonly unknown[] ? {
     [K in keyof R]: R[K] extends { handle: (...args: AnyArgs) => infer O } ? O : never
 }[number] : never
-type KindsHandledBy<R> = OpsHandledBy<R> extends infer O
-    ? O extends IVOp ? O['thisKind'] : never
-    : never
 
 function compile<O extends IVOp, R extends readonly unknown[],>(
     op: O,
@@ -208,12 +208,20 @@ function compile<O extends IVOp, R extends readonly unknown[],>(
     type T = TargetOf<R>
     type Out = OutOf<R>
     const handlers = rules as unknown as readonly {
-        canHandle: (op: IVOp, target: T) => boolean
+        canHandle: (op: IVOp, target: T, canHandleChild: CanHandleChild) => boolean
         handle: (op: IVOp, target: T, visitNext: VisitNext<Out, T>) => Out
     }[]
+    // A composite rule only matches when its children are handleable, so
+    // dispatch needs a target-bound recursion callback for the rule lookup.
+    // (This re-verifies subtrees during dispatch — minor redundancy, fine
+    // for this exploration file.)
+    const makeCanHandleChild = (t: T): CanHandleChild => {
+        const fn: CanHandleChild = (child) => handlers.some(r => r.canHandle(child, t, fn))
+        return fn
+    }
     const next: VisitNext<Out, T> = (sub, passedTarget) => {
         const effectiveTarget = (passedTarget ?? target) as T
-        const rule = handlers.find(r => r.canHandle(sub, effectiveTarget))
+        const rule = handlers.find(r => r.canHandle(sub, effectiveTarget, makeCanHandleChild(effectiveTarget)))
         if (!rule) throw new Error(`No compilation rule handles op: ${sub.thisKind}`)
         return rule.handle(sub, effectiveTarget, next)
     }
@@ -240,12 +248,13 @@ function canHandle<R extends readonly unknown[], O extends IVOp>(
     target?: TargetOf<R>
 ): CanHandle<R, O>
 function canHandle(
-    rules: readonly { canHandle: (op: IVOp, target: unknown) => boolean }[],
+    rules: readonly { canHandle: (op: IVOp, target: unknown, canHandleChild: CanHandleChild) => boolean }[],
     op: IVOp,
     target?: unknown
 ): boolean {
-    const allOps: readonly IVOp[] = [op, ...op.childOps]
-    return allOps.every(o => rules.some(r => r.canHandle(o, target)))
+    const canHandleChild: CanHandleChild = (child) =>
+        rules.some(r => r.canHandle(child, target, canHandleChild))
+    return canHandleChild(op)
 }
 
 // ---- Core compilation targets ----
@@ -261,8 +270,12 @@ interface StringTarget {
 }
 type StringCompilationRule = CompilationRule<StringTarget, string>
 
-function makeIsKind<O extends IVOp>(kind: O['thisKind']): (op: IVOp, target: unknown) => op is O {
-    return (op: IVOp, _target: unknown): op is O => op.thisKind === kind
+function makeIsKind<O extends IVOp>(
+    kind: O['thisKind'],
+    childrenOf?: (op: O) => readonly IVOp[],
+): (op: IVOp, target: unknown, canHandleChild?: CanHandleChild) => op is O {
+    return (op: IVOp, _target: unknown, canHandleChild: CanHandleChild = () => true): op is O =>
+        op.thisKind === kind && (childrenOf === undefined || childrenOf(op as O).every(canHandleChild))
 }
 
 const STRING_COMPILATION_RULES = [
@@ -281,7 +294,7 @@ const STRING_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        canHandle: makeIsKind<Add<IVOp, IVOp>>('add'),
+        canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
         handle: (op: Add<IVOp, IVOp>, _target: StringTarget, next: VisitNext<string, StringTarget>) => `(${next(op.left)} + ${next(op.right)})`,
     }
 ] as const satisfies StringCompilationRule[]
@@ -300,7 +313,7 @@ const EVALUATE_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        canHandle: makeIsKind<Add<IVOp, IVOp>>('add'),
+        canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
         handle: (op: Add<IVOp, IVOp>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
             const l = next(op.left) as number
             const r = next(op.right) as number
@@ -334,7 +347,7 @@ const covStringCompilationRules = [
     ...STRING_COMPILATION_RULES,
     {
         name: 'cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov'),
+        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
         handle: (op: Cov<IVOp, IVOp>, _t: StringTarget, next: VisitNext<string, StringTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies StringCompilationRule[]
@@ -343,7 +356,7 @@ const covEvaluateCompilationRules = [
     ...EVALUATE_COMPILATION_RULES,
     {
         name: 'cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov'),
+        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
         handle: (op: Cov<IVOp, IVOp>, _t: EvaluateTarget, next: VisitNext<unknown, EvaluateTarget>) => {
             const xs = next(op.left) as number[]
             const ys = next(op.right) as number[]
@@ -410,7 +423,7 @@ const SQL_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        canHandle: makeIsKind<Add<IVOp, IVOp>>('add'),
+        canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
         handle: (op: Add<IVOp, IVOp>, _t: SqlTarget<PgDuckDialect>, next: VisitNext<string, SqlTarget<PgDuckDialect>>) => `(${next(op.left)} + ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<PgDuckDialect>[]
@@ -442,7 +455,7 @@ const SQL_SQLITE_COMPILATION_RULES = [
     },
     {
         name: 'add',
-        canHandle: makeIsKind<Add<IVOp, IVOp>>('add'),
+        canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
         handle: (op: Add<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => `(${next(op.left)} + ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<'sqlite'>[]
@@ -458,7 +471,7 @@ const userCompilationRules = [
     ...SQL_COMPILATION_RULES,
     {
         name: '@stats/cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov'),
+        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
         handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<string, SqlTarget<'postgres' | 'duckdb'>>) => `covar_pop(${next(op.left)}, ${next(op.right)})`,
     }
 ] as const satisfies SqlCompilationRule<'postgres' | 'duckdb'>[]
@@ -470,7 +483,7 @@ const userSqliteCompilationRules = [
     ...SQL_SQLITE_COMPILATION_RULES,
     {
         name: '@stats/cov',
-        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov'),
+        canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
         handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>) => {
             const l = next(op.left)
             const r = next(op.right)
@@ -586,14 +599,16 @@ describe('SQL compilation rules', () => {
 
     it('rejects nested datetime on sqlite at both compile and run time', () => {
         // OpsOf<O> flattens the whole tree, so an Add over a datetime
-        // descendant is statically rejected too. At runtime, the Add
-        // handler runs first and the inner datetime literal blows up
-        // when the recursion reaches it.
+        // descendant is statically rejected too — the compile-time error
+        // still names `lit<datetime, scalar>`. At runtime, dispatch now
+        // recurses via `canHandleChild`: the `add` rule refuses as soon as
+        // a child (the datetime lit) is unhandleable, so no rule matches
+        // the `add` and the throw names the subtree root.
         const dtPlus = new Add(dt, new Lit(1, 'int'))
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): lit<datetime, scalar>
             compile(dtPlus, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)
-        }).toThrow(/No compilation rule handles op: lit/)
+        }).toThrow(/No compilation rule handles op: add/)
     })
 })
 
@@ -625,20 +640,13 @@ describe('end-user glue: cov compiled to SQL', () => {
 })
 
 describe('R22 introspection', () => {
-    it('exposes KindsHandledBy as a literal-string union at the type level', () => {
-        type FullKinds = KindsHandledBy<typeof userCompilationRules>
-        expectTypeOf<FullKinds>().toEqualTypeOf<'lit' | 'add' | '@stats/cov'>()
-    })
-
     it('rejects bare kind strings at the type level', () => {
-        // Type-only assertions: wrapped in a never-called function so the
-        // runtime never sees the synthetic bad arguments, but the
-        // TypeScript checker still verifies the @ts-expect-error
-        // directives fire.
-        expect(() => {
-            // @ts-expect-error — bare kind strings are not accepted; pass a full IVOp
-            canHandle(userCompilationRules, '@stats/cov')
-        }).toThrow()
+        // The real assertion is the @ts-expect-error: a bare kind string is
+        // not an IVOp, so the type checker rejects it. At runtime the string
+        // matches no rule's `canHandle`, so the recursive walk simply returns
+        // false (the old impl threw only because it spread `op.childOps`).
+        // @ts-expect-error — bare kind strings are not accepted; pass a full IVOp
+        expect(canHandle(userCompilationRules, '@stats/cov')).toBe(false)
     })
 
     it('answers canHandle from a typed IVOp, narrowed at the type level', () => {
@@ -661,6 +669,60 @@ describe('R22 introspection', () => {
         const d = canHandle(SQL_COMPILATION_RULES, dt)
         expectTypeOf(d).toEqualTypeOf<true>()
         expect(d).toBe(true)
+
+        // Nested: an Add over a datetime child is unhandleable on sqlite. The
+        // `add` rule recurses into its children via canHandleChild, so it
+        // refuses the moment the datetime lit is rejected — the runtime walk
+        // and the OpsOf-based type level agree.
+        const dtPlus = new Add(dt, new Lit(1, 'int'))
+        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dtPlus>>().toEqualTypeOf<false>()
+        const e = canHandle(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
+        expectTypeOf(e).toEqualTypeOf<false>()
+        expect(e).toBe(false)
+
+        // ...but an all-int Add is handled.
+        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof sum>>().toEqualTypeOf<true>()
+        const f = canHandle(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' })
+        expectTypeOf(f).toEqualTypeOf<true>()
+        expect(f).toBe(true)
+    })
+
+    it('enforces a parent-imposed constraint, at compile time AND runtime', () => {
+        // A rule that only handles `add` when BOTH children are scalar. The
+        // kind-only flatten check could never reject the columnar case (every
+        // op is supported by kind), but encoding the constraint in the rule's
+        // `Supported` type — `Add<ScalarOp, ScalarOp>` — makes BOTH the
+        // recursive runtime `canHandleChild` and the type-level `CanHandle`
+        // (via `OpsOf`) reject an `Add` whose child is itself a columnar `Add`.
+        type ScalarOp = IVOp & { dshape(): 'scalar' }
+        const rules = [
+            {
+                name: 'lit',
+                canHandle: makeIsKind<Lit>('lit'),
+                handle: (op: Lit) => op.value,
+            },
+            {
+                name: 'scalar-only add',
+                canHandle: (op: IVOp, _t: unknown, canHandleChild: CanHandleChild): op is Add<ScalarOp, ScalarOp> => {
+                    if (op.thisKind !== 'add') return false
+                    const add = op as Add<IVOp, IVOp>
+                    return canHandleChild(add.left) && canHandleChild(add.right)
+                        && add.left.dshape() === 'scalar' && add.right.dshape() === 'scalar'
+                },
+                handle: (op: Add<ScalarOp, ScalarOp>, _t: unknown, next: VisitNext<unknown, unknown>) =>
+                    (next(op.left) as number) + (next(op.right) as number),
+            },
+        ] as const satisfies CompilationRule<unknown, unknown>[]
+
+        // both children are scalar Lits → handled
+        const a = canHandle(rules, sum)
+        expect(a).toBe(true)
+        expectTypeOf(a).toEqualTypeOf<true>()
+        // left child is an Add (columnar) → refused, even though every
+        // individual op is supported by kind
+        const b = canHandle(rules, new Add(sum, new Lit(1, 'int')))
+        expectTypeOf(b).toEqualTypeOf<false>()
+        expect(b).toBe(false)
     })
 })
 
@@ -687,8 +749,7 @@ describe('R22 introspection', () => {
 //     compiled to string, evaluated, or emitted as SQL by different
 //     compilation rules without touching the tree.
 //   + R11/R22 static-introspection: `OpsOf<typeof tree>` is one
-//     indexed access; `OpsHandledBy<typeof c>` / `KindsHandledBy<typeof c>`
-//     project the compilation rules.
+//     indexed access; `OpsHandledBy<typeof c>` projects the compilation rules.
 //   + R14 fallback: rules are plain objects, so spreading lets downstream
 //     compilation rules re-emit a core kind differently via last-write-wins.
 //   + R15 type-composition: lives next to existing `DataType` /
