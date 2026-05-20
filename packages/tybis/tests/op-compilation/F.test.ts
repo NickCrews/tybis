@@ -193,10 +193,10 @@ type KindsHandledBy<R> = OpsHandledBy<R> extends infer O
     ? O extends IVOp ? O['thisKind'] : never
     : never
 
-function compile<R extends readonly unknown[], O extends IVOp>(
-    rules: R,
+function compile<O extends IVOp, R extends readonly unknown[],>(
     op: O,
     target: TargetOf<R>,
+    rules: R,
     // typing black magic: if the op tree contains any ops not assignable
     // to the rules' OpsHandledBy, error with a message listing the
     // offenders. This is what gives us "lit<datetime> on sqlite is
@@ -505,74 +505,74 @@ const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
 
 describe('core ops, core compilation rules', () => {
     it('stringifies an int+int sum', () => {
-        expect(compile(STRING_COMPILATION_RULES, sum, {})).toBe('(5 + 10)')
+        expect(compile(sum, {}, STRING_COMPILATION_RULES)).toBe('(5 + 10)')
     })
 
     it('evaluates an int+int sum', () => {
-        expect(compile(EVALUATE_COMPILATION_RULES, sum, {})).toBe(15)
+        expect(compile(sum, {}, EVALUATE_COMPILATION_RULES)).toBe(15)
     })
 
     it('honors StringTarget precision for float literals', () => {
-        expect(compile(STRING_COMPILATION_RULES, piPlus, { precision: 2 })).toBe('(3.14 + 1)')
+        expect(compile(piPlus, { precision: 2 }, STRING_COMPILATION_RULES)).toBe('(3.14 + 1)')
     })
 
     it('falls back to full precision when no precision is set', () => {
-        expect(compile(STRING_COMPILATION_RULES, piPlus, {})).toBe('(3.14159 + 1)')
+        expect(compile(piPlus, {}, STRING_COMPILATION_RULES)).toBe('(3.14159 + 1)')
     })
 })
 
 describe('stats lib compilation rules', () => {
     it('still handles core ops (string)', () => {
-        expect(compile(covStringCompilationRules, sum, {})).toBe('(5 + 10)')
+        expect(compile(sum, {}, covStringCompilationRules)).toBe('(5 + 10)')
     })
 
     it('still handles core ops (evaluate)', () => {
-        expect(compile(covEvaluateCompilationRules, sum, {})).toBe(15)
+        expect(compile(sum, {}, covEvaluateCompilationRules)).toBe(15)
     })
 
     it('stringifies a cov call', () => {
-        expect(compile(covStringCompilationRules, cov, {})).toBe('cov("xs", "ys")')
+        expect(compile(cov, {}, covStringCompilationRules)).toBe('cov("xs", "ys")')
     })
 
     it('evaluates a numeric cov', () => {
-        expect(compile(covEvaluateCompilationRules, numCov, {})).toBe(2.5)
+        expect(compile(numCov, {}, covEvaluateCompilationRules)).toBe(2.5)
     })
 
     it('rejects cov in core/SQL rules at both compile and run time', () => {
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): cov<...>
-            compile(STRING_COMPILATION_RULES, cov, {})
+            compile(cov, {}, STRING_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: @stats\/cov/)
 
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): cov<...>
-            compile(EVALUATE_COMPILATION_RULES, cov, {})
+            compile(cov, {}, EVALUATE_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: @stats\/cov/)
 
         expect(() => {
             // @ts-expect-error — sql compilation rules don't handle cov on its own
-            compile(SQL_COMPILATION_RULES, cov, { dialect: 'postgres' })
+            compile(cov, { dialect: 'postgres' }, SQL_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: @stats\/cov/)
     })
 })
 
 describe('SQL compilation rules', () => {
     it('emits add on postgres', () => {
-        expect(compile(SQL_COMPILATION_RULES, sum, { dialect: 'postgres' })).toBe('(5 + 10)')
+        expect(compile(sum, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toBe('(5 + 10)')
     })
 
     it('emits add on sqlite', () => {
-        expect(compile(SQL_SQLITE_COMPILATION_RULES, sum, { dialect: 'sqlite' })).toBe('(5 + 10)')
+        expect(compile(sum, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)).toBe('(5 + 10)')
     })
 
     it('emits datetime literal on postgres', () => {
-        expect(compile(SQL_COMPILATION_RULES, dt, { dialect: 'postgres' })).toBe(
+        expect(compile(dt, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toBe(
             "'2026-01-01T00:00:00Z'::timestamptz",
         )
     })
 
     it('emits datetime literal on duckdb', () => {
-        expect(compile(SQL_COMPILATION_RULES, dt, { dialect: 'duckdb' })).toBe(
+        expect(compile(dt, { dialect: 'duckdb' }, SQL_COMPILATION_RULES)).toBe(
             "CAST('2026-01-01T00:00:00Z' AS TIMESTAMP)",
         )
     })
@@ -580,7 +580,7 @@ describe('SQL compilation rules', () => {
     it('rejects datetime literal on sqlite at both compile and run time', () => {
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): lit<datetime, scalar>
-            compile(SQL_SQLITE_COMPILATION_RULES, dt, { dialect: 'sqlite' })
+            compile(dt, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: lit/)
     })
 
@@ -592,33 +592,33 @@ describe('SQL compilation rules', () => {
         const dtPlus = new Add(dt, new Lit(1, 'int'))
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): lit<datetime, scalar>
-            compile(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
+            compile(dtPlus, { dialect: 'sqlite' }, SQL_SQLITE_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: lit/)
     })
 })
 
 describe('end-user glue: cov compiled to SQL', () => {
     it('emits covar_pop on postgres', () => {
-        expect(compile(userCompilationRules, cov, { dialect: 'postgres' })).toBe(
+        expect(compile(cov, { dialect: 'postgres' }, userCompilationRules)).toBe(
             "covar_pop('xs', 'ys')",
         )
     })
 
     it('emits covar_pop on duckdb', () => {
-        expect(compile(userCompilationRules, cov, { dialect: 'duckdb' })).toBe(
+        expect(compile(cov, { dialect: 'duckdb' }, userCompilationRules)).toBe(
             "covar_pop('xs', 'ys')",
         )
     })
 
     it('emits the manual covariance math on sqlite', () => {
-        expect(compile(userSqliteCompilationRules, cov, { dialect: 'sqlite' })).toBe(
+        expect(compile(cov, { dialect: 'sqlite' }, userSqliteCompilationRules)).toBe(
             "(AVG('xs'*'ys') - AVG('xs')*AVG('ys'))",
         )
     })
 
     it('composes cov inside an add', () => {
         const mixed = new Add(cov, new Lit(1, 'float'))
-        expect(compile(userCompilationRules, mixed, { dialect: 'duckdb' })).toBe(
+        expect(compile(mixed, { dialect: 'duckdb' }, userCompilationRules)).toBe(
             "(covar_pop('xs', 'ys') + 1)",
         )
     })
