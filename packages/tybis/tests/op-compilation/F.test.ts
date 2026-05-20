@@ -446,7 +446,7 @@ type NonDatetime = Exclude<DataType, 'datetime'>
 const SQL_SQLITE_COMPILATION_RULES = [
     {
         name: 'any_lit_except_datetime',
-        canHandle: (op: IVOp, _target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> => op.thisKind === 'lit' && (op as Lit).dtype() !== 'datetime',
+        canHandle: (op: IVOp, _target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> => op.thisKind === 'lit' && op.dtype() !== 'datetime',
         handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
             const { value } = op
             const dt = op.dtype()
