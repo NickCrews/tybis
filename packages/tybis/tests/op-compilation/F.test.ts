@@ -18,7 +18,7 @@ import { expectTypeOf } from 'expect-type'
 //
 //   Rule sets are plain tuples of these rules, declared with
 //   `as const satisfies CompilationRule<...>[]` and exposed as top-level
-//   readonly constants (`STRING_COMPILATION_RULES`, etc.) so downstream
+//   readonly constants (`REPR_COMPILATION_RULES`, etc.) so downstream
 //   packages can spread / override / inspect them freely. The exported
 //   top-level functions are `compile` and `canHandle`.
 //
@@ -55,11 +55,11 @@ import { expectTypeOf } from 'expect-type'
 // --------------+----------+----------+
 //
 // We say that core tybis provides
-// - two core ops: a literal and an addition.
-// - two core compilation targets: a StringTarget, eg "5 + 10", and an EvaluateTarget eg `15`
+// - two core ops: a literal and an addition. eg `new Add(new Lit(5, 'int'), new Lit(10, 'int'))`.
+// - two core compilation targets: a ReprTarget, eg "5 + 10", and an EvaluateTarget eg `15`
 //
 // Then we have two different 3rd party libraries:
-// - a stats library that provides a covariance op, and defines how to compile that to the core targets, eg to the StringTarget and how to evaluate.
+// - a stats library that provides a covariance op, and defines how to compile that to the core targets, eg to the ReprTarget and how to evaluate.
 // - a sql target that defines how to compile the core ops to SQL, but they don't know about the covariance op, so they don't define how to compile that. The sql target should take a dialect parameter. But sqlite has no way to represent datetimes, so if it encounters a datetime literal, it should throw an error.
 //
 // Finally, a user wants to be able to COMBINE these,
@@ -282,15 +282,15 @@ function canHandle(
 // ---- Core compilation targets ----
 //
 // Core ships two builtin compilers:
-// - StringTarget produces a readable expression like "(5 + 10.00)".
+// - ReprTarget produces a readable expression like "(5 + 10.00)".
 //   It accepts a `precision` option that controls float formatting.
 // - EvaluateTarget walks the tree and returns the computed JS value.
 
-interface StringTarget {
+interface ReprTarget {
     /** decimals to render for float literals; default: full precision */
     precision?: number
 }
-type StringCompilationRule = CompilationRule<StringTarget, string>
+type ReprCompilationRule = CompilationRule<ReprTarget, string>
 
 function makeIsKind<O extends IVOp>(
     kind: O['kind'],
@@ -300,11 +300,11 @@ function makeIsKind<O extends IVOp>(
         op.kind === kind && (childrenOf === undefined || childrenOf(op as O).every(canHandleChild))
 }
 
-const STRING_COMPILATION_RULES = [
+const REPR_COMPILATION_RULES = [
     {
         name: 'lit',
         canHandle: makeIsKind<Lit>('lit'),
-        handle: (op: Lit, target: StringTarget) => {
+        handle: (op: Lit, target: ReprTarget) => {
             const { value } = op
             const dt = op.dtype()
             if (dt === 'float' && target.precision !== undefined && typeof value === 'number') {
@@ -317,9 +317,9 @@ const STRING_COMPILATION_RULES = [
     {
         name: 'add',
         canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
-        handle: (op: Add<IVOp, IVOp>, _target: StringTarget, next: VisitNext<string, StringTarget>) => `(${next(op.left)} + ${next(op.right)})`,
+        handle: (op: Add<IVOp, IVOp>, _target: ReprTarget, next: VisitNext<string, ReprTarget>) => `(${next(op.left)} + ${next(op.right)})`,
     }
-] as const satisfies StringCompilationRule[]
+] as const satisfies ReprCompilationRule[]
 
 interface EvaluateTarget {
     dummy_connection_url?: string
@@ -363,13 +363,13 @@ class Cov<L extends IVOp, R extends IVOp> implements IVOp<'@stats/cov'> {
 // We spread the builtin rules directly to demonstrate that they're plain
 // data — a 3rd party could just as easily override an existing kind.
 const covStringCompilationRules = [
-    ...STRING_COMPILATION_RULES,
+    ...REPR_COMPILATION_RULES,
     {
         name: 'cov',
         canHandle: makeIsKind<Cov<IVOp, IVOp>>('@stats/cov', op => [op.left, op.right]),
-        handle: (op: Cov<IVOp, IVOp>, _t: StringTarget, next: VisitNext<string, StringTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
+        handle: (op: Cov<IVOp, IVOp>, _t: ReprTarget, next: VisitNext<string, ReprTarget>) => `cov(${next(op.left)}, ${next(op.right)})`,
     }
-] as const satisfies StringCompilationRule[]
+] as const satisfies ReprCompilationRule[]
 
 const covEvaluateCompilationRules = [
     ...EVALUATE_COMPILATION_RULES,
@@ -538,19 +538,19 @@ const dt = new Lit('2026-01-01T00:00:00Z', 'datetime')
 
 describe('core ops, core compilation rules', () => {
     it('stringifies an int+int sum', () => {
-        expect(compile(sum, {}, STRING_COMPILATION_RULES)).toBe('(5 + 10)')
+        expect(compile(sum, {}, REPR_COMPILATION_RULES)).toBe('(5 + 10)')
     })
 
     it('evaluates an int+int sum', () => {
         expect(compile(sum, {}, EVALUATE_COMPILATION_RULES)).toBe(15)
     })
 
-    it('honors StringTarget precision for float literals', () => {
-        expect(compile(piPlus, { precision: 2 }, STRING_COMPILATION_RULES)).toBe('(3.14 + 1)')
+    it('honors ReprTarget precision for float literals', () => {
+        expect(compile(piPlus, { precision: 2 }, REPR_COMPILATION_RULES)).toBe('(3.14 + 1)')
     })
 
     it('falls back to full precision when no precision is set', () => {
-        expect(compile(piPlus, {}, STRING_COMPILATION_RULES)).toBe('(3.14159 + 1)')
+        expect(compile(piPlus, {}, REPR_COMPILATION_RULES)).toBe('(3.14159 + 1)')
     })
 })
 
@@ -574,7 +574,7 @@ describe('stats lib compilation rules', () => {
     it('rejects cov in core/SQL rules at both compile and run time', () => {
         expect(() => {
             // @ts-expect-error — compilation rules don't support op(s): cov<...>
-            compile(cov, {}, STRING_COMPILATION_RULES)
+            compile(cov, {}, REPR_COMPILATION_RULES)
         }).toThrow(/No compilation rule handles op: @stats\/cov/)
 
         expect(() => {
@@ -671,8 +671,8 @@ describe('R22 introspection', () => {
     })
 
     it('answers canHandle from a typed IVOp, narrowed at the type level', () => {
-        expectTypeOf<CanHandle<typeof STRING_COMPILATION_RULES, typeof cov>>().toEqualTypeOf<false>()
-        const a = canHandle(STRING_COMPILATION_RULES, cov)
+        expectTypeOf<CanHandle<typeof REPR_COMPILATION_RULES, typeof cov>>().toEqualTypeOf<false>()
+        const a = canHandle(REPR_COMPILATION_RULES, cov)
         expectTypeOf(a).toEqualTypeOf<false>()
         expect(a).toBe(false)
 
