@@ -5,22 +5,26 @@ import { expectTypeOf } from 'expect-type'
 // Approach F — Spec-carrying ops, a compilation target, and then handlers that pair up combos of these.
 //
 // IDEA
-//   Each op exposes its kind, dtype, dshape, and the *full transitive list*
-//   of child ops directly on the op itself — no nested `spec` object.
-//   Because the op already enumerates the tree via `childOps`, "what ops
-//   does this tree use?" is a single indexed access —
-//   `OpsOf<O> = O | O['childOps'][number]` — instead of a recursive
-//   conditional.
+//   Each op exposes its kind, dtype, dshape, and optionally its other params and child ops
+//   (e.g. Add's `left`/`right`).
 //
-//   A `CompilationRule<Target, Out, Supported>` is a single handler with
-//   a `canHandle` type-guard predicate (narrowing to `Supported`) and a
-//   `handle` function, parameterized by the *target* (e.g. a StringTarget
-//   with `precision`, or a SqlTarget with `dialect`) and the output type.
+//   Then, orthogonally, you define a compilation target with optional config,
+//   eg a sql target such { dialect: 'postgres' | 'sqlite', client: 'node' | 'browser' }.
+//
+//   Finally, you (or ANYONE) writes out a set of CompilationRule<Target, Out, Supported>
+//   objects that for a given (op, target) pair, say
+//   - "yes, I can handle this" or "no, I can't" in the `canHandle` predicate
+//   - if yes, here's how to compile it in the `handle` function.
+//
 //   Rule sets are plain tuples of these rules, declared with
 //   `as const satisfies CompilationRule<...>[]` and exposed as top-level
 //   readonly constants (`STRING_COMPILATION_RULES`, etc.) so downstream
 //   packages can spread / override / inspect them freely. The exported
 //   top-level functions are `compile` and `canHandle`.
+//
+//   Then, you pass an op, a target, and a rule set to `compile` and it finds the first
+//   rule whose `canHandle` accepts the op, and calls its `handle` with the op, target,
+//   and a `visitNext` callback for recursing into children.
 //
 // EXTENSIBILITY
 //   + 3rd-party ops: new class implementing IVOp<'kindString'>.
@@ -69,9 +73,7 @@ type DataShape = 'scalar' | 'columnar'
 // statically typed info that can be known at expression construction time,
 // without needing to evaluate the expression eg against any data.
 interface IVOp<Kind extends string = string> {
-    readonly thisKind: Kind
-    /** Every op in the transitive subtree, flattened. Drives `OpsOf<O>`. */
-    readonly childOps: readonly IVOp[]
+    readonly kind: Kind
     /** The {@link DataType} of this expression. */
     dtype(): DataType
     /** The {@link DataShape} of this expression, which can be 'scalar' or 'columnar'. */
@@ -89,8 +91,7 @@ type ValueOf<DT extends DataType> =
     number
 
 class Lit<DT extends DataType = DataType> implements IVOp<'lit'> {
-    readonly thisKind = 'lit' as const
-    readonly childOps = [] as const
+    readonly kind = 'lit' as const
     readonly #dataType: DT
     constructor(readonly value: ValueOf<DT>, dataType: DT) {
         this.#dataType = dataType
@@ -110,17 +111,9 @@ function highestDataShape<A extends DataShape, B extends DataShape>(_a: A, _b: B
     return 'columnar' // placeholder
 }
 
-type CombineOps<L extends IVOp, R extends IVOp> = [...L['childOps'], ...R['childOps'], L, R]
-function combineOps<L extends IVOp, R extends IVOp>(left: L, right: R): CombineOps<L, R> {
-    return [...left.childOps, ...right.childOps, left, right] as unknown as CombineOps<L, R>
-}
-
 class Add<L extends IVOp, R extends IVOp> implements IVOp<'add'> {
-    readonly thisKind = 'add' as const
-    readonly childOps: CombineOps<L, R>
-    constructor(readonly left: L, readonly right: R) {
-        this.childOps = combineOps(left, right)
-    }
+    readonly kind = 'add' as const
+    constructor(readonly left: L, readonly right: R) { }
     dtype(): HighestDataType<ReturnType<L['dtype']>, ReturnType<R['dtype']>> {
         return highestDataType(this.left.dtype(), this.right.dtype()) as HighestDataType<ReturnType<L['dtype']>, ReturnType<R['dtype']>>
     }
@@ -135,10 +128,14 @@ class Add<L extends IVOp, R extends IVOp> implements IVOp<'add'> {
 // `handle` receives the typed op (e.g. `Lit<'datetime'>`) with no casts.
 // There's no separate spec registry — the op IS the spec.
 
-// All ops used by an op tree, including transitive descendants. We get
-// this for free because `childOps` is the entire transitive list. One
-// indexed access — no recursive conditional, no depth cap (R23).
-type OpsOf<O extends IVOp> = O | O['childOps'][number]
+// Direct child ops of `O`: every property whose type is itself an IVOp
+// (e.g. Add's `left` and `right`). Derives the tree structure from the
+// op's own fields, so there's no separate stored child list to keep in
+// sync — a leaf like `Lit` simply has no IVOp-typed properties, so this
+// is `never`.
+type DirectChildren<O extends IVOp> = {
+    [K in keyof O]: O[K] extends IVOp ? O[K] : never
+}[keyof O]
 
 type VisitNext<Out, Target> = (sub: IVOp, target?: Target) => Out
 
@@ -153,13 +150,13 @@ type CanHandleChild = (child: IVOp) => boolean
 // handler. Once `Supported` narrows to e.g. `Lit` (whose `thisKind` is
 // the literal `'lit'`, not the generic `string`), `OpFor` is identity
 // and the handler gets the typed op.
-type OpFor<S extends IVOp> = string extends S['thisKind'] ? never : S
+type OpFor<S extends IVOp> = string extends S['kind'] ? never : S
 
 // R20: template-literal error names the offending op(s) in plain text.
 // Surfaces kind + dtype + dshape so e.g. "lit<datetime, scalar>" makes
 // it obvious which combination isn't supported.
 type OpDesc<O extends IVOp> = O extends IVOp
-    ? `${O['thisKind']}<${ReturnType<O['dtype']>}, ${ReturnType<O['dshape']>}>`
+    ? `${O['kind']}<${ReturnType<O['dtype']>}, ${ReturnType<O['dshape']>}>`
     : never
 
 type MissingError<Missing extends IVOp> =
@@ -193,17 +190,43 @@ type OutOf<R> = R extends readonly unknown[] ? {
     [K in keyof R]: R[K] extends { handle: (...args: AnyArgs) => infer O } ? O : never
 }[number] : never
 
+// The type-level twin of the runtime `canHandle` walk, and the single
+// source of truth for "is this tree handleable?". An op is handleable
+// when some rule's `Supported` accepts it AT ITS OWN LEVEL — kind, dtype,
+// dshape, plus any parent-imposed child constraints baked into `Supported`
+// (e.g. `Add<ScalarOp, ScalarOp>`) — AND every direct child is itself
+// handleable. This collects the ops that fail that test, recursing
+// through `DirectChildren` exactly as the runtime recurses via
+// `canHandleChild`: a node whose own kind/dtype/dshape no rule matches is
+// returned immediately, without descending into its children — same as the
+// runtime, where a failing parent rule never calls `canHandleChild`. Both
+// `compile`'s `_proof` and `CanHandle` consume it, so the static and
+// runtime answers can't drift.
+//
+// `Depth` bounds the structural recursion so the type checker can see it
+// terminates. The budget far exceeds any realistic op tree; it is the
+// price of dropping the precomputed `childOps` tuple (whose flat indexing
+// needed no recursion).
+type Decr = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+type UnhandledOps<R, O extends IVOp, Depth extends number = 16> =
+    [Depth] extends [never] ? never
+    : O extends IVOp
+    ? O extends OpsHandledBy<R>
+    ? UnhandledOps<R, DirectChildren<O>, Decr[Depth]>
+    : O
+    : never
+
 function compile<O extends IVOp, R extends readonly unknown[],>(
     op: O,
     target: TargetOf<R>,
     rules: R,
-    // typing black magic: if the op tree contains any ops not assignable
-    // to the rules' OpsHandledBy, error with a message listing the
-    // offenders. This is what gives us "lit<datetime> on sqlite is
-    // rejected at compile time" — see SQL_SQLITE_COMPILATION_RULES.
-    ..._proof: [Exclude<OpsOf<O>, OpsHandledBy<R>>] extends [never]
+    // typing black magic: if the op tree contains any op that no rule can
+    // handle (the same rule-driven recursion as `canHandle`), error with a
+    // message listing the offenders. This is what gives us "lit<datetime>
+    // on sqlite is rejected at compile time" — see SQL_SQLITE_COMPILATION_RULES.
+    ..._proof: [UnhandledOps<R, O>] extends [never]
         ? []
-        : [missing: MissingError<Exclude<OpsOf<O>, OpsHandledBy<R>>>]
+        : [missing: MissingError<UnhandledOps<R, O>>]
 ): OutOf<R> {
     type T = TargetOf<R>
     type Out = OutOf<R>
@@ -222,7 +245,7 @@ function compile<O extends IVOp, R extends readonly unknown[],>(
     const next: VisitNext<Out, T> = (sub, passedTarget) => {
         const effectiveTarget = (passedTarget ?? target) as T
         const rule = handlers.find(r => r.canHandle(sub, effectiveTarget, makeCanHandleChild(effectiveTarget)))
-        if (!rule) throw new Error(`No compilation rule handles op: ${sub.thisKind}`)
+        if (!rule) throw new Error(`No compilation rule handles op: ${sub.kind}`)
         return rule.handle(sub, effectiveTarget, next)
     }
     return next(op, target)
@@ -232,12 +255,11 @@ function compile<O extends IVOp, R extends readonly unknown[],>(
 //
 // `CanHandle<R, O>` is the type-level twin of the runtime `canHandle()`:
 // given a rule set R and an op O, it resolves to the literal `true` if
-// every op in the tree (`OpsOf<O>`) is covered by the rules'
-// `OpsHandledBy<R>`, otherwise `false`. Same machinery as `compile()`'s
-// `_proof` parameter, just exposed as a boolean instead of a
-// `MissingError` template.
+// every op in the tree is handleable by the rules, otherwise `false`.
+// Same `UnhandledOps` machinery as `compile()`'s `_proof` parameter, just
+// exposed as a boolean instead of a `MissingError` template.
 type CanHandle<R, O extends IVOp> =
-    [Exclude<OpsOf<O>, OpsHandledBy<R>>] extends [never] ? true : false
+    [UnhandledOps<R, O>] extends [never] ? true : false
 
 // Typed `IVOp` — return value is narrowed to `true` or `false` at
 // compile time via `CanHandle<R, O>`. The runtime walks the full op
@@ -271,11 +293,11 @@ interface StringTarget {
 type StringCompilationRule = CompilationRule<StringTarget, string>
 
 function makeIsKind<O extends IVOp>(
-    kind: O['thisKind'],
+    kind: O['kind'],
     childrenOf?: (op: O) => readonly IVOp[],
 ): (op: IVOp, target: unknown, canHandleChild?: CanHandleChild) => op is O {
     return (op: IVOp, _target: unknown, canHandleChild: CanHandleChild = () => true): op is O =>
-        op.thisKind === kind && (childrenOf === undefined || childrenOf(op as O).every(canHandleChild))
+        op.kind === kind && (childrenOf === undefined || childrenOf(op as O).every(canHandleChild))
 }
 
 const STRING_COMPILATION_RULES = [
@@ -328,11 +350,8 @@ const EVALUATE_COMPILATION_RULES = [
 // WITHOUT modifying the core compilation rules
 
 class Cov<L extends IVOp, R extends IVOp> implements IVOp<'@stats/cov'> {
-    readonly thisKind = '@stats/cov' as const
-    readonly childOps: CombineOps<L, R>
-    constructor(readonly left: L, readonly right: R) {
-        this.childOps = combineOps(left, right)
-    }
+    readonly kind = '@stats/cov' as const
+    constructor(readonly left: L, readonly right: R) { }
     dtype(): HighestDataType<ReturnType<L['dtype']>, ReturnType<R['dtype']>> {
         return highestDataType(this.left.dtype(), this.right.dtype()) as HighestDataType<ReturnType<L['dtype']>, ReturnType<R['dtype']>>
     }
@@ -431,12 +450,13 @@ const SQL_COMPILATION_RULES = [
 // SQLite rules: identical at runtime, but the type-level `Supported`
 // union omits `Lit<'datetime'>`, turning the old runtime check into a
 // compile-time check. Add/Cov over a datetime descendant is also
-// rejected because `OpsOf<O>` flattens the whole op tree.
+// rejected because the static check (`UnhandledOps`) recurses the whole
+// op tree via `DirectChildren`.
 type NonDatetime = Exclude<DataType, 'datetime'>
 const SQL_SQLITE_COMPILATION_RULES = [
     {
         name: 'any_lit_except_datetime',
-        canHandle: (op: IVOp, _target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> => op.thisKind === 'lit' && op.dtype() !== 'datetime',
+        canHandle: (op: IVOp, _target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> => op.kind === 'lit' && op.dtype() !== 'datetime',
         handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>) => {
             const { value } = op
             const dt = op.dtype()
@@ -598,10 +618,11 @@ describe('SQL compilation rules', () => {
     })
 
     it('rejects nested datetime on sqlite at both compile and run time', () => {
-        // OpsOf<O> flattens the whole tree, so an Add over a datetime
-        // descendant is statically rejected too — the compile-time error
-        // still names `lit<datetime, scalar>`. At runtime, dispatch now
-        // recurses via `canHandleChild`: the `add` rule refuses as soon as
+        // The static check recurses the whole tree (via `DirectChildren`),
+        // so an Add over a datetime descendant is statically rejected too —
+        // the compile-time error still names `lit<datetime, scalar>`. At
+        // runtime, dispatch recurses via `canHandleChild`: the `add` rule
+        // refuses as soon as
         // a child (the datetime lit) is unhandleable, so no rule matches
         // the `add` and the throw names the subtree root.
         const dtPlus = new Add(dt, new Lit(1, 'int'))
@@ -644,7 +665,7 @@ describe('R22 introspection', () => {
         // The real assertion is the @ts-expect-error: a bare kind string is
         // not an IVOp, so the type checker rejects it. At runtime the string
         // matches no rule's `canHandle`, so the recursive walk simply returns
-        // false (the old impl threw only because it spread `op.childOps`).
+        // false.
         // @ts-expect-error — bare kind strings are not accepted; pass a full IVOp
         expect(canHandle(userCompilationRules, '@stats/cov')).toBe(false)
     })
@@ -673,7 +694,7 @@ describe('R22 introspection', () => {
         // Nested: an Add over a datetime child is unhandleable on sqlite. The
         // `add` rule recurses into its children via canHandleChild, so it
         // refuses the moment the datetime lit is rejected — the runtime walk
-        // and the OpsOf-based type level agree.
+        // and the recursive type-level check agree.
         const dtPlus = new Add(dt, new Lit(1, 'int'))
         expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dtPlus>>().toEqualTypeOf<false>()
         const e = canHandle(SQL_SQLITE_COMPILATION_RULES, dtPlus, { dialect: 'sqlite' })
@@ -692,8 +713,8 @@ describe('R22 introspection', () => {
         // kind-only flatten check could never reject the columnar case (every
         // op is supported by kind), but encoding the constraint in the rule's
         // `Supported` type — `Add<ScalarOp, ScalarOp>` — makes BOTH the
-        // recursive runtime `canHandleChild` and the type-level `CanHandle`
-        // (via `OpsOf`) reject an `Add` whose child is itself a columnar `Add`.
+        // recursive runtime `canHandleChild` and the recursive type-level
+        // `CanHandle` reject an `Add` whose child is itself a columnar `Add`.
         type ScalarOp = IVOp & { dshape(): 'scalar' }
         const rules = [
             {
@@ -704,7 +725,7 @@ describe('R22 introspection', () => {
             {
                 name: 'scalar-only add',
                 canHandle: (op: IVOp, _t: unknown, canHandleChild: CanHandleChild): op is Add<ScalarOp, ScalarOp> => {
-                    if (op.thisKind !== 'add') return false
+                    if (op.kind !== 'add') return false
                     const add = op as Add<IVOp, IVOp>
                     return canHandleChild(add.left) && canHandleChild(add.right)
                         && add.left.dshape() === 'scalar' && add.right.dshape() === 'scalar'
@@ -725,64 +746,3 @@ describe('R22 introspection', () => {
         expect(b).toBe(false)
     })
 })
-
-// =============================================================================
-// HOW IT SCORES AGAINST THE PRD
-//
-// STRONG
-//   + R1 expression-problem: both axes open. The stats package teaches
-//     CORE rules about Cov by spreading them into a new constant; an
-//     end user combines a 3rd-party op with 3rd-party compilation rules the
-//     same way.
-//   + R2 op-declares-self: ops carry their kind/dtype/dshape/childOps
-//     directly; they say nothing about which targets they can be compiled to.
-//   + R3 dialect-safety: `OpsOf<O>` enumerates every op in the tree
-//     (statically, via `childOps`), and `compile` requires that union
-//     to be a subset of `OpsHandledBy<rules>`. Missing ops → typed
-//     error. Because Supported is an IVOp union (not just a kind
-//     union), the rules can ALSO restrict on dtype/dshape — e.g.
-//     `SQL_SQLITE_COMPILATION_RULES` excludes `Lit<'datetime'>` and
-//     turns `compile(rules, dtLit, { dialect: 'sqlite' })` into a
-//     compile-time error.
-//   – R7 name-collision: packages namespace their kinds with a unique prefix, e.g. `@stats/cov`.
-//   + R10 multi-target: Target is a generic, so the same op tree can be
-//     compiled to string, evaluated, or emitted as SQL by different
-//     compilation rules without touching the tree.
-//   + R11/R22 static-introspection: `OpsOf<typeof tree>` is one
-//     indexed access; `OpsHandledBy<typeof c>` projects the compilation rules.
-//   + R14 fallback: rules are plain objects, so spreading lets downstream
-//     compilation rules re-emit a core kind differently via last-write-wins.
-//   + R15 type-composition: lives next to existing `DataType` /
-//     `DataShape` rather than replacing them; same generic-threading
-//     pattern as the rest of the codebase.
-//   + R18 typed-handler-payload: each rule's `canHandle` narrows to a
-//     concrete op class, so `op.left` / `op.right` / `op.value` are
-//     typed without casts.
-//   + R19 exhaustiveness: `{ [O in Supported as O['thisKind']]: Handler<O, ...> }`
-//     errors at compile time if a handler is missing for any op in
-//     `Supported`.
-//   + R20 error-clarity: template-literal error names the offending op
-//     in plain English: `compilation rules don't support op(s): lit<datetime, scalar>`.
-//   + R23 check-time: no recursive conditional on the tree — the
-//     transitive op list is already a tuple in `childOps`. Should
-//     scale better than D/E on deep trees.
-//   + R24 tree-shaking: spreads produce new VALUES; no
-//     load-time side effects mutating shared state.
-//
-// WEAK / OPEN
-//   – R5 typed-deserialization: not addressed here. A `parseOp<Allowed>`
-//     gate like B/E's would re-assert the kind phantom at the wire
-//     boundary; left as future work.
-//   – R6 wire-stability: ops carry no `version`. Perhaps that should be
-//     the responsibility of the serializer/deserializer instead of the indiviudal op classes?
-//   + R13 capability-axes: partial — targets are generic (`SqlTarget<D>`)
-//     and Supported is an IVOp union, so per-target capability
-//     constraints can be encoded in the type (`Supported` excludes
-//     `Lit<'datetime'>` for `SqlTarget<'sqlite'>`). Open: there's
-//     still no first-class capability REGISTRY à la E for axes that
-//     aren't naturally part of the op.
-//   – Op boilerplate (R17): each composite op threads child ops
-//     through generics and combines them in the constructor. Comparable
-//     to B's phantom-threading cost. A `defineOp` helper could compress
-//     this, but the op shape is fundamental to R23's win here.
-// =============================================================================
