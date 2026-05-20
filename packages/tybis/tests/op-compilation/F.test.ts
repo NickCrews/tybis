@@ -231,44 +231,21 @@ function compile<R extends readonly unknown[], O extends IVOp>(
 type CanHandle<R, O extends IVOp> =
     [Exclude<OpsOf<O>, OpsHandledBy<R>>] extends [never] ? true : false
 
-type HasCanHandle<O extends IVOp, Target = unknown> = { canHandle: (op: IVOp, target: Target) => op is O }
-
-// Overload 1: typed `IVOp` — return value is narrowed to `true` or
-// `false` at compile time via `CanHandle<R, O>`. The runtime walks the
-// full op tree to match.
+// Typed `IVOp` — return value is narrowed to `true` or `false` at
+// compile time via `CanHandle<R, O>`. The runtime walks the full op
+// tree and requires every op be handled by some rule.
 function canHandle<R extends readonly unknown[], O extends IVOp>(
     rules: R,
     op: O,
     target?: TargetOf<R>
 ): CanHandle<R, O>
-// Overload 2: string kind — runtime-only boolean, since a bare kind
-// string carries no static tree info.
-function canHandle<T = unknown>(
-    ruleOrRules: HasCanHandle<IVOp, T> | readonly HasCanHandle<IVOp, T>[],
-    kindOrOp: string | IVOp,
-    target?: T
-): boolean
 function canHandle(
-    ruleOrRules: HasCanHandle<IVOp, unknown> | readonly HasCanHandle<IVOp, unknown>[],
-    kindOrOp: string | IVOp,
+    rules: readonly { canHandle: (op: IVOp, target: unknown) => boolean }[],
+    op: IVOp,
     target?: unknown
 ): boolean {
-    const rules: readonly HasCanHandle<IVOp, unknown>[] =
-        Array.isArray(ruleOrRules) ? ruleOrRules : [ruleOrRules as HasCanHandle<IVOp, unknown>]
-    if (typeof kindOrOp === 'object' && kindOrOp !== null && 'thisKind' in kindOrOp) {
-        const op = kindOrOp as IVOp
-        const allOps: readonly IVOp[] = [op, ...op.childOps]
-        return allOps.every(o => rules.some(r => r.canHandle(o, target)))
-    }
-    // Synthesize a minimal IVOp from a bare kind string so existing
-    // kind-only predicates (`op.thisKind === 'foo'`) still work.
-    const fakeOp: IVOp = {
-        thisKind: kindOrOp as string,
-        childOps: [],
-        dtype: () => 'string',
-        dshape: () => 'scalar',
-    }
-    return rules.some(r => r.canHandle(fakeOp, target))
+    const allOps: readonly IVOp[] = [op, ...op.childOps]
+    return allOps.every(o => rules.some(r => r.canHandle(o, target)))
 }
 
 // ---- Core compilation targets ----
@@ -653,36 +630,34 @@ describe('R22 introspection', () => {
         expectTypeOf<FullKinds>().toEqualTypeOf<'lit' | 'add' | '@stats/cov'>()
     })
 
-    it('answers canHandle from a kind string, but can\'t infer the type', () => {
-        const cov = canHandle(userCompilationRules, '@stats/cov')
-        expect(cov).toBe(true)
-        expectTypeOf(cov).toEqualTypeOf<boolean>()
-
-        const nope = canHandle(userCompilationRules, 'nope')
-        expect(nope).toBe(false)
-        expectTypeOf(nope).toEqualTypeOf<boolean>()
-    })
-
-    it('answers CanHandle at the type level', () => {
-        expectTypeOf<CanHandle<typeof STRING_COMPILATION_RULES, typeof cov>>().toEqualTypeOf<false>()
-        expectTypeOf<CanHandle<typeof userCompilationRules, typeof cov>>().toEqualTypeOf<true>()
-        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<false>()
-        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<true>()
+    it('rejects bare kind strings at the type level', () => {
+        // Type-only assertions: wrapped in a never-called function so the
+        // runtime never sees the synthetic bad arguments, but the
+        // TypeScript checker still verifies the @ts-expect-error
+        // directives fire.
+        expect(() => {
+            // @ts-expect-error — bare kind strings are not accepted; pass a full IVOp
+            canHandle(userCompilationRules, '@stats/cov')
+        }).toThrow()
     })
 
     it('answers canHandle from a typed IVOp, narrowed at the type level', () => {
+        expectTypeOf<CanHandle<typeof STRING_COMPILATION_RULES, typeof cov>>().toEqualTypeOf<false>()
         const a = canHandle(STRING_COMPILATION_RULES, cov)
         expectTypeOf(a).toEqualTypeOf<false>()
         expect(a).toBe(false)
 
+        expectTypeOf<CanHandle<typeof userCompilationRules, typeof cov>>().toEqualTypeOf<true>()
         const b = canHandle(userCompilationRules, cov)
         expectTypeOf(b).toEqualTypeOf<true>()
         expect(b).toBe(true)
 
+        expectTypeOf<CanHandle<typeof SQL_SQLITE_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<false>()
         const c = canHandle(SQL_SQLITE_COMPILATION_RULES, dt)
         expectTypeOf(c).toEqualTypeOf<false>()
         expect(c).toBe(false)
 
+        expectTypeOf<CanHandle<typeof SQL_COMPILATION_RULES, typeof dt>>().toEqualTypeOf<true>()
         const d = canHandle(SQL_COMPILATION_RULES, dt)
         expectTypeOf(d).toEqualTypeOf<true>()
         expect(d).toBe(true)
