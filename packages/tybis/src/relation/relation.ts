@@ -51,14 +51,18 @@ function buildCols<S extends Schema>(sch: S): Cols<S> {
 // Schema-shape helpers
 // ---------------------------------------------------------------------------
 
+// Forces TS to display a computed type as a flat object literal in IDE hovers,
+// rather than the raw `A & B` / `Omit<...> & { ... }` expression.
+type Prettify<T> = { [K in keyof T]: T[K] } & {}
+
 type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
     [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never
 }
 
 type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> =
-    Omit<S, keyof D> & {
+    Prettify<Omit<S, keyof D> & {
         [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never
-    }
+    }>
 
 type SelectInput<S extends Schema, D> = {
     [K in keyof D]: K extends keyof S
@@ -66,12 +70,12 @@ type SelectInput<S extends Schema, D> = {
     : IVExpr<any, any>
 }
 
-type SelectSchema<S extends Schema, D> = {
+type SelectSchema<S extends Schema, D> = Prettify<{
     [K in keyof D as D[K] extends false ? never : K]:
     D[K] extends IVExpr<infer T, any> ? T :
     D[K] extends boolean ? (K extends keyof S ? S[K] : never) :
     never
-}
+}>
 
 type SortDir = 'asc' | 'desc'
 type SortKeyOpts = { dir: SortDir; nulls?: NullsOrder }
@@ -336,7 +340,7 @@ export class GroupedRelation<S extends Schema, KS extends Schema> {
      */
     agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
         input: A | ((r: Cols<S>) => A)
-    ): Relation<KS & AggResultSchema<A>, GroupOp<KS & AggResultSchema<A>>> {
+    ): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>> {
         const aggregations = typeof input === 'function' ? input(this._source.cols) : input
 
         for (const [key, expr] of Object.entries(aggregations)) {
