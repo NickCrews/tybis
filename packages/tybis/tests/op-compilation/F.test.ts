@@ -416,6 +416,13 @@ const covEvaluateCompilationRules = [
 // Provides a `SqlTarget<D>` with a `dialect` parameter and ONE rule set that
 // handles the CORE ops across every dialect. Does NOT know about Cov.
 //
+// Unlike the Repr and Evaluate targets, SQL emits a COMPOSITE result —
+// `{ sql, params }` — so every literal becomes a `?` placeholder and its value
+// is pushed into the params list. Every non-leaf handler has to merge both
+// pieces of each child by hand: concat the sql fragments and spread the params
+// in matching order. This is the cost of having no shared mutable context
+// threaded through the visit; it's visible at every Add/Cov handler below.
+//
 // The literal compiler comes in two SIBLING rules that live side by side in
 // the same list and discriminate on `target.dialect`:
 //   - one for postgres/duckdb, which supports every dtype including datetime;
@@ -434,8 +441,9 @@ interface SqlTarget<D extends SqlDialect = SqlDialect> {
     dialect: D
 }
 
-function sqlEscapeString(s: string): string {
-    return `'${s.replace(/'/g, "''")}'`
+interface SqlOut {
+    readonly sql: string
+    readonly params: readonly unknown[]
 }
 
 type NonDatetime = Exclude<DataType, 'datetime'>
@@ -447,28 +455,26 @@ type NonDatetime = Exclude<DataType, 'datetime'>
 // (target params are contravariant) — the explicit signatures on each rule
 // do the shape-checking instead.
 const SQL_COMPILATION_RULES = [
-    // Postgres / DuckDB literal — supports every dtype, including datetime.
+    // Postgres / DuckDB literal — every dtype becomes a `?` placeholder and its
+    // value is pushed into params. Datetime additionally wraps the placeholder
+    // in a dialect-specific cast.
     {
         name: 'lit (postgres/duckdb)',
         canHandle: (op: IVOp, target: SqlTarget<'postgres' | 'duckdb'>): op is Lit =>
             op.kind === 'lit' && (target.dialect === 'postgres' || target.dialect === 'duckdb'),
-        handle: (op: Lit, target: SqlTarget<'postgres' | 'duckdb'>): string => {
+        handle: (op: Lit, target: SqlTarget<'postgres' | 'duckdb'>): SqlOut => {
             const { value } = op
             const dt = op.dtype()
             switch (dt) {
                 case 'string':
-                    return sqlEscapeString(String(value))
                 case 'boolean':
-                    return value ? 'TRUE' : 'FALSE'
-                case 'datetime': {
-                    const lit = sqlEscapeString(String(value))
-                    return target.dialect === 'postgres'
-                        ? `${lit}::timestamptz`
-                        : `CAST(${lit} AS TIMESTAMP)`
-                }
                 case 'int':
                 case 'float':
-                    return String(value)
+                    return { sql: '?', params: [value] }
+                case 'datetime':
+                    return target.dialect === 'postgres'
+                        ? { sql: '?::timestamptz', params: [value] }
+                        : { sql: 'CAST(? AS TIMESTAMP)', params: [value] }
                 default:
                     throw new Error(`Unsupported data type for SQL: ${dt satisfies never}`)
             }
@@ -481,27 +487,30 @@ const SQL_COMPILATION_RULES = [
         name: 'lit (sqlite)',
         canHandle: (op: IVOp, target: SqlTarget<'sqlite'>): op is Lit<NonDatetime> =>
             op.kind === 'lit' && target.dialect === 'sqlite' && op.dtype() !== 'datetime',
-        handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>): string => {
+        handle: (op: Lit<NonDatetime>, _target: SqlTarget<'sqlite'>): SqlOut => {
             const { value } = op
             const dt = op.dtype()
             switch (dt) {
                 case 'string':
-                    return sqlEscapeString(String(value))
                 case 'boolean':
-                    return value ? 'TRUE' : 'FALSE'
                 case 'int':
                 case 'float':
-                    return String(value)
+                    return { sql: '?', params: [value] }
                 default:
                     throw new Error(`Unsupported data type for SQLite: ${dt satisfies never}`)
             }
         },
     },
     // Addition — identical across dialects, so a single rule serves them all.
+    // Each composite handler has to merge both halves of the child SqlOuts.
     {
         name: 'add',
         canHandle: makeIsKind<Add<IVOp, IVOp>>('add', op => [op.left, op.right]),
-        handle: (op: Add<IVOp, IVOp>, _t: SqlTarget, next: VisitNext<string, SqlTarget>): string => `(${next(op.left)} + ${next(op.right)})`,
+        handle: (op: Add<IVOp, IVOp>, _t: SqlTarget, next: VisitNext<SqlOut, SqlTarget>): SqlOut => {
+            const l = next(op.left)
+            const r = next(op.right)
+            return { sql: `(${l.sql} + ${r.sql})`, params: [...l.params, ...r.params] }
+        },
     },
 ] as const
 
@@ -534,15 +543,26 @@ const userCompilationRules = [
     {
         name: '@stats/cov (postgres + duckdb)',
         canHandle: isCovFor(['postgres', 'duckdb']),
-        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'postgres'>, next: VisitNext<string, SqlTarget<'postgres'>>): string => `covar_pop(${next(op.left)}, ${next(op.right)})`,
+        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'postgres' | 'duckdb'>, next: VisitNext<SqlOut, SqlTarget<'postgres' | 'duckdb'>>): SqlOut => {
+            const l = next(op.left)
+            const r = next(op.right)
+            return { sql: `covar_pop(${l.sql}, ${r.sql})`, params: [...l.params, ...r.params] }
+        },
     },
     {
         name: '@stats/cov (sqlite)',
         canHandle: isCovFor(['sqlite']),
-        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<string, SqlTarget<'sqlite'>>): string => {
+        handle: (op: Cov<IVOp, IVOp>, _t: SqlTarget<'sqlite'>, next: VisitNext<SqlOut, SqlTarget<'sqlite'>>): SqlOut => {
             const l = next(op.left)
             const r = next(op.right)
-            return `(AVG(${l}*${r}) - AVG(${l})*AVG(${r}))`
+            // Each child is referenced twice in the math, so its params have to
+            // be spread twice as well to stay aligned with the `?` placeholders.
+            // This is the kind of bookkeeping a shared mutable context would
+            // eliminate — leaving it inline so the cost is visible.
+            return {
+                sql: `(AVG(${l.sql}*${r.sql}) - AVG(${l.sql})*AVG(${r.sql}))`,
+                params: [...l.params, ...r.params, ...l.params, ...r.params],
+            }
         },
     },
 ] as const
@@ -626,23 +646,31 @@ describe('stats lib compilation rules', () => {
 
 describe('SQL compilation rules', () => {
     it('emits add on postgres', () => {
-        expect(compile(sum, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toBe('(5 + 10)')
+        expect(compile(sum, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toEqual({
+            sql: '(? + ?)',
+            params: [5, 10],
+        })
     })
 
     it('emits add on sqlite', () => {
-        expect(compile(sum, { dialect: 'sqlite' }, SQL_COMPILATION_RULES)).toBe('(5 + 10)')
+        expect(compile(sum, { dialect: 'sqlite' }, SQL_COMPILATION_RULES)).toEqual({
+            sql: '(? + ?)',
+            params: [5, 10],
+        })
     })
 
     it('emits datetime literal on postgres', () => {
-        expect(compile(dt, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toBe(
-            "'2026-01-01T00:00:00Z'::timestamptz",
-        )
+        expect(compile(dt, { dialect: 'postgres' }, SQL_COMPILATION_RULES)).toEqual({
+            sql: '?::timestamptz',
+            params: ['2026-01-01T00:00:00Z'],
+        })
     })
 
     it('emits datetime literal on duckdb', () => {
-        expect(compile(dt, { dialect: 'duckdb' }, SQL_COMPILATION_RULES)).toBe(
-            "CAST('2026-01-01T00:00:00Z' AS TIMESTAMP)",
-        )
+        expect(compile(dt, { dialect: 'duckdb' }, SQL_COMPILATION_RULES)).toEqual({
+            sql: 'CAST(? AS TIMESTAMP)',
+            params: ['2026-01-01T00:00:00Z'],
+        })
     })
 
     it('rejects datetime literal on sqlite at both compile and run time', () => {
@@ -673,28 +701,32 @@ describe('SQL compilation rules', () => {
 
 describe('end-user glue: cov compiled to SQL', () => {
     it('emits covar_pop on postgres', () => {
-        expect(compile(cov, { dialect: 'postgres' }, userCompilationRules)).toBe(
-            "covar_pop('xs', 'ys')",
-        )
+        expect(compile(cov, { dialect: 'postgres' }, userCompilationRules)).toEqual({
+            sql: 'covar_pop(?, ?)',
+            params: ['xs', 'ys'],
+        })
     })
 
     it('emits covar_pop on duckdb', () => {
-        expect(compile(cov, { dialect: 'duckdb' }, userCompilationRules)).toBe(
-            "covar_pop('xs', 'ys')",
-        )
+        expect(compile(cov, { dialect: 'duckdb' }, userCompilationRules)).toEqual({
+            sql: 'covar_pop(?, ?)',
+            params: ['xs', 'ys'],
+        })
     })
 
     it('emits the manual covariance math on sqlite', () => {
-        expect(compile(cov, { dialect: 'sqlite' }, userCompilationRules)).toBe(
-            "(AVG('xs'*'ys') - AVG('xs')*AVG('ys'))",
-        )
+        expect(compile(cov, { dialect: 'sqlite' }, userCompilationRules)).toEqual({
+            sql: '(AVG(?*?) - AVG(?)*AVG(?))',
+            params: ['xs', 'ys', 'xs', 'ys'],
+        })
     })
 
     it('composes cov inside an add', () => {
         const mixed = new Add(cov, new Lit(1, 'float'))
-        expect(compile(mixed, { dialect: 'duckdb' }, userCompilationRules)).toBe(
-            "(covar_pop('xs', 'ys') + 1)",
-        )
+        expect(compile(mixed, { dialect: 'duckdb' }, userCompilationRules)).toEqual({
+            sql: '(covar_pop(?, ?) + ?)',
+            params: ['xs', 'ys', 1],
+        })
     })
 })
 
