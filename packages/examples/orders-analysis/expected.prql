@@ -1,0 +1,12 @@
+from orders
+filter is_paid == true
+filter amount > 50
+group {customer_id} (
+  aggregate {
+    order_count = count this,
+    total_spent = sum amount,
+    max_order = max amount
+  }
+)
+sort {-total_spent}
+take 20

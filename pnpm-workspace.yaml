@@ -1,6 +1,6 @@
 packages:
   - "packages/*"
 
-onlyBuiltDependencies:
-  - '@swc/core'
-  - esbuild
+allowBuilds:
+  '@swc/core': true
+  esbuild: true

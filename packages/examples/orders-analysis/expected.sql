@@ -1,0 +1,1 @@
+SELECT "customer_id", COUNT(*) AS "order_count", SUM("amount") AS "total_spent", MAX("amount") AS "max_order" FROM "orders" WHERE ("is_paid" = TRUE) AND ("amount" > 50) GROUP BY "customer_id" ORDER BY "total_spent" DESC LIMIT 20

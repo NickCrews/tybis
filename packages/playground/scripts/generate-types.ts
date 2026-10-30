@@ -1,8 +1,7 @@
 /**
  * Generates tybis-dts.ts by dynamically pulling type definitions from the
- * built tybis package (dist/index.d.ts) and adding playground-specific
- * globals (ty, preview).
- * 
+ * built tybis package (dist/index.d.ts).
+ *
  * This ensures the Monaco editor always has up-to-date type definitions
  * without manually maintaining a duplicate copy.
  * 
@@ -30,8 +29,7 @@ const sqlCompilerDtsRaw = readFileSync(sqlCompilerDistPath, 'utf-8')
 
 const header = `/**
  * Type declarations injected into the Monaco editor so users get
- * autocomplete and type-checking for the tybis API and the \`preview\`
- * sandbox function.
+ * autocomplete and type-checking for the tybis API.
  *
  * Auto-generated from tybis + tybis-sql-compiler package types.
  */

@@ -1,16 +1,26 @@
 import * as Babel from '@babel/standalone'
 import * as ty from 'tybis'
 import * as tysql from 'tybis-sql-compiler'
-import { DuckDbSqlCompiler } from 'tybis-sql-compiler'
-import { toPrql } from 'tybis-prql-compiler'
+import { compileRelation, type CompileResult } from 'tybis-examples'
 
-export type PreviewResult =
-  | { kind: 'ok'; prql: string; sql: string | null; sqlError: string | null }
-  | { kind: 'error'; message: string }
+/** The modules that user code can import. */
+const MODULES: Record<string, unknown> = {
+  'tybis': ty,
+  'tybis-sql-compiler': tysql,
+}
+
+function requireModule(name: string): unknown {
+  if (!(name in MODULES)) {
+    throw new Error(`Cannot import '${name}'. Available modules: ${Object.keys(MODULES).join(', ')}`)
+  }
+  return MODULES[name]
+}
 
 /**
  * Transpile TypeScript user code to plain JavaScript by stripping type
- * annotations. We keep it as ESNext so the modern browser handles it natively.
+ * annotations and converting ES modules to CommonJS, so that the code can run
+ * inside a function body with its imports and exports routed through the
+ * `require` and `exports` that we pass in.
  */
 function transpile(tsCode: string): string {
   const result = Babel.transform(tsCode, {
@@ -18,7 +28,7 @@ function transpile(tsCode: string): string {
     presets: [
       ['typescript', { allExtensions: true }],
     ],
-    plugins: [],
+    plugins: ['transform-modules-commonjs'],
     sourceType: 'module',
   })
   if (!result.code) throw new Error('Transpilation produced no output')
@@ -26,14 +36,16 @@ function transpile(tsCode: string): string {
 }
 
 /**
- * Run user TypeScript code in a sandboxed function.
+ * Run user TypeScript code in a function on the current page.
  *
- * The sandbox injects:
- *   - `preview`  – a function the user calls to push output to the panel
+ * This is not a security boundary: imports are limited to `MODULES`, but the
+ * code can still reach every browser global.
  *
- * Returns the result captured by `preview()`, or an error.
+ * The code's default export is the relation to show in the output panel.
+ *
+ * Returns the compiled output of that relation, or an error.
  */
-export async function runCode(tsCode: string): Promise<PreviewResult> {
+export async function runCode(tsCode: string): Promise<CompileResult> {
   let jsCode: string
   try {
     jsCode = transpile(tsCode)
@@ -41,52 +53,20 @@ export async function runCode(tsCode: string): Promise<PreviewResult> {
     return { kind: 'error', message: String(err) }
   }
 
-  // mega hacky. There must be better ways to do this.
-  jsCode = jsCode.replace(
-    /import\s+\*\s+as\s+(\w+)\s+from\s+['"]tybis['"]/g,
-    'const $1 = __ty'
-  )
-  jsCode = jsCode.replace(
-    /import\s+\*\s+as\s+(\w+)\s+from\s+['"]tybis-sql-compiler['"]/g,
-    'const $1 = __tysql'
-  )
-
-  let captured: ty.Relation | null = null
-
-  function preview(relation: ty.Relation) {
-    captured = relation
-  }
-
+  const exports: { default?: unknown } = {}
   try {
-    const fn = new Function('__ty', '__tysql', 'preview', jsCode)
-    await fn(ty, tysql, preview)
+    const fn = new Function('require', 'exports', jsCode)
+    await fn(requireModule, exports)
   } catch (err) {
     return { kind: 'error', message: String(err) }
   }
 
-  if (captured === null) {
+  if (!(exports.default instanceof ty.Relation)) {
     return {
       kind: 'error',
-      message: 'No output — call preview(relation) to see results.',
+      message: 'No output — add `export default relation` to see results.',
     }
   }
 
-  const rel = captured as ty.Relation<ty.Schema, ty.BuiltinROp>
-
-  let prql: string
-  try {
-    prql = toPrql(rel)
-  } catch (err) {
-    return { kind: 'error', message: `toPrql() failed: ${err}` }
-  }
-
-  let sql: string | null = null
-  let sqlError: string | null = null
-  try {
-    sql = rel.compile(new DuckDbSqlCompiler()).sql
-  } catch (err) {
-    sqlError = String(err)
-  }
-
-  return { kind: 'ok', prql, sql, sqlError }
+  return compileRelation(exports.default)
 }

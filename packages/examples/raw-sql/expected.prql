@@ -1,0 +1,10 @@
+from events
+derive {
+  year = s"EXTRACT(YEAR FROM occurred_at)"
+}
+group {event_name, year} (
+  aggregate {
+    n = count this
+  }
+)
+sort {-n}

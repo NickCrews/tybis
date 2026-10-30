@@ -1,0 +1,10 @@
+from penguins
+group {species} (
+  aggregate {
+    count = count this,
+    avg_bill = average bill_length_mm,
+    avg_mass = average body_mass_g,
+    max_mass = max body_mass_g
+  }
+)
+sort {-avg_mass}

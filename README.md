@@ -61,6 +61,20 @@ Tybis does NOT:
 - Provide DDL or DML constructs, eg `INSERT` or `CREATE TABLE`. We focus the equivalent of `SELECT`.
   But, tybis is designed to be extensible, eg you can do `CREATE TABLE AS ${penguins.filter(r => r.bill_length_mm.gt(40)).toSql()}`
 
+## Examples
+
+[`packages/examples`](packages/examples) holds runnable examples, which are also what the playground's dropdown lists.
+Each folder contains an `example.ts`, whose default export is the relation to compile,
+and the `expected.prql` and `expected.sql` that it must compile to.
+
+```sh
+pnpm example penguins-filter                  # print an example's PRQL and SQL
+pnpm --filter tybis-examples test             # check every example against its expected output
+pnpm --filter tybis-examples test -u          # rewrite the expected output after an intended change
+```
+
+To add an example, create its folder and add it to the list in [`packages/examples/index.ts`](packages/examples/index.ts).
+
 ## API
 
 ### `table(name, schema)`

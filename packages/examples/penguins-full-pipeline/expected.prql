@@ -1,0 +1,15 @@
+from penguins
+filter bill_length_mm > 40
+group {species, year} (
+  aggregate {
+    count = count this,
+    mean_bill = average bill_length_mm
+  }
+)
+select {
+  species = species,
+  count = count,
+  mean_bill_cm = mean_bill / 10
+}
+sort {-count}
+take 10

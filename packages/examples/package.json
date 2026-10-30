@@ -1,0 +1,31 @@
+{
+  "name": "tybis-examples",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Runnable tybis examples, shown in the playground and snapshot tested",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "example": "tsx cli.ts",
+    "lint": "eslint .",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "tybis": "workspace:*",
+    "tybis-prql-compiler": "workspace:*",
+    "tybis-sql-compiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.19.39",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8",
+    "vitest": "^1.2.2"
+  }
+}

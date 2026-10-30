@@ -1,7 +1,6 @@
 /**
  * Type declarations injected into the Monaco editor so users get
- * autocomplete and type-checking for the tybis API and the `preview`
- * sandbox function.
+ * autocomplete and type-checking for the tybis API.
  *
  * Auto-generated from tybis + tybis-sql-compiler package types.
  */
@@ -163,11 +162,14 @@ type InferDtype<DT extends IntoDtype> = DT extends DataType ? DT : DT extends DT
 declare function dtype<T extends IntoDtype>(thing: T): InferDtype<T>;
 type HighestDataType<DTs extends DataType[]> = DTs extends [] ? never : DTFloat<64> extends DTs[number] ? DTFloat<64> : DTFloat<32> extends DTs[number] ? DTFloat<32> : DTFloat<16> extends DTs[number] ? DTFloat<16> : DTFloat<8> extends DTs[number] ? DTFloat<8> : DTInt<64> extends DTs[number] ? DTInt<64> : DTInt<32> extends DTs[number] ? DTInt<32> : DTInt<16> extends DTs[number] ? DTInt<16> : DTInt<8> extends DTs[number] ? DTInt<8> : never;
 
+type Prettify\$1<T> = {
+    [K in keyof T]: T[K];
+} & {};
 type Schema = Record<string, DataType>;
 type IntoSchema = Schema | Record<string, IntoDtype>;
-type InferSchema<T extends IntoSchema> = T extends Schema ? T : T extends Record<string, IntoDtype> ? {
+type InferSchema<T extends IntoSchema> = Prettify\$1<T extends Schema ? T : T extends Record<string, IntoDtype> ? {
     [K in keyof T]: InferDtype<T[K]>;
-} : never;
+} : never>;
 declare function schema<T extends IntoSchema>(s: T): InferSchema<T>;
 
 declare const IsROpSymbol: unique symbol;
@@ -673,18 +675,21 @@ type Col<DT extends DataType = DataType> = VExpr<DT, 'columnar'>;
 type Cols<S extends Schema> = {
     readonly [K in keyof S & string]: Col<S[K]>;
 };
+type Prettify<T> = {
+    [K in keyof T]: T[K];
+} & {};
 type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
     [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never;
 };
-type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> = Omit<S, keyof D> & {
+type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> = Prettify<Omit<S, keyof D> & {
     [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never;
-};
+}>;
 type SelectInput<S extends Schema, D> = {
     [K in keyof D]: K extends keyof S ? (IVExpr<any, any> | boolean) : IVExpr<any, any>;
 };
-type SelectSchema<S extends Schema, D> = {
+type SelectSchema<S extends Schema, D> = Prettify<{
     [K in keyof D as D[K] extends false ? never : K]: D[K] extends IVExpr<infer T, any> ? T : D[K] extends boolean ? (K extends keyof S ? S[K] : never) : never;
-};
+}>;
 type SortDir = 'asc' | 'desc';
 type SortKeyOpts = {
     dir: SortDir;
@@ -708,6 +713,7 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      * @example
      * const penguins = ty.table('penguins', { species: 'string', bill_length_mm: 'float64' })
      * penguins.derive(r => ({ bill_length_cm: r.bill_length_mm.div(10) })).schema
+     * // Result: { species: 'string', bill_length_mm: 'float64', bill_length_cm: 'float64' }
      */
     get schema(): S;
     /**
@@ -718,42 +724,59 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     /**
      * Group rows by key columns, returning a {@link GroupedRelation} for aggregation.
      *
-     * Use the plain-object form to group by existing columns. Use the callback form
-     * when you need to compute keys from column expressions.
-     *
-     * @example penguins.groupBy({ species: true, year: true })
+     * Use the plain-object form to group by existing columns.
      * @example
+     * \`\`\`
+     * penguins.groupBy({ species: true, year: true })
+     * \`\`\`
+     *
+     * Use the callback form when you need to compute derived keys, eg turning the \`year\` column into a decade:
+     * @example
+     * \`\`\`
      * penguins.groupBy(r => ({ kind: r.species, decade: r.year.div(10) }))
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
+     * \`\`\`
      */
     groupBy<K extends SelectInput<S, K>>(input: K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
     groupBy<K extends SelectInput<S, K>>(input: (r: Cols<S>) => K & (keyof K extends never ? "At least one grouping key is required" : K)): GroupedRelation<S, SelectSchema<S, K>>;
     /**
      * Add computed columns to each row.
      *
-     * Use the plain-object form for derivations that don't reference existing columns.
-     * Use the callback form to compute new columns from column expressions.
+     * Use the plain-object form for simple derivations that don't reference existing columns,
+     * for example constant values:
+     * @example
+     * \`\`\`
+     * penguins.derive({ year_offset: ty.lit(2000) })
+     * \`\`\`
      *
-     * @example penguins.derive({ year_offset: ty.lit(2000) })
-     * @example penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
+     * Use the callback form when you need to compute new column values from existing columns:
+     * @example
+     * \`\`\`
+     * penguins.derive(r => ({ ratio: r.bill_length_mm.div(40) }))
+     * \`\`\`
      */
     derive<D extends Record<string, IVExpr<any, any>>>(input: D | ((r: Cols<S>) => D)): Relation<DeriveSchema<S, D>>;
     /**
-     * Replace existing columns with a new set of expressions.
+     * Select a subset of columns, optionally computing new ones.
      *
-     * Use the plain-object form to pick (or drop) existing columns by name. Use
-     * the callback form when you need to compute new column values from
-     * column expressions.
+     * Use the plain-object form to pick (or drop) existing columns by name:
+     * @example
+     * \`\`\`
+     * penguins.select({ species: true, island: true, bill_length_mm: false })
+     * \`\`\`
      *
-     * @example penguins.select({ species: true, island: true })
-     * @example penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
+     * Use the callback form when you need to compute new values from existing columns:
+     * @example
+     * \`\`\`
+     * penguins.select(r => ({ species: r.species, age: r.year.sub(2000) }))
+     * \`\`\`
      */
     select<D extends SelectInput<S, D>>(input: D | ((r: Cols<S>) => D)): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
     /**
      * Sort rows by one or more keys.
      *
      * Plain-object form keys are column names; values are \`'asc'\`, \`'desc'\`,
-     * or \`{ dir, nulls? }\`. Insertion order determines sort priority.
+     * or \`{ dir, nulls? }\`.
      *
      * @example penguins.sort({ year: 'desc' })
      * @example penguins.sort({ species: 'asc', year: { dir: 'desc', nulls: 'last' } })
@@ -786,7 +809,7 @@ declare class GroupedRelation<S extends Schema, KS extends Schema> {
      * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      */
-    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A | ((r: Cols<S>) => A)): Relation<KS & AggResultSchema<A>, GroupOp<KS & AggResultSchema<A>>>;
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A | ((r: Cols<S>) => A)): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>;
 }
 /**
  * Define a relation backed by a database table or view.

@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { examples, defaultExample } from '@/examples'
-import { runCode, type PreviewResult } from '@/lib/runner'
+import type { CompileResult } from 'tybis-examples'
+import { runCode } from '@/lib/runner'
 
 export default function App() {
   const [selectedExampleId, setSelectedExampleId] = useState(defaultExample.id)
   const [code, setCode] = useState(defaultExample.code)
-  const [result, setResult] = useState<PreviewResult | null>(null)
+  const [result, setResult] = useState<CompileResult | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const latestRunIdRef = useRef(0)
   const activeRunsRef = useRef(0)

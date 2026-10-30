@@ -1,0 +1,1 @@
+SELECT "species", COUNT(*) AS "count", AVG("bill_length_mm") AS "avg_bill", AVG("body_mass_g") AS "avg_mass", MAX("body_mass_g") AS "max_mass" FROM "penguins" GROUP BY "species" ORDER BY "avg_mass" DESC

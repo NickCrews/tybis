@@ -1,0 +1,1 @@
+WITH _cte_0 AS (SELECT "species", "year", COUNT(*) AS "count", AVG("bill_length_mm") AS "mean_bill" FROM "penguins" WHERE "bill_length_mm" > 40 GROUP BY "species", "year") SELECT "species", "count", ("mean_bill" / 10) AS "mean_bill_cm" FROM _cte_0 ORDER BY "count" DESC LIMIT 10

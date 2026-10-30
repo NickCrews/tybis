@@ -1,12 +1,12 @@
 import SyntaxHighlighter from 'react-syntax-highlighter'
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 import { AlertCircle, Code2 } from 'lucide-react'
-import type { PreviewResult } from '@/lib/runner'
+import type { CompileResult } from 'tybis-examples'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
 interface OutputPanelProps {
-  result: PreviewResult | null
+  result: CompileResult | null
   isRunning: boolean
 }
 
@@ -33,7 +33,7 @@ export function OutputPanel({ result, isRunning }: OutputPanelProps) {
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
         <Code2 className="h-10 w-10 opacity-30" />
         <p className="text-sm">
-          Call <code className="font-mono text-accent">preview(relation)</code> in your
+          Add <code className="font-mono text-accent">export default relation</code> to your
           code, then press <kbd className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">⌘ Enter</kbd> to run.
         </p>
       </div>

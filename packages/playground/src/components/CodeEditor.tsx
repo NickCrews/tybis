@@ -23,20 +23,8 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
       TYBIS_SQL_COMPILER_DTS,
       'file:///node_modules/tybis-sql-compiler/index.d.ts'
     )
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(
-      `
-      // import { Relation } from "tybis";
-      /**
-        * Push a relation to the output panel.
-        * Call this at the end of your query to display PRQL and SQL.
-        * @example preview(myRelation)
-        */
-      declare function preview(relation: Relation<any>): void
-      `,
-      'ts:tybis-sandbox.d.ts'
-    )
 
-    // Relax some TS checks that don't apply to the sandbox environment.
+    // Relax some TS checks that don't apply to code run in the playground.
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
       target: monaco.languages.typescript.ScriptTarget.ES2020,
       allowNonTsExtensions: true,
@@ -44,8 +32,7 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
       moduleResolution: monaco.languages.typescript.ModuleResolutionKind.Classic,
       noEmit: true,
       strict: true,
-      // Don't require imports — globals are injected by the sandbox.
-      module: monaco.languages.typescript.ModuleKind.None,
+      module: monaco.languages.typescript.ModuleKind.ESNext,
       sourceType: 'module',
     })
 

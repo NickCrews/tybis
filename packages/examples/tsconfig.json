@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "types": ["node"],
+    // Resolve the workspace packages to source so that examples are checked
+    // against the current code, with no build step. tsx reads these too.
+    "paths": {
+      "tybis": ["../tybis/src/index.ts"],
+      "tybis-sql-compiler": ["../sql-compiler/src/index.ts"],
+      "tybis-sql-compiler/ops": ["../sql-compiler/src/ops.ts"],
+      "tybis-prql-compiler": ["../prql-compiler/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

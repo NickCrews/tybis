@@ -1,0 +1,6 @@
+from products
+derive {
+  price_dollars = price_cents / 100,
+  revenue_cents = price_cents * quantity
+}
+sort {-revenue_cents}

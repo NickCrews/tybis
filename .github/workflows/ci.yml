@@ -45,8 +45,11 @@ jobs:
       - *setup_node
       - *setup_install_deps
 
+      - name: Build
+        run: pnpm build
+
       - name: Run tests
-        run: pnpm test run
+        run: pnpm test
 
   typecheck:
     runs-on: ubuntu-latest
@@ -55,6 +58,9 @@ jobs:
       - *setup_install_pnpm
       - *setup_node
       - *setup_install_deps
+
+      - name: Build
+        run: pnpm build
 
       - name: Typecheck
         run: pnpm typecheck
