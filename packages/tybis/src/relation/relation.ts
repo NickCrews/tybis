@@ -334,9 +334,19 @@ export class GroupedRelation<S extends Schema, KS extends Schema> {
 
     /**
      * Aggregate the group with a record of scalar expressions.
+     *
+     * Use the plain-object form for aggregations that don't reference columns:
      * @example
+     * ```
+     * penguins.groupBy({ species: true }).agg({ count: ty.count() })
+     * ```
+     *
+     * Use the callback form when you need to aggregate existing columns:
+     * @example
+     * ```
      * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
+     * ```
      */
     agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
         input: A | ((r: Cols<S>) => A)

@@ -128,10 +128,9 @@ column expressions:
 
 ```typescript
 orders.select(r => ({
-    n: ty.count(),
     amount_usd: r.amount.div(100),
-    transaction_date: true, // keep the existing "transaction_date" column
-    will_be_dropped: false, // explicitly dropped
+    placed_at: true, // keep the existing "placed_at" column
+    is_paid: false, // explicitly dropped
     constantly_42: ty.lit(42), // all rows filled with `42`
     constantly_true: ty.lit(true), // all rows filled with `true`
 }))
@@ -195,7 +194,10 @@ orders.take(100)
 
 Group rows by key columns and apply aggregations. `groupBy` returns a `GroupedRelation`; call `.agg(...)` on it to reduce to one row per group.
 
-If you're grouping by existing columns, use the plain-object form:
+Both `groupBy` and `agg` accept either a plain object or a callback.
+
+If you're grouping by existing columns, use the plain-object form of `groupBy`.
+Use the callback form of `agg` when your aggregations reference columns:
 
 ```typescript
 orders
@@ -208,13 +210,14 @@ orders
 // A relation with columns customer_id, order_count, total_spent, and max_order 
 ```
 
-Use the callback form when you need to compute grouping keys from column expressions:
+Use the callback form of `groupBy` when you need to compute grouping keys from column expressions.
+Use the plain-object form of `agg` when your aggregations don't reference columns:
 
 ```typescript
 orders
-    .groupBy(r => ({ decade: r.year.div(10) }))
-    .agg(g => ({ order_count: ty.count() }))
-// A relation with columns decade and order_count
+    .groupBy(r => ({ amount_bucket: r.amount.div(100) }))
+    .agg({ order_count: ty.count() })
+// A relation with columns amount_bucket and order_count
 ```
 
 ### `count()`
