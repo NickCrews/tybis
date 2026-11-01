@@ -148,23 +148,7 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
     ): GroupedRelation<S, SelectSchema<S, K>> {
         const groupingKeys = (typeof input === 'function' ? (input as any)(this.cols) : input) as Record<string, IVExpr<any, any> | boolean>
 
-        const keyPairs: [string, IVOp][] = []
-        const keySchema: Record<string, DataType> = {}
-        for (const [k, v] of Object.entries(groupingKeys)) {
-            if (typeof v === 'boolean') {
-                if (v === true) {
-                    if (!(k in this.schema)) {
-                        const suggestion = suggestColumnName(k, Object.keys(this.schema))
-                        throw new Error(`Cannot group by '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
-                    }
-                    keyPairs.push([k, (this.cols as any)[k].toOp() as IVOp])
-                    keySchema[k] = this.schema[k]!
-                }
-            } else {
-                keyPairs.push([k, v.toOp() as unknown as IVOp])
-                keySchema[k] = v.dtype()
-            }
-        }
+        const { pairs: keyPairs, schema: keySchema } = this._resolveSelections(groupingKeys, 'group by')
 
         // We could extend this to support empty keys (aggregating the whole table) in the future.
         if (keyPairs.length === 0) {
@@ -223,32 +207,44 @@ export class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
 
         const selections = typeof input === 'function' ? (input as any)(this.cols) : input
 
-        const pairs: [string, IVOp][] = []
-        const newSchema: Record<string, DataType> = {}
-
-        for (const [k, v] of Object.entries(selections) as [string, IVExpr<any, any> | boolean][]) {
-            if (typeof v === 'boolean') {
-                if (v === true) {
-                    if (!(k in this.schema)) {
-                        const suggestion = suggestColumnName(k, Object.keys(this.schema))
-                        throw new Error(`Cannot select '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
-                    }
-                    newSchema[k] = this.schema[k]!
-                    pairs.push([k, (this.cols as any)[k].toOp() as IVOp])
-                } else {
-                    continue
-                }
-            } else {
-                newSchema[k] = v.dtype()
-                pairs.push([k, v.toOp() as unknown as IVOp])
-            }
-        }
+        const { pairs } = this._resolveSelections(selections, 'select')
 
         if (pairs.length === 0) {
             throw new Error("select() requires at least one expression")
         }
 
         return new Relation(new SelectOp(this._op, pairs)) as any
+    }
+
+    /**
+     * Resolve a select-style mapping into output pairs and their schema.
+     * `true` keeps the existing column of that name, `false` omits it,
+     * and an expression is computed under that name.
+     * `verb` names the calling operation in error messages, eg "Cannot select 'x'".
+     */
+    private _resolveSelections(
+        selections: Record<string, IVExpr<any, any> | boolean>,
+        verb: string,
+    ): { pairs: [string, IVOp][]; schema: Record<string, DataType> } {
+        const pairs: [string, IVOp][] = []
+        const schema: Record<string, DataType> = {}
+        for (const [k, v] of Object.entries(selections)) {
+            if (v === false) {
+                continue
+            }
+            if (v === true) {
+                if (!(k in this.schema)) {
+                    const suggestion = suggestColumnName(k, Object.keys(this.schema))
+                    throw new Error(`Cannot ${verb} '${k}': column does not exist.${suggestion ? ` Did you mean '${suggestion}'?` : ''}`)
+                }
+                pairs.push([k, (this.cols as any)[k].toOp() as IVOp])
+                schema[k] = this.schema[k]!
+            } else {
+                pairs.push([k, v.toOp() as unknown as IVOp])
+                schema[k] = v.dtype()
+            }
+        }
+        return { pairs, schema }
     }
 
     /**
