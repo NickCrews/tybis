@@ -681,6 +681,9 @@ type Prettify<T> = {
 type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
     [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never;
 };
+type NoKeyCollisions<A, KS extends Schema> = {
+    [K in keyof A & keyof KS & string]: \`Aggregation '\${K}' has the same name as a group key\`;
+};
 type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> = Prettify<Omit<S, keyof D> & {
     [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never;
 }>;
@@ -773,6 +776,13 @@ declare class Relation<S extends Schema = Schema, O extends IROp<S> = IROp<S>> {
      */
     select<D extends SelectInput<S, D>>(input: D | ((r: Cols<S>) => D)): Relation<SelectSchema<S, D>, SelectOp<SelectSchema<S, D>>>;
     /**
+     * Resolve a select-style mapping into output pairs and their schema.
+     * \`true\` keeps the existing column of that name, \`false\` omits it,
+     * and an expression is computed under that name.
+     * \`verb\` names the calling operation in error messages, eg "Cannot select 'x'".
+     */
+    private _resolveSelections;
+    /**
      * Sort rows by one or more keys.
      *
      * Plain-object form keys are column names; values are \`'asc'\`, \`'desc'\`,
@@ -818,8 +828,11 @@ declare class GroupedRelation<S extends Schema, KS extends Schema> {
      * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      * \`\`\`
+     *
+     * Aggregation names must differ from the group key names.
      */
-    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A | ((r: Cols<S>) => A)): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>;
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: A & NoKeyCollisions<A, KS>): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>;
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(input: (r: Cols<S>) => A & NoKeyCollisions<A, KS>): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>;
 }
 /**
  * Define a relation backed by a database table or view.

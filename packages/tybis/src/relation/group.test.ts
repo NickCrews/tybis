@@ -67,6 +67,24 @@ describe('Group aggregation', () => {
         }).toThrow(/must be a scalar expression/)
     })
 
+    it('should throw runtime and type error when an aggregation name matches a group key', () => {
+        expect(() => {
+            penguins
+                .groupBy({ species: true })
+                // @ts-expect-error - 'species' is already a group key
+                .agg({ species: ty.count() })
+        }).toThrow("Aggregation 'species' has the same name as a group key")
+        expect(() => {
+            penguins
+                .groupBy(r => ({ kind: r.species }))
+                // @ts-expect-error - 'kind' is already a group key
+                .agg(r => ({
+                    n: ty.count(),
+                    kind: r.bill_length_mm.max(),
+                }))
+        }).toThrow("Aggregation 'kind' has the same name as a group key")
+    })
+
     it('should throw when no keys are provided', () => {
         expect(() => {
             penguins

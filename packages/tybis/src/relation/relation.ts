@@ -59,6 +59,12 @@ type AggResultSchema<A extends Record<string, IVExpr<any, 'scalar'>>> = {
     [K in keyof A]: A[K] extends IVExpr<infer T, 'scalar'> ? T : never
 }
 
+// Maps each aggregation name that collides with a group key to an error message,
+// which then appears in the type error for that property.
+type NoKeyCollisions<A, KS extends Schema> = {
+    [K in keyof A & keyof KS & string]: `Aggregation '${K}' has the same name as a group key`
+}
+
 type DeriveSchema<S extends Schema, D extends Record<string, IVExpr<any, any>>> =
     Prettify<Omit<S, keyof D> & {
         [K in keyof D]: D[K] extends IVExpr<infer T, any> ? T : never
@@ -343,13 +349,24 @@ export class GroupedRelation<S extends Schema, KS extends Schema> {
      * penguins.groupBy({ species: true })
      *   .agg(r => ({ count: ty.count(), mean_bill: r.bill_length_mm.mean() }))
      * ```
+     *
+     * Aggregation names must differ from the group key names.
      */
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
+        input: A & NoKeyCollisions<A, KS>
+    ): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>
+    agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
+        input: (r: Cols<S>) => A & NoKeyCollisions<A, KS>
+    ): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>>
     agg<A extends Record<string, IVExpr<any, 'scalar'>>>(
         input: A | ((r: Cols<S>) => A)
     ): Relation<Prettify<KS & AggResultSchema<A>>, GroupOp<Prettify<KS & AggResultSchema<A>>>> {
         const aggregations = typeof input === 'function' ? input(this._source.cols) : input
 
         for (const [key, expr] of Object.entries(aggregations)) {
+            if (key in this._keySchema) {
+                throw new Error(`Aggregation '${key}' has the same name as a group key`)
+            }
             if (expr.dshape() !== 'scalar') {
                 throw new Error(`Aggregation '${key}' must be a scalar expression, but got dshape='${expr.dshape()}'`)
             }
