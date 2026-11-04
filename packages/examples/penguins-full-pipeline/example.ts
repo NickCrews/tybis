@@ -9,9 +9,9 @@ const penguins = ty.table('penguins', {
 const result = penguins
   .filter(r => r.bill_length_mm.gt(40))
   .groupBy({ species: true, year: true })
-  .agg(g => ({
+  .agg(r => ({
     count: ty.count(),
-    mean_bill: g.bill_length_mm.mean(),
+    mean_bill: r.bill_length_mm.mean(),
   }))
   .select(r => ({
     species: true,

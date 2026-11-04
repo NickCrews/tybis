@@ -222,10 +222,10 @@ describe('Relation - simple cases', () => {
   it('group + agg', () => {
     const q = t
       .groupBy(_r => ({ s: true }))
-      .agg(g => ({
+      .agg(r => ({
         cnt: ty.count(),
-        avg_f: g.f.mean(),
-        tot: g.i.sum(),
+        avg_f: r.f.mean(),
+        tot: r.i.sum(),
       }))
     expect(compileR(q)).toMatchInlineSnapshot(`
           {

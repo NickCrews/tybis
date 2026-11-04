@@ -9,11 +9,11 @@ const penguins = ty.table('penguins', {
 
 const bySpecies = penguins
   .groupBy({ species: true })
-  .agg(g => ({
+  .agg(r => ({
     count: ty.count(),
-    avg_bill: g.bill_length_mm.mean(),
-    avg_mass: g.body_mass_g.mean(),
-    max_mass: g.body_mass_g.max(),
+    avg_bill: r.bill_length_mm.mean(),
+    avg_mass: r.body_mass_g.mean(),
+    max_mass: r.body_mass_g.max(),
   }))
   .sort({ avg_mass: 'desc' })
 

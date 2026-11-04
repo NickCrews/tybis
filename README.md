@@ -33,9 +33,9 @@ const penguins = ty.table('penguins', {
 const result = penguins
     .filter(r => r.year.eq(2018).or(r.year.ge(2024)))
     .groupBy({ species: true, year: true })
-    .agg(g => ({
+    .agg(r => ({
         count: ty.count(),
-        mean_bill: g.bill_length_mm.mean(),
+        mean_bill: r.bill_length_mm.mean(),
     }))
     .filter(r => r.mean_bill.le(47))
     .sort({ count: 'desc' })
@@ -202,10 +202,10 @@ Use the callback form of `agg` when your aggregations reference columns:
 ```typescript
 orders
     .groupBy({ customer_id: true })
-    .agg(g => ({
+    .agg(r => ({
         order_count: ty.count(),
-        total_spent: g.amount.sum(),
-        max_order: g.amount.max(),
+        total_spent: r.amount.sum(),
+        max_order: r.amount.max(),
     }))
 // A relation with columns customer_id, order_count, total_spent, and max_order 
 ```
@@ -245,7 +245,7 @@ Schema changes from all methods, such as `groupBy` and `derive` are also tracked
 ```typescript
 const result = t
     .groupBy(r => ({ x: true }))
-    .agg(g => ({ mean_y: g.y.mean() }))
+    .agg(r => ({ mean_y: r.y.mean() }))
 // result: Relation<{ x: 'int32', mean_y: 'float64' }>
 ```
 

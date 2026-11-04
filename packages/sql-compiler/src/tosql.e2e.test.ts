@@ -12,9 +12,9 @@ describe('End-to-end SQL compilation', () => {
         const expr = penguins
             .filter(r => r.year.eq(2018).or(r.year.gt(2024)))
             .groupBy({ species: true, year: true })
-            .agg(g => ({
+            .agg(r => ({
                 count: ty.count(),
-                mean_bill: g.bill_length_mm.mean(),
+                mean_bill: r.bill_length_mm.mean(),
             }))
             .filter(r => r.mean_bill.le(47))
             .sort({ count: 'desc' })

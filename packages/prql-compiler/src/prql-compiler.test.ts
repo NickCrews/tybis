@@ -87,9 +87,9 @@ describe('PrqlCompiler relation ops', () => {
   it('group + agg', () => {
     const q = penguins
       .groupBy(_r => ({ species: true, year: true }))
-      .agg(g => ({
+      .agg(r => ({
         count: ty.count(),
-        mean_bill: g.bill_length_mm.mean(),
+        mean_bill: r.bill_length_mm.mean(),
       }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
@@ -173,9 +173,9 @@ describe('PrqlCompiler relation ops', () => {
     const q = penguins
       .filter(_r => _r.bill_length_mm.gt(40))
       .groupBy(_r => ({ species: true, year: true }))
-      .agg(g => ({
+      .agg(r => ({
         count: ty.count(),
-        mean_bill: g.bill_length_mm.mean(),
+        mean_bill: r.bill_length_mm.mean(),
       }))
       .sort(_r => _r.count.desc())
       .take(10)
@@ -510,11 +510,11 @@ describe('PrqlCompiler — aggregation ops', () => {
     })
     const q = penguins
       .groupBy(_r => ({ species: true }))
-      .agg(g => ({
+      .agg(r => ({
         count: ty.count(),
-        mean_bill: g.bill_length_mm.mean(),
-        max_bill: g.bill_length_mm.max(),
-        sum_bill: g.bill_length_mm.sum(),
+        mean_bill: r.bill_length_mm.mean(),
+        max_bill: r.bill_length_mm.max(),
+        sum_bill: r.bill_length_mm.sum(),
       }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from penguins
@@ -555,7 +555,7 @@ describe('PrqlCompiler — aggregation ops', () => {
     const t = ty.table('data', { category: 'string', score: 'float64' })
     const q = t
       .groupBy(_r => ({ category: true }))
-      .agg(g => ({ max_score: g.score.max() }))
+      .agg(r => ({ max_score: r.score.max() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           group {category} (
@@ -570,7 +570,7 @@ describe('PrqlCompiler — aggregation ops', () => {
     const t = ty.table('data', { category: 'string', score: 'float64' })
     const q = t
       .groupBy(_r => ({ category: true }))
-      .agg(g => ({ min_score: g.score.min() }))
+      .agg(r => ({ min_score: r.score.min() }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from data
           group {category} (
@@ -853,9 +853,9 @@ describe('PrqlCompiler — uuid', () => {
   it('min/max over uuid in group agg', () => {
     const q = users
       .groupBy(_r => ({ name: true }))
-      .agg(g => ({
-        min_id: g.id.min(),
-        max_id: g.id.max(),
+      .agg(r => ({
+        min_id: r.id.min(),
+        max_id: r.id.max(),
       }))
     expect(toPrql(q)).toMatchInlineSnapshot(`
           "from users

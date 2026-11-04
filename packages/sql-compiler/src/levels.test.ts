@@ -49,7 +49,7 @@ describe('Level-boundary planner rules', () => {
     it('FROM + DERIVE + GROUP -> CTE chain (group after derive)', () => {
         const q = penguins
             .derive(r => ({ bl_cm: r.bill_length_mm.div(10) }))
-            .groupBy(_r => ({ species: true })).agg(g => ({ avg_cm: g.bl_cm.mean() }))
+            .groupBy(_r => ({ species: true })).agg(r => ({ avg_cm: r.bl_cm.mean() }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],
@@ -177,7 +177,7 @@ describe('Level-boundary planner rules', () => {
         const q = penguins
             .groupBy(_r => ({ species: true })).agg({ cnt: ty.count() })
             .filter(r => r.cnt.gt(10))
-            .groupBy(_r => ({ species: true })).agg(g => ({ tot: (g.cnt as any).sum() }))
+            .groupBy(_r => ({ species: true })).agg(r => ({ tot: (r.cnt as any).sum() }))
         expect(compileR(q)).toMatchInlineSnapshot(`
           {
             "params": [],

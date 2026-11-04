@@ -13,10 +13,10 @@ const topCustomers = orders
   .filter(r => r.is_paid.eq(true))
   .filter(r => r.amount.gt(50))
   .groupBy({ customer_id: true })
-  .agg(g => ({
+  .agg(r => ({
     order_count: ty.count(),
-    total_spent: g.amount.sum(),
-    max_order: g.amount.max(),
+    total_spent: r.amount.sum(),
+    max_order: r.amount.max(),
   }))
   .sort({ total_spent: 'desc' })
   .take(20)
